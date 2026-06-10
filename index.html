@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Logística de Envíos</title>
+<meta name="description" content="Panel profesional para gestión de envíos, delegación a delivery y estadísticas de la tienda.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --primary:#0066ff; --primary-light:#0052cc;
+  --bg:#f9fafb; --surface:#ffffff;
+  --text:#1a1a1a; --text-light:#666;
+  --border:#e5e5e5; --gray-light:#f3f4f6;
+  --success:#00a650; --success-dark:#008a44;
+  --warning:#c2410c; --info:#1d4ed8;
+  --radius:8px; --font:'DM Sans',sans-serif;
+  --shadow:0 1px 3px rgba(0,0,0,.08);
+  --shadow-lg:0 4px 12px rgba(0,0,0,.12);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:15px;line-height:1.6;overflow-x:hidden;min-height:100vh}
+
+/* ─── HEADER ─── */
+.header{position:sticky;top:0;z-index:900;background:var(--surface);border-bottom:1px solid var(--border);padding:12px 16px;box-shadow:var(--shadow)}
+.header-inner{display:flex;align-items:center;justify-content:space-between;gap:12px;max-width:1400px;margin:0 auto}
+.brand{display:flex;flex-direction:column}
+.brand-name{font-size:18px;font-weight:800;color:var(--primary);letter-spacing:-.3px}
+.brand-sub{font-size:11px;color:var(--text-light);font-weight:500}
+.user-chip{display:flex;align-items:center;gap:8px;background:var(--gray-light);padding:6px 12px;border-radius:20px;font-size:13px;font-weight:600}
+.user-chip .dot{width:8px;height:8px;border-radius:50%;background:var(--success)}
+.logout-btn{background:transparent;border:1px solid var(--border);color:var(--text-light);padding:6px 10px;border-radius:var(--radius);cursor:pointer;font-size:12px;font-family:var(--font);font-weight:600}
+.logout-btn:hover{background:var(--gray-light)}
+
+/* ─── LOGIN ─── */
+.login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:linear-gradient(135deg,#0066ff 0%,#0052cc 100%)}
+.login-card{background:var(--surface);border-radius:16px;padding:36px 28px;max-width:400px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.login-icon{width:56px;height:56px;background:linear-gradient(135deg,var(--primary),var(--primary-light));border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;color:#fff;font-size:28px;font-weight:800}
+.login-title{font-size:24px;font-weight:800;text-align:center;margin-bottom:6px;letter-spacing:-.5px}
+.login-subtitle{font-size:13px;color:var(--text-light);text-align:center;margin-bottom:24px}
+.login-form input{width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius);font-family:var(--font);font-size:14px;margin-bottom:12px;transition:border-color .2s;background:var(--surface)}
+.login-form input:focus{outline:none;border-color:var(--primary)}
+.login-btn{width:100%;background:var(--primary);color:#fff;border:none;padding:13px;border-radius:var(--radius);font-weight:700;font-family:var(--font);font-size:15px;cursor:pointer;transition:background .2s;margin-top:6px}
+.login-btn:hover{background:var(--primary-light)}
+.login-btn:disabled{opacity:.6;cursor:not-allowed}
+.login-error{background:#fef2f2;color:#991b1b;padding:10px 12px;border-radius:var(--radius);font-size:13px;margin-bottom:12px;display:none}
+.login-error.show{display:block}
+
+/* ─── APP LAYOUT ─── */
+.app{display:none}
+.app.active{display:block}
+.container{max-width:1400px;margin:0 auto;padding:20px 16px 80px}
+
+/* TOP STATS */
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:20px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow)}
+.stat-card .label{font-size:11px;color:var(--text-light);text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+.stat-card .value{font-size:22px;font-weight:800;margin-top:4px;color:var(--text)}
+.stat-card.success .value{color:var(--success)}
+.stat-card.primary .value{color:var(--primary)}
+
+/* SECTION TITLE */
+.section-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text-light);margin:24px 0 12px}
+
+/* MENU GRID */
+.menu-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+.menu-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 14px;cursor:pointer;transition:all .2s;display:flex;flex-direction:column;align-items:flex-start;gap:8px;text-align:left;font-family:var(--font);box-shadow:var(--shadow);position:relative;overflow:hidden}
+.menu-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg);border-color:var(--primary)}
+.menu-card .icon{width:38px;height:38px;border-radius:10px;background:var(--gray-light);display:flex;align-items:center;justify-content:center;color:var(--primary);font-weight:800;font-size:18px}
+.menu-card .title{font-size:14px;font-weight:700;color:var(--text)}
+.menu-card .desc{font-size:11px;color:var(--text-light);line-height:1.4}
+.menu-card.highlight{border-color:var(--success);background:linear-gradient(135deg,#f0fdf4,#ffffff)}
+.menu-card.highlight .icon{background:var(--success);color:#fff}
+.menu-card .corner{position:absolute;top:0;right:0;background:var(--success);color:#fff;font-size:10px;font-weight:800;padding:3px 8px;border-radius:0 0 0 8px;text-transform:uppercase;letter-spacing:.5px}
+.menu-card .badge{background:var(--primary);color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px}
+
+/* ─── MODAL ─── */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:flex-start;justify-content:center;padding:20px;z-index:1000;overflow-y:auto}
+.modal.active{display:flex}
+.modal-content{background:var(--surface);border-radius:14px;max-width:720px;width:100%;max-height:calc(100vh - 40px);overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);margin:auto}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface);z-index:5}
+.modal-title{font-size:17px;font-weight:800;letter-spacing:-.2px}
+.modal-close{background:transparent;border:none;font-size:24px;cursor:pointer;color:var(--text-light);line-height:1;padding:0 4px;font-family:var(--font)}
+.modal-close:hover{color:var(--text)}
+.modal-body{padding:20px}
+
+/* ─── PASSWORD GATE ─── */
+.gate{padding:32px 24px;text-align:center}
+.gate-icon{width:56px;height:56px;border-radius:50%;background:var(--gray-light);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:24px;color:var(--primary)}
+.gate h3{font-size:18px;font-weight:800;margin-bottom:6px}
+.gate p{font-size:13px;color:var(--text-light);margin-bottom:18px}
+.gate input{width:100%;max-width:240px;padding:12px;border:1px solid var(--border);border-radius:var(--radius);font-family:var(--font);font-size:15px;text-align:center;letter-spacing:4px;margin-bottom:12px}
+.gate input:focus{outline:none;border-color:var(--primary)}
+.gate-error{color:#991b1b;font-size:12px;margin-bottom:8px;min-height:16px}
+
+/* ─── KANBAN / LISTS ─── */
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;align-items:center}
+.btn{background:var(--primary);color:#fff;border:none;padding:9px 14px;border-radius:var(--radius);font-weight:700;font-family:var(--font);font-size:13px;cursor:pointer;transition:background .2s;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{background:var(--primary-light)}
+.btn.success{background:var(--success)}
+.btn.success:hover{background:var(--success-dark)}
+.btn.ghost{background:var(--gray-light);color:var(--text)}
+.btn.ghost:hover{background:#e5e7eb}
+.btn.sm{padding:6px 10px;font-size:12px}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+
+.city-group{margin-bottom:18px;background:var(--gray-light);border-radius:10px;padding:12px}
+.city-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.city-name{font-size:14px;font-weight:800;display:flex;align-items:center;gap:8px}
+.city-name .pin{color:var(--primary)}
+.city-meta{font-size:12px;color:var(--text-light);font-weight:600}
+
+.order-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px;display:flex;gap:10px;align-items:flex-start;transition:border-color .15s}
+.order-card.selected{border-color:var(--primary);background:#f0f6ff}
+.order-card input[type="checkbox"]{margin-top:3px;width:16px;height:16px;accent-color:var(--primary)}
+.order-info{flex:1;min-width:0}
+.order-id{font-size:11px;color:var(--text-light);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.order-name{font-size:14px;font-weight:700;margin-top:2px}
+.order-details{font-size:12px;color:var(--text-light);margin-top:4px;line-height:1.5}
+.order-details strong{color:var(--text);font-weight:600}
+.order-actions{display:flex;flex-direction:column;gap:4px;align-items:flex-end}
+.cost-pill{background:var(--gray-light);color:var(--text);font-size:12px;font-weight:800;padding:4px 10px;border-radius:12px;white-space:nowrap}
+.cost-pill.local{background:#dcfce7;color:#166534}
+.cost-pill.far{background:#dbeafe;color:#1e3a8a}
+
+.empty-state{text-align:center;padding:40px 20px;color:var(--text-light)}
+.empty-state .icon{font-size:42px;opacity:.4;margin-bottom:10px}
+.empty-state .msg{font-size:14px;font-weight:600}
+.empty-state .hint{font-size:12px;margin-top:4px}
+
+/* ─── STATS DETAIL ─── */
+.stat-block{background:var(--gray-light);border-radius:10px;padding:16px;margin-bottom:12px}
+.stat-block h4{font-size:12px;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.stat-block .big{font-size:28px;font-weight:800;color:var(--text)}
+.stat-block .sub{font-size:12px;color:var(--text-light);margin-top:2px}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.stat-list{margin-top:8px}
+.stat-list .row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px}
+.stat-list .row:last-child{border:none}
+.stat-list .row strong{font-weight:700}
+
+/* ─── TOAST ─── */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--text);color:#fff;padding:12px 20px;border-radius:var(--radius);font-size:13px;font-weight:600;z-index:2000;opacity:0;transition:all .3s;box-shadow:var(--shadow-lg);max-width:90vw}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.success{background:var(--success)}
+.toast.error{background:#dc2626}
+
+/* ─── MOBILE ─── */
+@media(max-width:600px){
+  .brand-name{font-size:16px}
+  .stat-card .value{font-size:18px}
+  .menu-grid{grid-template-columns:repeat(2,1fr)}
+  .modal-content{margin:0;border-radius:14px 14px 0 0;max-height:95vh}
+  .order-card{flex-wrap:wrap}
+  .order-actions{flex-direction:row;width:100%;justify-content:space-between;margin-top:6px}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════ LOGIN ═══════════ -->
+<div id="login-screen" class="login-screen">
+  <div class="login-card">
+    <div class="login-icon">L</div>
+    <h1 class="login-title">Logística de Pedidos</h1>
+    <p class="login-subtitle">Ingresá con tu código de revendedor</p>
+    <div id="login-error" class="login-error"></div>
+    <form class="login-form" onsubmit="doLogin(event)">
+      <input type="text" id="li-codigo" placeholder="Código de revendedor" required autocomplete="username">
+      <input type="password" id="li-password" placeholder="Contraseña" required autocomplete="current-password">
+      <button type="submit" class="login-btn" id="li-btn">Ingresar</button>
+    </form>
+  </div>
+</div>
+
+<!-- ═══════════ APP ═══════════ -->
+<div id="app" class="app">
+  <header class="header">
+    <div class="header-inner">
+      <div class="brand">
+        <div class="brand-name">Logística de Envíos</div>
+        <div class="brand-sub">Panel del gestor</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="user-chip"><span class="dot"></span><span id="user-label">—</span></div>
+        <button class="logout-btn" onclick="doLogout()">Salir</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- TOP STATS -->
+    <div class="stats-row">
+      <div class="stat-card primary"><div class="label">Pendientes de pago</div><div class="value" id="kpi-pendientes">0</div></div>
+      <div class="stat-card"><div class="label">Viajes disponibles</div><div class="value" id="kpi-disponibles">0</div></div>
+      <div class="stat-card success"><div class="label">Viajes entregados</div><div class="value" id="kpi-entregados">0</div></div>
+      <div class="stat-card success"><div class="label">Ganancia total</div><div class="value" id="kpi-ganancia">$0</div></div>
+    </div>
+
+    <div class="section-title">Acciones rápidas</div>
+    <div class="menu-grid">
+      <button class="menu-card highlight" onclick="openModal('m-delegar')">
+        <span class="corner">Delegar</span>
+        <div class="icon">»</div>
+        <div class="title">Delegar viajes</div>
+        <div class="desc">Asignar pedidos al delivery</div>
+      </button>
+      <button class="menu-card" onclick="openModal('m-pendientes')">
+        <div class="icon">⏱</div>
+        <div class="title">Pendientes de pago</div>
+        <div class="desc">Esperando Mercado Pago</div>
+      </button>
+      <button class="menu-card" onclick="openModal('m-disponibles')">
+        <div class="icon">◉</div>
+        <div class="title">Viajes disponibles</div>
+        <div class="desc">Listos para delegar</div>
+      </button>
+      <button class="menu-card" onclick="openModal('m-entregados')">
+        <div class="icon">✓</div>
+        <div class="title">Entregados</div>
+        <div class="desc">Confirmados por el cliente</div>
+      </button>
+      <button class="menu-card" onclick="openStats('mi-negocio')">
+        <div class="icon">▲</div>
+        <div class="title">Mi negocio</div>
+        <div class="desc">Resumen general · protegido</div>
+      </button>
+      <button class="menu-card" onclick="openStats('ganancia')">
+        <div class="icon">$</div>
+        <div class="title">Ganancia por ventas</div>
+        <div class="desc">Detalle de ingresos · protegido</div>
+      </button>
+    </div>
+  </main>
+</div>
+
+<!-- ═══════════ MODALES ═══════════ -->
+<div class="modal" id="m-delegar" onclick="if(event.target===this)closeModal('m-delegar')">
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="modal-title">Delegar viajes a delivery</div>
+      <button class="modal-close" onclick="closeModal('m-delegar')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="toolbar">
+        <button class="btn ghost sm" onclick="toggleSelectAll('delegar',true)">Seleccionar todos</button>
+        <button class="btn ghost sm" onclick="toggleSelectAll('delegar',false)">Limpiar</button>
+        <button class="btn success sm" onclick="delegarSeleccionados()">Delegar seleccionados</button>
+        <button class="btn sm" onclick="delegarTodos()">Delegar todos</button>
+      </div>
+      <div id="delegar-body"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="m-pendientes" onclick="if(event.target===this)closeModal('m-pendientes')">
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="modal-title">Pedidos pendientes de pago</div>
+      <button class="modal-close" onclick="closeModal('m-pendientes')">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--text-light);margin-bottom:12px">Esperando confirmación de Mercado Pago. Al confirmar el pago se suman $12.000 al pedido y pasan a "Viajes disponibles".</p>
+      <button class="btn ghost sm" style="margin-bottom:10px" onclick="verificarPagos()">Verificar pagos ahora</button>
+      <div id="pendientes-body"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="m-disponibles" onclick="if(event.target===this)closeModal('m-disponibles')">
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="modal-title">Viajes disponibles por ciudad</div>
+      <button class="modal-close" onclick="closeModal('m-disponibles')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="disponibles-body"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="m-entregados" onclick="if(event.target===this)closeModal('m-entregados')">
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="modal-title">Viajes entregados</div>
+      <button class="modal-close" onclick="closeModal('m-entregados')">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--text-light);margin-bottom:12px">Viajes confirmados como "Pedido recibido" por el cliente. Cada uno suma $4.000 de ganancia.</p>
+      <div id="entregados-body"></div>
+    </div>
+  </div>
+</div>
+
+<!-- STATS modal con gate -->
+<div class="modal" id="m-stats" onclick="if(event.target===this)closeModal('m-stats')">
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="modal-title" id="stats-title">Estadísticas</div>
+      <button class="modal-close" onclick="closeModal('m-stats')">×</button>
+    </div>
+    <div class="modal-body" id="stats-body"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Firebase compat (mismo proyecto que index.html) -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   CONFIG
+═══════════════════════════════════════════════════════════════ */
+const firebaseConfig = {
+  apiKey: "AIzaSyBRzd3HXbY6xIBIBNkzATo70kredodhKwc",
+  authDomain: "revende-weys.firebaseapp.com",
+  projectId: "revende-weys",
+  storageBucket: "revende-weys.firebasestorage.app",
+  messagingSenderId: "606182275212",
+  appId: "1:606182275212:web:69089eb56f10b8a02063a9"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db   = firebase.firestore();
+
+const WORKER_VENDEDORES = 'https://datosderevendedor.tuweb.workers.dev';
+const WORKER_PAGOS      = 'https://workerpagos.tuweb.workers.dev';
+const WORKER_DELIBERY   = 'https://workerdelibery.tuweb.workers.dev';
+
+const STATS_PASSWORD = '1234678';
+const CARLOS_CASARES_REGEX = /carlos\s*casares/i;
+const COSTO_LOCAL  = 3500;
+const COSTO_LEJANO = 12000;
+const GANANCIA_POR_VIAJE = 4000;
+const RECARGO_DOMICILIO  = 12000;
+
+/* ═══════════════════════════════════════════════════════════════
+   ESTADO LOCAL (persistente en localStorage por revendedor)
+═══════════════════════════════════════════════════════════════ */
+let session = null;       // {codigo, uid, nombre}
+let store   = {           // estado de logística
+  pendientes:  [],  // esperando Mercado Pago
+  disponibles: [],  // pagados → listos para delegar
+  delegados:   [],  // ya entregados a delivery
+  entregados:  []   // confirmados por el cliente
+};
+const STORE_KEY = () => `logistica_envios_${session?.codigo || 'anon'}`;
+
+function loadStore(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY());
+    if(raw){ store = Object.assign(store, JSON.parse(raw)); }
+  }catch(e){ console.warn('No se pudo cargar estado',e); }
+}
+function saveStore(){
+  try{ localStorage.setItem(STORE_KEY(), JSON.stringify(store)); }catch(e){}
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   LOGIN — código de revendedor + contraseña en Firebase
+═══════════════════════════════════════════════════════════════ */
+async function doLogin(e){
+  e.preventDefault();
+  const btn = document.getElementById('li-btn');
+  const err = document.getElementById('login-error');
+  err.classList.remove('show'); err.textContent='';
+  const codigo = document.getElementById('li-codigo').value.trim().replace(/\s+/g,'').toUpperCase();
+  const pass   = document.getElementById('li-password').value;
+  if(!codigo || !pass) return;
+  btn.disabled = true; btn.textContent = 'Verificando…';
+
+  try{
+    // 1) Buscar email del revendedor por su código (Firestore)
+    let email = null, nombre = codigo, uid=null;
+    try{
+      const snap = await db.collection('usuarios').where('codigoRevendedor','==',codigo).limit(1).get();
+      if(!snap.empty){
+        const d = snap.docs[0];
+        email = d.data().email;
+        nombre = d.data().nombre || codigo;
+        uid = d.id;
+      }
+    }catch(_){}
+
+    // 2) Fallback: worker de vendedores (mismo endpoint que index.html)
+    if(!email){
+      try{
+        const r = await fetch(`${WORKER_VENDEDORES}/api/login-vendedor`,{
+          method:'POST',headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({codigo})
+        });
+        if(r.ok){
+          const j = await r.json();
+          email = j.email || j.correo || null;
+          nombre = j.nombre || nombre;
+        }
+      }catch(_){}
+    }
+
+    if(!email){
+      throw new Error('Código de revendedor no encontrado.');
+    }
+
+    // 3) Login Firebase con email + password
+    const cred = await auth.signInWithEmailAndPassword(email, pass);
+    uid = cred.user.uid;
+
+    session = { codigo, uid, nombre, email };
+    localStorage.setItem('logistica_session', JSON.stringify(session));
+    enterApp();
+  }catch(ex){
+    err.textContent = (ex && ex.code==='auth/wrong-password') ? 'Contraseña incorrecta.' :
+                      (ex && ex.code==='auth/user-not-found') ? 'Usuario no encontrado.' :
+                      (ex && ex.message) || 'No se pudo iniciar sesión.';
+    err.classList.add('show');
+  }finally{
+    btn.disabled = false; btn.textContent = 'Ingresar';
+  }
+}
+
+function doLogout(){
+  auth.signOut().catch(()=>{});
+  localStorage.removeItem('logistica_session');
+  session = null;
+  document.getElementById('app').classList.remove('active');
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('li-codigo').value='';
+  document.getElementById('li-password').value='';
+}
+
+function enterApp(){
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').classList.add('active');
+  document.getElementById('user-label').textContent = session.nombre + ' · ' + session.codigo;
+  loadStore();
+  syncFromTienda();
+  renderKPIs();
+}
+
+/* Auto-login si hay sesión guardada */
+(function autoLogin(){
+  try{
+    const raw = localStorage.getItem('logistica_session');
+    if(!raw) return;
+    const s = JSON.parse(raw);
+    auth.onAuthStateChanged(u=>{
+      if(u && s && u.uid===s.uid){
+        session = s; enterApp();
+      }
+    });
+  }catch(_){}
+})();
+
+/* ═══════════════════════════════════════════════════════════════
+   SINCRONIZACIÓN CON LA TIENDA
+   Lee pedidos generados por tienda.html (worker delivery + localStorage compartido)
+   y los normaliza a la estructura de logística.
+═══════════════════════════════════════════════════════════════ */
+async function syncFromTienda(){
+  // 1) Pedidos a domicilio recibidos por el worker de delivery
+  try{
+    const r = await fetch(`${WORKER_DELIBERY}/api/pedidos?codigo=${encodeURIComponent(session.codigo)}`);
+    if(r.ok){
+      const list = await r.json();
+      if(Array.isArray(list)){
+        list.forEach(p => upsertPedido(normalize(p)));
+      }
+    }
+  }catch(_){/* worker puede no existir aún */}
+
+  // 2) Fallback: pedidos guardados localmente por tienda.html bajo
+  //    el mismo dominio (mientras se conecta el worker).
+  try{
+    const local = JSON.parse(localStorage.getItem(`tienda_pedidos_${session.codigo}`) || '[]');
+    local.forEach(p => upsertPedido(normalize(p)));
+  }catch(_){}
+
+  saveStore();
+  renderKPIs();
+}
+
+function normalize(p){
+  return {
+    id: String(p.id || p.pedidoId || ('P'+Date.now()+Math.random().toString(36).slice(2,6))),
+    cliente: p.cliente || p.nombre || 'Cliente',
+    telefono: p.telefono || '',
+    direccion: p.direccion || '',
+    ciudad: (p.ciudad || 'Sin ciudad').trim(),
+    total: Number(p.total || 0),
+    items: p.items || [],
+    fecha: p.fecha || new Date().toISOString(),
+    pagado: !!p.pagado,
+    estado: p.estado || (p.pagado ? 'disponible' : 'pendiente')
+  };
+}
+
+function allIds(){
+  const ids = new Set();
+  ['pendientes','disponibles','delegados','entregados'].forEach(k=>
+    store[k].forEach(o=>ids.add(o.id)));
+  return ids;
+}
+function upsertPedido(p){
+  const ids = allIds();
+  if(ids.has(p.id)) return;
+  if(p.pagado || p.estado==='disponible') store.disponibles.push(p);
+  else store.pendientes.push(p);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   COSTOS
+═══════════════════════════════════════════════════════════════ */
+function costoViaje(ciudad){
+  return CARLOS_CASARES_REGEX.test(ciudad||'') ? COSTO_LOCAL : COSTO_LEJANO;
+}
+function fmt(n){ return '$' + Number(n||0).toLocaleString('es-AR'); }
+
+/* ═══════════════════════════════════════════════════════════════
+   KPIs
+═══════════════════════════════════════════════════════════════ */
+function renderKPIs(){
+  document.getElementById('kpi-pendientes').textContent = store.pendientes.length;
+  document.getElementById('kpi-disponibles').textContent = store.disponibles.length;
+  document.getElementById('kpi-entregados').textContent = store.entregados.length;
+  const ganancia = store.entregados.length * GANANCIA_POR_VIAJE;
+  document.getElementById('kpi-ganancia').textContent = fmt(ganancia);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MODALES
+═══════════════════════════════════════════════════════════════ */
+function openModal(id){
+  document.getElementById(id).classList.add('active');
+  document.body.style.overflow='hidden';
+  if(id==='m-delegar')     renderDelegar();
+  if(id==='m-pendientes')  renderPendientes();
+  if(id==='m-disponibles') renderDisponibles();
+  if(id==='m-entregados')  renderEntregados();
+}
+function closeModal(id){
+  document.getElementById(id).classList.remove('active');
+  document.body.style.overflow='';
+}
+
+/* ─── DELEGAR ─── */
+function renderDelegar(){
+  const cont = document.getElementById('delegar-body');
+  if(!store.disponibles.length){
+    cont.innerHTML = emptyState('No hay viajes disponibles para delegar','Cuando Mercado Pago confirme los pagos, aparecerán acá.');
+    return;
+  }
+  cont.innerHTML = groupByCity(store.disponibles, true);
+}
+
+function delegarSeleccionados(){
+  const ids = [...document.querySelectorAll('#delegar-body input[type=checkbox]:checked')]
+              .map(c=>c.value);
+  if(!ids.length){ toast('Seleccioná al menos un pedido','error'); return; }
+  delegar(ids);
+}
+function delegarTodos(){
+  if(!store.disponibles.length){ toast('No hay viajes disponibles','error'); return; }
+  delegar(store.disponibles.map(o=>o.id));
+}
+async function delegarUno(id){ delegar([id]); }
+
+async function delegar(ids){
+  const moving = store.disponibles.filter(o=>ids.includes(o.id));
+  if(!moving.length) return;
+  store.disponibles = store.disponibles.filter(o=>!ids.includes(o.id));
+  store.delegados.push(...moving.map(o=>({...o,estado:'delegado',fechaDelegacion:new Date().toISOString()})));
+  saveStore(); renderKPIs(); renderDelegar();
+
+  // Notificar al worker de delivery (no bloqueante)
+  try{
+    await fetch(`${WORKER_DELIBERY}/api/delegar`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({codigo:session.codigo, pedidos:moving.map(o=>o.id)})
+    });
+  }catch(_){}
+  toast(`${moving.length} viaje${moving.length>1?'s':''} delegado${moving.length>1?'s':''} a delivery`,'success');
+}
+
+/* ─── PENDIENTES ─── */
+function renderPendientes(){
+  const cont = document.getElementById('pendientes-body');
+  if(!store.pendientes.length){
+    cont.innerHTML = emptyState('Sin pedidos pendientes','Los pedidos a domicilio aparecerán acá hasta que Mercado Pago confirme el pago.');
+    return;
+  }
+  cont.innerHTML = store.pendientes.map(o=>renderCard(o,'pendiente')).join('');
+}
+
+async function verificarPagos(){
+  if(!store.pendientes.length){ toast('No hay pedidos pendientes','error'); return; }
+  toast('Consultando Mercado Pago…');
+  let confirmados = 0;
+  for(const o of [...store.pendientes]){
+    try{
+      const r = await fetch(`${WORKER_PAGOS}/api/estado?pedido=${encodeURIComponent(o.id)}`);
+      if(r.ok){
+        const j = await r.json();
+        if(j && (j.pagado || j.status==='approved')){
+          o.pagado = true;
+          o.total = Number(o.total||0) + RECARGO_DOMICILIO;
+          store.pendientes = store.pendientes.filter(x=>x.id!==o.id);
+          o.estado = 'disponible';
+          store.disponibles.push(o);
+          confirmados++;
+        }
+      }
+    }catch(_){}
+  }
+  saveStore(); renderKPIs(); renderPendientes();
+  toast(confirmados ? `${confirmados} pago(s) confirmado(s)` : 'Sin novedades de Mercado Pago',
+        confirmados ? 'success' : 'error');
+}
+
+/* ─── DISPONIBLES (por ciudad) ─── */
+function renderDisponibles(){
+  const cont = document.getElementById('disponibles-body');
+  if(!store.disponibles.length){
+    cont.innerHTML = emptyState('Sin viajes disponibles','Apenas se confirmen los pagos aparecerán divididos por ciudad.');
+    return;
+  }
+  cont.innerHTML = groupByCity(store.disponibles, false);
+}
+
+/* ─── ENTREGADOS ─── */
+function renderEntregados(){
+  const cont = document.getElementById('entregados-body');
+  if(!store.entregados.length){
+    cont.innerHTML = emptyState('Sin viajes entregados aún','Cuando el cliente toque "Pedido recibido" se cuenta acá y suma $4.000.');
+    return;
+  }
+  cont.innerHTML = store.entregados.map(o=>{
+    const c = costoViaje(o.ciudad);
+    return `
+      <div class="order-card">
+        <div class="order-info">
+          <div class="order-id">#${o.id}</div>
+          <div class="order-name">${escapeHtml(o.cliente)}</div>
+          <div class="order-details">
+            <strong>${escapeHtml(o.ciudad)}</strong> · ${escapeHtml(o.direccion||'')}<br>
+            Entregado: ${fmtDate(o.fechaEntrega||o.fecha)}
+          </div>
+        </div>
+        <div class="order-actions">
+          <span class="cost-pill local">+${fmt(GANANCIA_POR_VIAJE)}</span>
+          <span class="cost-pill ${CARLOS_CASARES_REGEX.test(o.ciudad)?'local':'far'}">${fmt(c)}</span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   RENDER HELPERS
+═══════════════════════════════════════════════════════════════ */
+function groupByCity(list, selectable){
+  const byCity = {};
+  list.forEach(o=>{
+    const k = (o.ciudad||'Sin ciudad').trim();
+    (byCity[k] = byCity[k]||[]).push(o);
+  });
+  return Object.keys(byCity).sort().map(city=>{
+    const pedidos = byCity[city];
+    const costo = costoViaje(city);
+    const local = CARLOS_CASARES_REGEX.test(city);
+    return `
+      <div class="city-group">
+        <div class="city-header">
+          <div class="city-name"><span class="pin">◉</span> ${escapeHtml(city)}</div>
+          <div class="city-meta">${pedidos.length} pedido${pedidos.length>1?'s':''} · costo viaje <span class="cost-pill ${local?'local':'far'}">${fmt(costo)}</span></div>
+        </div>
+        ${pedidos.map(o=>renderCard(o, selectable?'select':'view')).join('')}
+      </div>`;
+  }).join('');
+}
+
+function renderCard(o, mode){
+  const local = CARLOS_CASARES_REGEX.test(o.ciudad);
+  const costo = costoViaje(o.ciudad);
+  const checkbox = mode==='select' ? `<input type="checkbox" value="${o.id}" onchange="this.closest('.order-card').classList.toggle('selected',this.checked)">` : '';
+  const action = mode==='select'
+    ? `<button class="btn success sm" onclick="delegarUno('${o.id}')">Enviar</button>`
+    : (mode==='pendiente' ? `<span class="cost-pill" style="background:#fff7ed;color:#c2410c">Esperando pago</span>` : '');
+  return `
+    <div class="order-card">
+      ${checkbox}
+      <div class="order-info">
+        <div class="order-id">#${o.id} · ${fmtDate(o.fecha)}</div>
+        <div class="order-name">${escapeHtml(o.cliente)}</div>
+        <div class="order-details">
+          <strong>${escapeHtml(o.ciudad)}</strong> · ${escapeHtml(o.direccion||'sin dirección')}<br>
+          ${o.telefono ? 'Tel: '+escapeHtml(o.telefono)+' · ' : ''}Total pedido: <strong>${fmt(o.total)}</strong>
+        </div>
+      </div>
+      <div class="order-actions">
+        <span class="cost-pill ${local?'local':'far'}">Envío ${fmt(costo)}</span>
+        ${action}
+      </div>
+    </div>`;
+}
+
+function emptyState(msg, hint){
+  return `<div class="empty-state"><div class="icon">◌</div><div class="msg">${msg}</div><div class="hint">${hint||''}</div></div>`;
+}
+function fmtDate(d){
+  try{ const x=new Date(d); return x.toLocaleDateString('es-AR')+' '+x.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}); }
+  catch(_){ return ''; }
+}
+function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ═══════════════════════════════════════════════════════════════
+   ESTADÍSTICAS — gate con contraseña 1234678
+═══════════════════════════════════════════════════════════════ */
+function openStats(kind){
+  document.getElementById('stats-title').textContent =
+    kind==='mi-negocio' ? 'Mi negocio' : 'Ganancia por ventas';
+  const body = document.getElementById('stats-body');
+  body.innerHTML = `
+    <div class="gate">
+      <div class="gate-icon">⚿</div>
+      <h3>Sección protegida</h3>
+      <p>Ingresá la contraseña para ver las estadísticas.</p>
+      <input type="password" id="gate-pass" maxlength="20" placeholder="••••••" autocomplete="off">
+      <div class="gate-error" id="gate-err"></div>
+      <button class="btn" onclick="checkStatsPass('${kind}')">Ingresar</button>
+    </div>`;
+  openModal('m-stats');
+  setTimeout(()=>document.getElementById('gate-pass').focus(),50);
+  document.getElementById('gate-pass').addEventListener('keydown',e=>{
+    if(e.key==='Enter') checkStatsPass(kind);
+  });
+}
+function checkStatsPass(kind){
+  const v = document.getElementById('gate-pass').value;
+  if(v !== STATS_PASSWORD){
+    document.getElementById('gate-err').textContent='Contraseña incorrecta.';
+    return;
+  }
+  renderStats(kind);
+}
+
+function renderStats(kind){
+  const body = document.getElementById('stats-body');
+  const todos = [...store.pendientes, ...store.disponibles, ...store.delegados, ...store.entregados];
+  const totalPedidos = todos.length;
+  const totalEntregados = store.entregados.length;
+  const totalDelegados  = store.delegados.length + store.entregados.length;
+  const ingresoEnvios = totalEntregados * GANANCIA_POR_VIAJE;
+  const ventasTienda  = todos.reduce((s,o)=>s+Number(o.total||0),0);
+
+  if(kind==='mi-negocio'){
+    body.innerHTML = `
+      <div class="stat-grid">
+        <div class="stat-block"><h4>Pedidos totales</h4><div class="big">${totalPedidos}</div><div class="sub">Tienda + logística</div></div>
+        <div class="stat-block"><h4>Viajes entregados</h4><div class="big">${totalEntregados}</div><div class="sub">Confirmados por el cliente</div></div>
+        <div class="stat-block"><h4>Viajes delegados</h4><div class="big">${totalDelegados}</div><div class="sub">Enviados al delivery</div></div>
+        <div class="stat-block"><h4>Ventas de la tienda</h4><div class="big">${fmt(ventasTienda)}</div><div class="sub">Suma total de pedidos</div></div>
+      </div>
+      <div class="stat-block" style="margin-top:12px">
+        <h4>Por ciudad</h4>
+        <div class="stat-list">
+          ${ciudadesResumen(todos)}
+        </div>
+      </div>`;
+  }else{
+    const porCiudad = {};
+    store.entregados.forEach(o=>{
+      const k=(o.ciudad||'Sin ciudad').trim();
+      porCiudad[k]=(porCiudad[k]||0)+GANANCIA_POR_VIAJE;
+    });
+    const rows = Object.keys(porCiudad).sort().map(c=>
+      `<div class="row"><span>${escapeHtml(c)}</span><strong>${fmt(porCiudad[c])}</strong></div>`
+    ).join('') || '<div class="row"><span>Sin entregas aún</span><strong>$0</strong></div>';
+    body.innerHTML = `
+      <div class="stat-grid">
+        <div class="stat-block"><h4>Ganancia total</h4><div class="big">${fmt(ingresoEnvios)}</div><div class="sub">${totalEntregados} viaje(s) × ${fmt(GANANCIA_POR_VIAJE)}</div></div>
+        <div class="stat-block"><h4>Ticket promedio</h4><div class="big">${fmt(totalPedidos? ventasTienda/totalPedidos:0)}</div><div class="sub">Sobre pedidos de la tienda</div></div>
+      </div>
+      <div class="stat-block" style="margin-top:12px">
+        <h4>Ganancia por ciudad</h4>
+        <div class="stat-list">${rows}</div>
+      </div>`;
+  }
+}
+
+function ciudadesResumen(list){
+  const by={};
+  list.forEach(o=>{ const k=(o.ciudad||'Sin ciudad').trim(); by[k]=(by[k]||0)+1; });
+  const keys = Object.keys(by).sort();
+  if(!keys.length) return '<div class="row"><span>Sin datos</span><strong>0</strong></div>';
+  return keys.map(c=>`<div class="row"><span>${escapeHtml(c)}</span><strong>${by[c]}</strong></div>`).join('');
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TOOLBAR HELPERS
+═══════════════════════════════════════════════════════════════ */
+function toggleSelectAll(scope, val){
+  document.querySelectorAll(`#${scope}-body input[type=checkbox]`).forEach(c=>{
+    c.checked = val;
+    c.closest('.order-card').classList.toggle('selected', val);
+  });
+}
+
+function toast(msg, kind){
+  const t = document.getElementById('toast');
+  t.className = 'toast show' + (kind?' '+kind:'');
+  t.textContent = msg;
+  clearTimeout(toast._t);
+  toast._t = setTimeout(()=>t.classList.remove('show'), 2600);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   API EXPUESTA (para que tienda.html/cliente.html disparen eventos)
+   - markPedidoRecibido(idPedido): suma 1 viaje entregado + $4.000
+═══════════════════════════════════════════════════════════════ */
+window.markPedidoRecibido = function(id){
+  let p = store.delegados.find(o=>o.id===id) || store.disponibles.find(o=>o.id===id);
+  if(!p){ console.warn('Pedido no encontrado',id); return; }
+  store.delegados   = store.delegados.filter(o=>o.id!==id);
+  store.disponibles = store.disponibles.filter(o=>o.id!==id);
+  p.estado = 'entregado'; p.fechaEntrega = new Date().toISOString();
+  store.entregados.push(p);
+  saveStore(); renderKPIs();
+  toast('Viaje confirmado · +'+fmt(GANANCIA_POR_VIAJE),'success');
+};
+
+/* Polling de sincronización cada 60s */
+setInterval(()=>{ if(session) syncFromTienda(); }, 60000);
+</script>
+</body>
+</html>
