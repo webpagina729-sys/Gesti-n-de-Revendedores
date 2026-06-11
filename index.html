@@ -7,6 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
     <style>
         :root {
             --blue:        #0066ff;
@@ -50,7 +51,8 @@
             display: flex; align-items: center; justify-content: space-between;
         }
         .brand { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 700; color: var(--text); text-decoration: none; }
-        .brand-mark { width: 32px; height: 32px; background: var(--blue); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; color: white; flex-shrink: 0; }
+        .brand-mark { width: 34px; height: 34px; border-radius: 50%; overflow: hidden; flex-shrink: 0; border: 2px solid var(--blue-glow); box-shadow: 0 0 0 2px var(--blue-pale); display: flex; align-items: center; justify-content: center; }
+        .brand-mark img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .topbar-right { display: flex; align-items: center; gap: 10px; }
         .badge-live { display: flex; align-items: center; gap: 6px; background: var(--green-pale); border: 1px solid rgba(0,201,110,.2); color: var(--green); padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
         .badge-live::before { content: ''; width: 6px; height: 6px; background: var(--green); border-radius: 50%; animation: pulse 2s infinite; }
@@ -62,7 +64,8 @@
         /* ── LOGIN ── */
         .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px 16px; background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(0,102,255,.08), transparent); }
         .login-box { background: var(--surface); border: 1px solid var(--border2); border-radius: 14px; padding: 32px 28px; width: 100%; max-width: 340px; box-shadow: var(--shadow-lg); }
-        .login-icon { width: 44px; height: 44px; background: var(--blue-pale); border: 1px solid var(--blue-glow); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 19px; margin-bottom: 16px; }
+        .login-icon { width: 72px; height: 72px; border-radius: 50%; overflow: hidden; border: 3px solid var(--blue-glow); box-shadow: 0 0 0 4px var(--blue-pale), var(--shadow); margin-bottom: 20px; display: flex; align-items: center; justify-content: center; }
+        .login-icon img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .login-box h1 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
         .login-box p { color: var(--text2); font-size: 12px; margin-bottom: 20px; }
         .field { margin-bottom: 16px; }
@@ -73,9 +76,51 @@
         .btn-login:hover { background: var(--blue-dim); }
         .login-err { background: var(--red-pale); color: var(--red); border: 1px solid rgba(244,63,94,.2); padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; display: none; }
         .login-err.show { display: block; }
-        .login-subtitle { text-align: center; font-size: 11px; font-weight: 500; color: var(--text3); margin-top: 10px; letter-spacing: .4px; }
+        .recaptcha-wrap { display: flex; justify-content: center; margin-bottom: 16px; transform: scale(0.88); transform-origin: center; }
+ font-size: 11px; font-weight: 500; color: var(--text3); margin-top: 10px; letter-spacing: .4px; }
 
-        /* ── MAIN ── */
+        /* ── LIGHT THEME ── */
+        body.light-theme {
+            --bg:          #f0f2f8;
+            --bg2:         #e6e9f2;
+            --bg3:         #dde1ee;
+            --surface:     #ffffff;
+            --surface2:    #ebeef7;
+            --border:      rgba(0,0,0,.09);
+            --border2:     rgba(0,0,0,.14);
+            --text:        #1a1d2e;
+            --text2:       #4a5068;
+            --text3:       #8890aa;
+            --shadow:      0 4px 20px rgba(0,0,0,.10);
+            --shadow-lg:   0 12px 40px rgba(0,0,0,.15);
+        }
+        body.light-theme .topbar {
+            background: rgba(240,242,248,.95);
+        }
+        body.light-theme .modal-overlay {
+            background: rgba(0,0,0,.45);
+        }
+
+        /* ── THEME SELECTOR ── */
+        .theme-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px 16px; background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(0,102,255,.08), transparent); }
+        .theme-box { background: var(--surface); border: 1px solid var(--border2); border-radius: 14px; padding: 32px 28px; width: 100%; max-width: 420px; box-shadow: var(--shadow-lg); text-align: center; }
+        .theme-box h2 { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+        .theme-box p { color: var(--text2); font-size: 13px; margin-bottom: 28px; }
+        .theme-options { display: flex; gap: 16px; justify-content: center; }
+        .theme-card { flex: 1; max-width: 160px; border: 2px solid var(--border2); border-radius: 12px; padding: 20px 16px; cursor: pointer; transition: all .2s; background: var(--bg2); }
+        .theme-card:hover { border-color: var(--blue); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,102,255,.2); }
+        .theme-card .tc-icon { font-size: 32px; margin-bottom: 12px; }
+        .theme-card .tc-label { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+        .theme-card .tc-sub { font-size: 11px; color: var(--text3); }
+        .theme-card.dark-card { background: #16181f; border-color: rgba(255,255,255,.12); }
+        .theme-card.dark-card .tc-label { color: #e8eaf0; }
+        .theme-card.dark-card .tc-sub { color: #5a6070; }
+        .theme-card.dark-card:hover { border-color: var(--blue); }
+        .theme-card.light-card { background: #f0f2f8; border-color: rgba(0,0,0,.12); }
+        .theme-card.light-card .tc-label { color: #1a1d2e; }
+        .theme-card.light-card .tc-sub { color: #8890aa; }
+        .theme-card.light-card:hover { border-color: var(--blue); }
+
         .main { display: none; }
         .main.show { display: block; }
         .wrap { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
@@ -297,7 +342,7 @@
 <!-- ══ TOPBAR ══ -->
 <header class="topbar" id="topbar" style="display:none">
     <div class="brand">
-        <div class="brand-mark">RW</div>
+        <div class="brand-mark"><img src="logo.png" alt="Logo"/></div>
         Mi Panel
     </div>
     <div class="topbar-right">
@@ -310,7 +355,7 @@
 <!-- ══ LOGIN ══ -->
 <div class="login-wrap" id="login-wrap">
     <div class="login-box">
-        <div class="login-icon">🏪</div>
+        <div class="login-icon"><img src="logo.png" alt="Logo"/></div>
         <h1>Mi Panel de Ventas</h1>
         <p>Ingresá tu código de revendedor para ver tus pedidos y estadísticas</p>
         <div class="login-err" id="login-err"></div>
@@ -319,15 +364,39 @@
             <input type="text" id="inp-code" placeholder="Ej: RW1234" onkeydown="if(event.key==='Enter')doLogin()" autocomplete="off" style="text-transform:uppercase"/>
         </div>
         <div class="field">
-            <label>Clave de acceso</label>
-            <input type="password" id="inp-pin" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()" autocomplete="off"/>
+            <label>Contraseña</label>
+            <input type="password" id="inp-pin" placeholder="Tu contraseña de revendedor" onkeydown="if(event.key==='Enter')doLogin()" autocomplete="off"/>
+        </div>
+        <div class="recaptcha-wrap">
+            <div class="g-recaptcha" data-sitekey="6LeNuM0sAAAAAJ8_Jdv1DhVqhJMsmDZl7KokfCw_" data-size="normal"></div>
         </div>
         <button class="btn-login" onclick="doLogin()">Ingresar</button>
         <div class="login-subtitle">Panel exclusivo de revendedores · Revende Ways</div>
     </div>
 </div>
 
-<!-- ══ MAIN ══ -->
+<!-- ══ THEME SELECTOR ══ -->
+<div class="theme-wrap" id="theme-wrap" style="display:none">
+    <div class="theme-box">
+        <div class="login-icon" style="margin:0 auto 16px"><img src="logo.png" alt="Logo"/></div>
+        <h2>Elegí tu tema</h2>
+        <p>Seleccioná cómo querés ver tu panel. Podés cambiarlo cuando quieras.</p>
+        <div class="theme-options">
+            <div class="theme-card dark-card" onclick="selectTheme('dark')">
+                <div class="tc-icon">🌙</div>
+                <div class="tc-label">Oscuro</div>
+                <div class="tc-sub">Diseño actual del panel</div>
+            </div>
+            <div class="theme-card light-card" onclick="selectTheme('light')">
+                <div class="tc-icon">☀️</div>
+                <div class="tc-label">Claro</div>
+                <div class="tc-sub">Colores claros y frescos</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
 <div class="main" id="main">
     <div class="wrap">
 
@@ -585,6 +654,10 @@ function cat(p) {
 // SESIÓN
 // ═══════════════════════════════════════════════════════════
 function init() {
+    // Aplicar tema guardado antes de mostrar nada
+    const savedTheme = localStorage.getItem('rw_theme') || 'dark';
+    if (savedTheme === 'light') document.body.classList.add('light-theme');
+
     const stored = sessionStorage.getItem(S_KEY);
     if (stored) {
         try {
@@ -597,48 +670,94 @@ function init() {
     } else { showLogin(); }
 }
 
+function showThemeSelector() {
+    document.getElementById('login-wrap').style.display = 'none';
+    document.getElementById('theme-wrap').style.display = 'flex';
+}
+
+function selectTheme(theme) {
+    localStorage.setItem('rw_theme', theme);
+    if (theme === 'light') {
+        document.body.classList.add('light-theme');
+    } else {
+        document.body.classList.remove('light-theme');
+    }
+    document.getElementById('theme-wrap').style.display = 'none';
+    showMain();
+    loadData();
+}
+
+
+const WORKER_AUTH    = 'https://datosderevendedor.tuweb.workers.dev';
+
 async function doLogin() {
     const code = (document.getElementById('inp-code').value || '').trim().toUpperCase();
     const pin  = (document.getElementById('inp-pin').value || '').trim();
     if (!code) { loginErr('Ingresá tu código de revendedor'); return; }
-    if (!pin)  { loginErr('Ingresá tu clave de acceso'); return; }
+    if (!pin)  { loginErr('Ingresá tu contraseña'); return; }
+
+    const recaptchaResponse = grecaptcha.getResponse();
+    if (!recaptchaResponse) { loginErr('Por favor completá el reCAPTCHA'); return; }
 
     const btn = document.querySelector('.btn-login');
     btn.textContent = 'Verificando...'; btn.disabled = true;
 
     try {
-        // Verificar con el worker: POST { codigo, pin }
-        const res = await fetch(WORKER_DATA, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'login', codigo: code, pin })
-        });
-
+        // Verificar contraseña con el worker de datos de revendedor
         let ok = false;
         let vendedorData = null;
 
-        if (res.ok) {
-            const data = await res.json();
-            if (data.success || data.ok || data.vendedor) {
-                ok = true;
-                vendedorData = data.vendedor || data;
-            }
-        } else {
-            // Fallback: intentar GET con código para ver si existe
-            const r2 = await fetch(`${WORKER_DATA}?codigo=${encodeURIComponent(code)}`);
-            if (r2.ok) {
-                const d2 = await r2.json();
-                // Si devuelve datos del vendedor, validar pin localmente si está en los datos
-                if (d2 && (d2.vendedor || d2.codigoVendedor)) {
-                    const v = d2.vendedor || d2;
-                    if (!v.pin || v.pin === pin || !v.clave || v.clave === pin) {
-                        ok = true;
-                        vendedorData = v;
-                    } else {
-                        loginErr('Clave incorrecta');
-                        btn.textContent = 'Ingresar'; btn.disabled = false;
-                        return;
+        try {
+            const authRes = await fetch(WORKER_AUTH, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ codigo: code, contrasena: pin })
+            });
+            if (authRes.ok) {
+                const authData = await authRes.json();
+                if (authData.success || authData.ok || authData.vendedor) {
+                    ok = true;
+                    vendedorData = authData.vendedor || authData;
+                } else if (authData.error) {
+                    loginErr(authData.error || 'Código o contraseña incorrectos.');
+                    btn.textContent = 'Ingresar'; btn.disabled = false;
+                    return;
+                }
+            } else if (authRes.status === 401 || authRes.status === 403) {
+                loginErr('Código o contraseña incorrectos.');
+                btn.textContent = 'Ingresar'; btn.disabled = false;
+                return;
+            } else {
+                // Fallback: intentar GET
+                const r2 = await fetch(`${WORKER_AUTH}?codigo=${encodeURIComponent(code)}`);
+                if (r2.ok) {
+                    const d2 = await r2.json();
+                    if (d2 && (d2.vendedor || d2.codigoVendedor)) {
+                        const v = d2.vendedor || d2;
+                        const storedPass = v.contrasena || v.password || v.clave || v.pin;
+                        if (!storedPass || storedPass === pin) {
+                            ok = true;
+                            vendedorData = v;
+                        } else {
+                            loginErr('Código o contraseña incorrectos.');
+                            btn.textContent = 'Ingresar'; btn.disabled = false;
+                            return;
+                        }
                     }
+                }
+            }
+        } catch(authErr) {
+            // Si el worker de auth falla, intentar con el worker de datos original
+            const res = await fetch(WORKER_DATA, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'login', codigo: code, pin })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                if (data.success || data.ok || data.vendedor) {
+                    ok = true;
+                    vendedorData = data.vendedor || data;
                 }
             }
         }
@@ -657,7 +776,7 @@ async function doLogin() {
         }
 
         if (!ok) {
-            loginErr('Código o clave incorrectos. Verificá tus datos.');
+            loginErr('Código o contraseña incorrectos. Verificá tus datos.');
             btn.textContent = 'Ingresar'; btn.disabled = false;
             return;
         }
@@ -669,13 +788,15 @@ async function doLogin() {
         sessionStorage.setItem(S_KEY, JSON.stringify({ code, config: cfgAll }));
         currentCode = code;
         loginErr('');
-        showMain();
-        loadData();
+
+        // Mostrar selector de tema
+        showThemeSelector();
 
     } catch(e) {
         loginErr('Error de conexión: ' + e.message);
     }
     btn.textContent = 'Ingresar'; btn.disabled = false;
+    if (typeof grecaptcha !== 'undefined') grecaptcha.reset();
 }
 
 function loginErr(m) {
