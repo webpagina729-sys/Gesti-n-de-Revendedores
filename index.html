@@ -1723,81 +1723,33 @@ function renderRankingView() {
 // FIREBASE + GOOGLE AUTH
 // ═══════════════════════════════════════════════════════════
 const firebaseConfig = {
-    apiKey:            "TU_API_KEY",
-    authDomain:        "TU_PROJECT_ID.firebaseapp.com",
-    projectId:         "TU_PROJECT_ID",
-    storageBucket:     "TU_PROJECT_ID.appspot.com",
-    messagingSenderId: "TU_SENDER_ID",
-    appId:             "TU_APP_ID"
+    apiKey:            "AIzaSyBRzd3HXbY6xIBIBNkzATo70kredodhKwc",
+    authDomain:        "revende-weys.firebaseapp.com",
+    projectId:         "revende-weys",
+    storageBucket:     "revende-weys.firebasestorage.app",
+    messagingSenderId: "606182275212",
+    appId:             "1:606182275212:web:69089eb56f10b8a02063a9",
+    measurementId:     "G-MBX4GSRCBL"
 };
 if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 
 async function loginWithGoogle() {
     const provider = new firebase.auth.GoogleAuthProvider();
-    const btn = document.querySelector('.btn-google-g');
-    if (btn) { btn.style.opacity = '0.5'; btn.style.pointerEvents = 'none'; }
     try {
         const result = await auth.signInWithPopup(provider);
-        const user   = result.user;
-
-        // Buscar el revendedor en Firestore por email o uid, igual que doLogin
-        let vendedorData = null;
-        let code = '';
-
-        try {
-            // Intentar primero por email como código
-            const emailCode = (user.email || '').split('@')[0].toUpperCase();
-            const authRes = await fetch(WORKER_AUTH, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ codigo: emailCode, uid: user.uid, email: user.email })
-            });
-            if (authRes.ok) {
-                const authData = await authRes.json();
-                if (authData.success && authData.vendedor) {
-                    vendedorData = authData.vendedor;
-                    code = authData.vendedor.codigoVendedor || emailCode;
-                }
-            }
-        } catch(_) {}
-
-        // Fallback: buscar en el ranking del WORKER_DATA por uid o email
-        if (!vendedorData) {
-            try {
-                const r2 = await fetch(WORKER_DATA);
-                if (r2.ok) {
-                    const d2 = await r2.json();
-                    const ranking = d2.ranking || [];
-                    const v = ranking.find(x =>
-                        (x.uid || '').toLowerCase() === (user.uid || '').toLowerCase() ||
-                        (x.email || '').toLowerCase() === (user.email || '').toLowerCase()
-                    );
-                    if (v) { vendedorData = v; code = v.codigoVendedor || ''; }
-                }
-            } catch(_) {}
-        }
-
-        if (!vendedorData || !code) {
-            loginErr('Tu cuenta de Google no está asociada a ningún código de revendedor.');
-            if (btn) { btn.style.opacity = ''; btn.style.pointerEvents = ''; }
-            return;
-        }
-
-        const cfgAll = vendedorData.configTiendaAll || vendedorData.configTienda || {};
-        configTienda = cfgAll;
-        currentCode  = code.toUpperCase();
-        loginErr('');
-
-        sessionStorage.setItem(S_KEY, JSON.stringify({ code: currentCode, config: cfgAll }));
+        const user = result.user;
+        // Usar el email como código de sesión
+        const emailCode = (user.email || '').split('@')[0].toUpperCase();
+        currentCode = emailCode;
+        configTienda = {};
+        sessionStorage.setItem(S_KEY, JSON.stringify({ code: emailCode, config: {} }));
         showThemeSelector();
-
     } catch(e) {
         if (e.code !== 'auth/popup-closed-by-user') {
             loginErr('Error con Google: ' + (e.message || e.code));
         }
     }
-    if (btn) { btn.style.opacity = ''; btn.style.pointerEvents = ''; }
 }
 
 window.addEventListener('load', init);
