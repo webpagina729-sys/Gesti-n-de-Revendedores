@@ -351,6 +351,92 @@
             .page-title { font-size: 20px; }
             .badge-live { display: none; }
         }
+
+        /* ══════════════════════════════════════════════
+           ESTADÍSTICAS & GANANCIAS — DISEÑO PROFESIONAL
+        ══════════════════════════════════════════════ */
+        .sv-header { display:flex; align-items:center; gap:12px; margin-bottom:24px; padding-bottom:16px; border-bottom:1px solid var(--border); }
+        .sv-header-icon { width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+        .sv-header-icon.blue  { background:var(--blue-pale); }
+        .sv-header-icon.green { background:var(--green-pale); }
+        .sv-header-title { font-size:18px; font-weight:800; color:var(--text); }
+        .sv-header-sub   { font-size:12px; color:var(--text3); margin-top:2px; }
+
+        .sv-kpi-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-bottom:24px; }
+        .sv-kpi { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px 20px; display:flex; flex-direction:column; gap:4px; transition:border-color .18s,box-shadow .18s; position:relative; overflow:hidden; }
+        .sv-kpi::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:var(--kpi-accent,var(--blue)); border-radius:12px 12px 0 0; }
+        .sv-kpi:hover { border-color:var(--border2); box-shadow:0 4px 16px rgba(0,0,0,.25); }
+        .sv-kpi-icon { font-size:20px; margin-bottom:6px; }
+        .sv-kpi-lbl  { font-size:11px; font-weight:600; color:var(--text3); text-transform:uppercase; letter-spacing:.6px; }
+        .sv-kpi-val  { font-size:26px; font-weight:800; color:var(--text); line-height:1.1; }
+        .sv-kpi-val.green { color:var(--green); }
+        .sv-kpi-val.blue  { color:var(--blue); }
+        .sv-kpi-val.amber { color:var(--amber); }
+        .sv-kpi-sub  { font-size:11px; color:var(--text3); margin-top:2px; }
+
+        .sv-section { margin-bottom:24px; }
+        .sv-section-title { font-size:12px; font-weight:700; color:var(--text2); text-transform:uppercase; letter-spacing:.7px; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+        .sv-section-title::after { content:''; flex:1; height:1px; background:var(--border); }
+
+        .sv-period-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+        .sv-period-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px 16px; text-align:center; transition:border-color .18s; }
+        .sv-period-card:hover { border-color:var(--border2); }
+        .sv-period-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:var(--text3); margin-bottom:8px; }
+        .sv-period-val   { font-size:18px; font-weight:800; color:var(--text); margin-bottom:4px; }
+        .sv-period-val.green { color:var(--green); }
+        .sv-period-val.blue  { color:var(--blue); }
+        .sv-period-val.amber { color:var(--amber); }
+        .sv-period-delta { font-size:11px; font-weight:700; padding:2px 7px; border-radius:20px; display:inline-block; }
+        .sv-period-delta.up   { background:var(--green-pale); color:var(--green); }
+        .sv-period-delta.down { background:var(--red-pale);   color:var(--red); }
+        .sv-period-delta.flat { background:var(--amber-pale); color:var(--amber); }
+        .sv-period-prev { font-size:10px; color:var(--text3); margin-top:5px; }
+
+        .sv-margin-table { background:var(--surface); border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+        .sv-margin-row { display:grid; grid-template-columns:1fr 1fr 1fr auto; gap:8px; align-items:center; padding:12px 18px; border-bottom:1px solid var(--border); font-size:13px; }
+        .sv-margin-row:last-child { border-bottom:none; }
+        .sv-margin-row.head { background:var(--bg2); font-size:10px; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:.6px; padding:10px 18px; }
+        .sv-margin-pct { font-size:14px; font-weight:800; color:var(--green); background:var(--green-pale); border-radius:6px; padding:3px 10px; text-align:center; }
+        .sv-margin-example { font-size:11px; color:var(--text3); }
+
+        .sv-chart-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px; margin-bottom:24px; }
+        .sv-chart-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; gap:12px; flex-wrap:wrap; }
+        .sv-chart-title { font-size:14px; font-weight:700; color:var(--text); }
+        .sv-chart-tabs  { display:flex; gap:4px; flex-wrap:wrap; }
+        .sv-chart-tab { padding:5px 12px; border-radius:7px; font-size:11px; font-weight:700; cursor:pointer; border:1px solid var(--border2); background:transparent; color:var(--text2); font-family:var(--font); transition:all .15s; }
+        .sv-chart-tab.active { background:var(--blue-pale); border-color:var(--blue-glow); color:var(--blue); }
+
+        .sv-nicho-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px; }
+        .sv-nicho-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px 18px; display:flex; flex-direction:column; gap:10px; transition:border-color .18s; }
+        .sv-nicho-card:hover { border-color:var(--border2); }
+        .sv-nicho-head { display:flex; align-items:center; gap:10px; }
+        .sv-nicho-emoji { font-size:22px; }
+        .sv-nicho-name  { font-size:13px; font-weight:700; color:var(--text); }
+        .sv-nicho-cnt   { font-size:11px; color:var(--text3); }
+        .sv-nicho-rows  { display:flex; flex-direction:column; gap:6px; }
+        .sv-nicho-stat  { display:flex; justify-content:space-between; align-items:center; font-size:12px; }
+        .sv-nicho-stat-lbl { color:var(--text3); }
+        .sv-nicho-stat-val { font-weight:700; color:var(--text); }
+        .sv-nicho-stat-val.green { color:var(--green); }
+        .sv-nicho-bar { height:3px; background:var(--border); border-radius:2px; overflow:hidden; margin-top:4px; }
+        .sv-nicho-bar-fill { height:100%; border-radius:2px; background:var(--green); }
+
+        .sv-breakdown { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px; }
+        .sv-breakdown-row { display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border); font-size:13px; }
+        .sv-breakdown-row:last-child { border-bottom:none; padding-bottom:0; }
+        .sv-breakdown-row.total { font-weight:800; font-size:15px; margin-top:4px; border-top:2px solid var(--border2); padding-top:14px; }
+        .sv-breakdown-lbl { color:var(--text2); display:flex; align-items:center; gap:8px; }
+        .sv-breakdown-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+        .sv-breakdown-val { font-weight:700; }
+        .sv-roi { display:inline-flex; align-items:center; gap:10px; background:var(--green-pale); border:1px solid rgba(0,201,110,.2); color:var(--green); border-radius:10px; padding:12px 18px; font-size:15px; font-weight:800; margin-bottom:24px; width:100%; }
+        .sv-roi-lbl { font-weight:500; font-size:12px; color:var(--text2); flex:1; }
+
+        @media (max-width: 640px) {
+            .sv-kpi-grid { grid-template-columns:repeat(2,1fr); }
+            .sv-period-grid { grid-template-columns:repeat(2,1fr); }
+            .sv-nicho-grid { grid-template-columns:1fr; }
+            .sv-margin-row { grid-template-columns:1fr 1fr auto; }
+        }
     </style>
 </head>
 <body>
@@ -1395,6 +1481,7 @@ function closeChartModal() {
 function renderStatsView() {
     const el = document.getElementById('stats-content');
     const hasConfig = Object.keys(configTienda).length > 0;
+
     const periods = [
         { l:'Semana',   d:7   },
         { l:'Quincena', d:15  },
@@ -1402,104 +1489,188 @@ function renderStatsView() {
         { l:'Año',      d:365 }
     ];
 
-    let html = `<h2 class="section-title">Mis estadísticas</h2>`;
+    // ── KPIs principales ──────────────────────────────────────
+    const totalPeds   = pedidos.length;
+    const aprobados   = pedidos.filter(p => p.estado === 'pagado').length;
+    const pendientes  = pedidos.filter(p => p.estado === 'pendiente').length;
+    const totalGain   = hasConfig ? pedidos.reduce((s,p) => s + resellerGainOf(p), 0) : 0;
+    const totalFac    = pedidos.reduce((s,p) => s + totalFinalRevendedor(p), 0);
+    const totalInv    = pedidos.reduce((s,p) => s + totalInversionRevendedor(p), 0);
+    const ticketProm  = totalPeds ? Math.round(totalFac / totalPeds) : 0;
+    const roiPct      = totalInv ? ((totalGain / totalInv) * 100) : 0;
 
-    // KPIs generales
-    const totalPeds = pedidos.length;
-    const aprobados = pedidos.filter(p => p.estado === 'pagado').length;
-    const pendientes = pedidos.filter(p => p.estado === 'pendiente').length;
-    const totalGain = hasConfig ? pedidos.reduce((s,p) => s + resellerGainOf(p), 0) : 0;
-    const totalFac  = pedidos.reduce((s,p) => s + totalFinalRevendedor(p), 0);
+    let html = '';
 
-    html += `<div class="kpi-grid">
-        <div class="kpi"><div class="kpi-lbl">Total pedidos</div><div class="kpi-val">${totalPeds}</div></div>
-        <div class="kpi"><div class="kpi-lbl">Aprobados</div><div class="kpi-val" style="color:var(--green)">${aprobados}</div></div>
-        <div class="kpi"><div class="kpi-lbl">Pendientes</div><div class="kpi-val" style="color:var(--amber)">${pendientes}</div></div>
-        ${hasConfig ? `<div class="kpi"><div class="kpi-lbl">Ganancia total</div><div class="kpi-val" style="color:var(--green)">$${Math.round(totalGain).toLocaleString()}</div></div>` : ''}
-        <div class="kpi"><div class="kpi-lbl">Facturación cliente</div><div class="kpi-val">$${Math.round(totalFac).toLocaleString()}</div></div>
+    // ── Header ────────────────────────────────────────────────
+    html += `
+    <div class="sv-header">
+        <div class="sv-header-icon blue">📊</div>
+        <div>
+            <div class="sv-header-title">Mis Estadísticas</div>
+            <div class="sv-header-sub">${totalPeds} pedido${totalPeds!==1?'s':''} registrado${totalPeds!==1?'s':''} · Código: <strong>${currentCode}</strong></div>
+        </div>
     </div>`;
 
-    // Crecimiento de pedidos
-    html += `<div class="section-block"><h2 class="section-title">Crecimiento de pedidos</h2><div class="mini-list">`;
-    periods.forEach((pr, i) => {
+    // ── KPI Grid ──────────────────────────────────────────────
+    html += `<div class="sv-kpi-grid">
+        <div class="sv-kpi" style="--kpi-accent:var(--blue)">
+            <div class="sv-kpi-icon">📦</div>
+            <div class="sv-kpi-lbl">Total pedidos</div>
+            <div class="sv-kpi-val">${totalPeds}</div>
+            <div class="sv-kpi-sub">${aprobados} aprobados · ${pendientes} pendientes</div>
+        </div>
+        <div class="sv-kpi" style="--kpi-accent:var(--green)">
+            <div class="sv-kpi-icon">✅</div>
+            <div class="sv-kpi-lbl">Aprobados</div>
+            <div class="sv-kpi-val green">${aprobados}</div>
+            <div class="sv-kpi-sub">${totalPeds ? Math.round(aprobados/totalPeds*100) : 0}% del total</div>
+        </div>
+        <div class="sv-kpi" style="--kpi-accent:var(--amber)">
+            <div class="sv-kpi-icon">⏳</div>
+            <div class="sv-kpi-lbl">Pendientes</div>
+            <div class="sv-kpi-val amber">${pendientes}</div>
+            <div class="sv-kpi-sub">Esperando confirmación</div>
+        </div>
+        <div class="sv-kpi" style="--kpi-accent:var(--blue)">
+            <div class="sv-kpi-icon">🧾</div>
+            <div class="sv-kpi-lbl">Ticket promedio</div>
+            <div class="sv-kpi-val blue">$${ticketProm.toLocaleString()}</div>
+            <div class="sv-kpi-sub">Por pedido al cliente</div>
+        </div>
+        <div class="sv-kpi" style="--kpi-accent:var(--green)">
+            <div class="sv-kpi-icon">💰</div>
+            <div class="sv-kpi-lbl">Facturación total</div>
+            <div class="sv-kpi-val">$${Math.round(totalFac).toLocaleString()}</div>
+            <div class="sv-kpi-sub">Lo que cobró a clientes</div>
+        </div>
+        ${hasConfig ? `<div class="sv-kpi" style="--kpi-accent:var(--green)">
+            <div class="sv-kpi-icon">📈</div>
+            <div class="sv-kpi-lbl">Ganancia total</div>
+            <div class="sv-kpi-val green">$${Math.round(totalGain).toLocaleString()}</div>
+            <div class="sv-kpi-sub">ROI: ${roiPct.toFixed(1)}% sobre inversión</div>
+        </div>` : ''}
+    </div>`;
+
+    // ── Crecimiento de pedidos por período ───────────────────
+    html += `<div class="sv-section">
+        <div class="sv-section-title">Crecimiento de pedidos</div>
+        <div class="sv-period-grid">`;
+    periods.forEach(pr => {
         const cur  = pedidos.filter(p => inWindow(p.fechaCreacion?.seconds, pr.d)).length;
         const prev = pedidos.filter(p => inPrevWindow(p.fechaCreacion?.seconds, pr.d)).length;
         const delta = prev ? ((cur-prev)/prev)*100 : (cur ? 100 : 0);
-        const sign = delta >= 0 ? '+' : '';
-        html += miniRibbon(`sg-${i}`, pr.l, cur, `${sign}${delta.toFixed(1)}% vs período anterior`, [
-            ['Pedidos del período', cur],
-            ['Período anterior', prev],
-            ['Variación', `${sign}${delta.toFixed(1)}%`]
-        ], delta >= 0 ? 'green' : 'amber', `pedidos-semanas`);
+        const sign  = delta >= 0 ? '+' : '';
+        const cls   = delta > 0 ? 'up' : delta < 0 ? 'down' : 'flat';
+        html += `<div class="sv-period-card">
+            <div class="sv-period-label">${pr.l}</div>
+            <div class="sv-period-val blue">${cur}</div>
+            <span class="sv-period-delta ${cls}">${sign}${delta.toFixed(1)}%</span>
+            <div class="sv-period-prev">Anterior: ${prev}</div>
+        </div>`;
     });
     html += `</div></div>`;
 
-    // Ganancia por período
+    // ── Ganancia por período ──────────────────────────────────
     if (hasConfig) {
-        html += `<div class="section-block"><h2 class="section-title">Mi ganancia por período</h2><div class="mini-list">`;
-        periods.forEach((pr, i) => {
+        html += `<div class="sv-section">
+            <div class="sv-section-title">Mi ganancia por período</div>
+            <div class="sv-period-grid">`;
+        periods.forEach(pr => {
             const cur  = pedidos.filter(p => inWindow(p.fechaCreacion?.seconds, pr.d)).reduce((s,p) => s + resellerGainOf(p), 0);
             const prev = pedidos.filter(p => inPrevWindow(p.fechaCreacion?.seconds, pr.d)).reduce((s,p) => s + resellerGainOf(p), 0);
             const delta = prev ? ((cur-prev)/prev)*100 : (cur ? 100 : 0);
-            const sign = delta >= 0 ? '+' : '';
-            html += miniRibbon(`sg-gain-${i}`, `Ganancia ${pr.l.toLowerCase()}`,
-                `$${Math.round(cur).toLocaleString()}`,
-                `${sign}${delta.toFixed(1)}% vs período anterior`,
-                [
-                    ['Ganancia del período', `$${Math.round(cur).toLocaleString()}`],
-                    ['Período anterior', `$${Math.round(prev).toLocaleString()}`],
-                    ['Variación', `${sign}${delta.toFixed(1)}%`]
-                ], delta >= 0 ? 'green' : 'amber', `ganancia-semanas`);
+            const sign  = delta >= 0 ? '+' : '';
+            const cls   = delta > 0 ? 'up' : delta < 0 ? 'down' : 'flat';
+            html += `<div class="sv-period-card">
+                <div class="sv-period-label">${pr.l}</div>
+                <div class="sv-period-val green">$${Math.round(cur).toLocaleString()}</div>
+                <span class="sv-period-delta ${cls}">${sign}${delta.toFixed(1)}%</span>
+                <div class="sv-period-prev">Anterior: $${Math.round(prev).toLocaleString()}</div>
+            </div>`;
         });
         html += `</div></div>`;
     }
 
-    // Facturación por período
-    html += `<div class="section-block"><h2 class="section-title">Facturación a clientes por período</h2><div class="mini-list">`;
-    periods.forEach((pr, i) => {
+    // ── Facturación por período ───────────────────────────────
+    html += `<div class="sv-section">
+        <div class="sv-section-title">Facturación a clientes por período</div>
+        <div class="sv-period-grid">`;
+    periods.forEach(pr => {
         const cur  = pedidos.filter(p => inWindow(p.fechaCreacion?.seconds, pr.d)).reduce((s,p) => s + totalFinalRevendedor(p), 0);
         const prev = pedidos.filter(p => inPrevWindow(p.fechaCreacion?.seconds, pr.d)).reduce((s,p) => s + totalFinalRevendedor(p), 0);
         const delta = prev ? ((cur-prev)/prev)*100 : (cur ? 100 : 0);
-        const sign = delta >= 0 ? '+' : '';
-        html += miniRibbon(`sg-fac-${i}`, `Facturación ${pr.l.toLowerCase()}`,
-            `$${Math.round(cur).toLocaleString()}`,
-            `${sign}${delta.toFixed(1)}% vs período anterior`,
-            [
-                ['Facturación del período', `$${Math.round(cur).toLocaleString()}`],
-                ['Período anterior', `$${Math.round(prev).toLocaleString()}`],
-                ['Variación', `${sign}${delta.toFixed(1)}%`]
-            ], delta >= 0 ? 'blue' : 'amber', `facturacion-semanas`);
+        const sign  = delta >= 0 ? '+' : '';
+        const cls   = delta > 0 ? 'up' : delta < 0 ? 'down' : 'flat';
+        html += `<div class="sv-period-card">
+            <div class="sv-period-label">${pr.l}</div>
+            <div class="sv-period-val">${cur ? '$'+Math.round(cur).toLocaleString() : '—'}</div>
+            <span class="sv-period-delta ${cls}">${sign}${delta.toFixed(1)}%</span>
+            <div class="sv-period-prev">Anterior: $${Math.round(prev).toLocaleString()}</div>
+        </div>`;
     });
     html += `</div></div>`;
 
-    // Distribución por nicho
-    const byNicho = { perfumes: 0, multishop: 0, calzados: 0 };
-    pedidos.forEach(p => { const c = cat(p); if (byNicho[c] !== undefined) byNicho[c]++; });
-    html += `<div class="section-block"><h2 class="section-title">Por categoría</h2>
-        <div class="kpi-grid">
-            <div class="kpi"><div class="kpi-lbl">Perfumes Árabes</div><div class="kpi-val">${byNicho.perfumes}</div></div>
-            <div class="kpi"><div class="kpi-lbl">Multishop</div><div class="kpi-val">${byNicho.multishop}</div></div>
-            <div class="kpi"><div class="kpi-lbl">Calzados</div><div class="kpi-val">${byNicho.calzados}</div></div>
-        </div>
-    </div>`;
+    // ── Distribución por nicho ────────────────────────────────
+    const nichos = [
+        { k:'perfumes',   l:'Perfumes Árabes', emoji:'🌹' },
+        { k:'multishop',  l:'Multishop',       emoji:'🛍' },
+        { k:'calzados',   l:'Calzados',        emoji:'👟' }
+    ];
+    const nichoData = nichos.map(n => {
+        const ps   = pedidos.filter(p => cat(p) === n.k);
+        const gain = ps.reduce((s,p) => s + resellerGainOf(p), 0);
+        const fac  = ps.reduce((s,p) => s + totalFinalRevendedor(p), 0);
+        return { ...n, cnt:ps.length, gain, fac };
+    }).filter(n => n.cnt > 0);
+    const maxFac = Math.max(...nichoData.map(n => n.fac), 1);
 
-    // Gráfico general de crecimiento (semanal)
-    html += `<div class="section-block"><h2 class="section-title">Gráfico de crecimiento</h2>
-        <div class="chart-card">
-            <div class="chart-tabs">
-                <button class="chart-tab active" id="main-chart-tab-ped" onclick="switchMainChart('pedidos')">Pedidos</button>
-                ${hasConfig ? '<button class="chart-tab" id="main-chart-tab-gan" onclick="switchMainChart(\'ganancia\')">Ganancia</button>' : ''}
-                <button class="chart-tab" id="main-chart-tab-fac" onclick="switchMainChart(\'facturacion\')">Facturación</button>
-                <button class="chart-tab" id="main-chart-tab-p2" onclick="switchMainChartPeriod('semanas')" style="margin-left:10px;border-color:var(--border)">Semanas</button>
-                <button class="chart-tab" id="main-chart-tab-m2" onclick="switchMainChartPeriod('meses')">Meses</button>
+    if (nichoData.length) {
+        html += `<div class="sv-section">
+            <div class="sv-section-title">Por categoría</div>
+            <div class="sv-nicho-grid">`;
+        nichoData.forEach(n => {
+            const barW = Math.round((n.fac / maxFac) * 100);
+            html += `<div class="sv-nicho-card">
+                <div class="sv-nicho-head">
+                    <span class="sv-nicho-emoji">${n.emoji}</span>
+                    <div>
+                        <div class="sv-nicho-name">${n.l}</div>
+                        <div class="sv-nicho-cnt">${n.cnt} pedido${n.cnt!==1?'s':''}</div>
+                    </div>
+                </div>
+                <div class="sv-nicho-rows">
+                    <div class="sv-nicho-stat">
+                        <span class="sv-nicho-stat-lbl">Facturación</span>
+                        <span class="sv-nicho-stat-val">$${Math.round(n.fac).toLocaleString()}</span>
+                    </div>
+                    ${hasConfig ? `<div class="sv-nicho-stat">
+                        <span class="sv-nicho-stat-lbl">Ganancia</span>
+                        <span class="sv-nicho-stat-val green">$${Math.round(n.gain).toLocaleString()}</span>
+                    </div>` : ''}
+                </div>
+                <div class="sv-nicho-bar"><div class="sv-nicho-bar-fill" style="width:${barW}%"></div></div>
+            </div>`;
+        });
+        html += `</div></div>`;
+    }
+
+    // ── Gráfico de crecimiento ────────────────────────────────
+    html += `<div class="sv-chart-card">
+        <div class="sv-chart-header">
+            <div class="sv-chart-title">Gráfico de crecimiento</div>
+            <div class="sv-chart-tabs">
+                <button class="sv-chart-tab active" id="main-chart-tab-ped" onclick="switchMainChart('pedidos')">Pedidos</button>
+                ${hasConfig ? '<button class="sv-chart-tab" id="main-chart-tab-gan" onclick="switchMainChart('ganancia')">Ganancia</button>' : ''}
+                <button class="sv-chart-tab" id="main-chart-tab-fac" onclick="switchMainChart('facturacion')">Facturación</button>
+                <button class="sv-chart-tab" id="main-chart-tab-p2" onclick="switchMainChartPeriod('semanas')" style="margin-left:8px;border-color:var(--border2)">Semanas</button>
+                <button class="sv-chart-tab" id="main-chart-tab-m2" onclick="switchMainChartPeriod('meses')">Meses</button>
             </div>
-            <div class="chart-wrap"><canvas id="main-chart-canvas"></canvas></div>
         </div>
+        <div class="chart-wrap"><canvas id="main-chart-canvas"></canvas></div>
     </div>`;
 
     el.innerHTML = html;
 
-    // Render main chart
     setTimeout(() => {
         window._mainChartMetric = 'pedidos';
         window._mainChartPeriod = 'semanas';
@@ -1576,64 +1747,187 @@ function renderGananciasView() {
     const hasConfig = Object.keys(configTienda).length > 0;
 
     if (!hasConfig) {
-        el.innerHTML = `<div class="empty"><div class="empty-icon">⚙️</div><h3>Configurá tu tienda</h3><p>Para ver tus ganancias, debés configurar los porcentajes de tu tienda en el panel principal del revendedor (index).</p></div>`;
+        el.innerHTML = `<div class="empty"><div class="empty-icon">⚙️</div><h3>Configurá tu tienda</h3><p>Para ver tus ganancias, debés configurar los porcentajes de tu tienda en el panel principal del revendedor.</p></div>`;
         return;
     }
 
-    const all = pedidos;
+    const all  = pedidos;
     const apro = pedidos.filter(p => p.estado === 'pagado');
     const pend = pedidos.filter(p => p.estado === 'pendiente');
 
-    const totalGainAll  = all.reduce((s,p) => s + resellerGainOf(p), 0);
+    const totalGainAll  = all.reduce((s,p)  => s + resellerGainOf(p), 0);
     const totalGainApro = apro.reduce((s,p) => s + resellerGainOf(p), 0);
     const totalGainPend = pend.reduce((s,p) => s + resellerGainOf(p), 0);
-    const totalFacAll   = all.reduce((s,p) => s + totalFinalRevendedor(p), 0);
-    const totalInvAll   = all.reduce((s,p) => s + totalInversionRevendedor(p), 0);
+    const totalFacAll   = all.reduce((s,p)  => s + totalFinalRevendedor(p), 0);
+    const totalInvAll   = all.reduce((s,p)  => s + totalInversionRevendedor(p), 0);
+    const roiPct        = totalInvAll ? ((totalGainAll / totalInvAll) * 100) : 0;
+    const margenPct     = totalFacAll ? ((totalGainAll / totalFacAll) * 100) : 0;
 
-    let html = `<h2 class="section-title">Mis ganancias</h2>
-        <div class="kpi-grid">
-            <div class="kpi"><div class="kpi-lbl">Ganancia total</div><div class="kpi-val" style="color:var(--green)">$${Math.round(totalGainAll).toLocaleString()}</div></div>
-            <div class="kpi"><div class="kpi-lbl">Ganancia aprobada</div><div class="kpi-val" style="color:var(--green)">$${Math.round(totalGainApro).toLocaleString()}</div></div>
-            <div class="kpi"><div class="kpi-lbl">Ganancia pendiente</div><div class="kpi-val" style="color:var(--amber)">$${Math.round(totalGainPend).toLocaleString()}</div></div>
-            <div class="kpi"><div class="kpi-lbl">Inversión total</div><div class="kpi-val">$${Math.round(totalInvAll).toLocaleString()}</div></div>
-            <div class="kpi"><div class="kpi-lbl">Facturación a clientes</div><div class="kpi-val">$${Math.round(totalFacAll).toLocaleString()}</div></div>
-        </div>`;
+    let html = '';
 
-    // Ganancia por nicho
-    html += `<div class="section-block"><h2 class="section-title">Ganancia por categoría</h2><div class="mini-list">`;
+    // ── Header ────────────────────────────────────────────────
+    html += `
+    <div class="sv-header">
+        <div class="sv-header-icon green">💵</div>
+        <div>
+            <div class="sv-header-title">Mis Ganancias</div>
+            <div class="sv-header-sub">Calculadas con precio original + porcentaje aplicado por rango</div>
+        </div>
+    </div>`;
+
+    // ── ROI banner ────────────────────────────────────────────
+    html += `<div class="sv-roi">
+        <span>🚀</span>
+        <span class="sv-roi-lbl">Retorno sobre inversión total</span>
+        <span>${roiPct.toFixed(1)}% ROI &nbsp;·&nbsp; ${margenPct.toFixed(1)}% margen</span>
+    </div>`;
+
+    // ── KPIs principales ──────────────────────────────────────
+    html += `<div class="sv-kpi-grid">
+        <div class="sv-kpi" style="--kpi-accent:var(--green)">
+            <div class="sv-kpi-icon">📈</div>
+            <div class="sv-kpi-lbl">Ganancia total</div>
+            <div class="sv-kpi-val green">$${Math.round(totalGainAll).toLocaleString()}</div>
+            <div class="sv-kpi-sub">Todos los pedidos</div>
+        </div>
+        <div class="sv-kpi" style="--kpi-accent:var(--green)">
+            <div class="sv-kpi-icon">✅</div>
+            <div class="sv-kpi-lbl">Ganancia aprobada</div>
+            <div class="sv-kpi-val green">$${Math.round(totalGainApro).toLocaleString()}</div>
+            <div class="sv-kpi-sub">Pagos confirmados</div>
+        </div>
+        <div class="sv-kpi" style="--kpi-accent:var(--amber)">
+            <div class="sv-kpi-icon">⏳</div>
+            <div class="sv-kpi-lbl">Ganancia pendiente</div>
+            <div class="sv-kpi-val amber">$${Math.round(totalGainPend).toLocaleString()}</div>
+            <div class="sv-kpi-sub">Por confirmar</div>
+        </div>
+        <div class="sv-kpi" style="--kpi-accent:var(--blue)">
+            <div class="sv-kpi-icon">🏪</div>
+            <div class="sv-kpi-lbl">Inversión total</div>
+            <div class="sv-kpi-val">$${Math.round(totalInvAll).toLocaleString()}</div>
+            <div class="sv-kpi-sub">Costo mayorista</div>
+        </div>
+        <div class="sv-kpi" style="--kpi-accent:var(--blue)">
+            <div class="sv-kpi-icon">💰</div>
+            <div class="sv-kpi-lbl">Facturación total</div>
+            <div class="sv-kpi-val">$${Math.round(totalFacAll).toLocaleString()}</div>
+            <div class="sv-kpi-sub">Lo que cobró al cliente</div>
+        </div>
+    </div>`;
+
+    // ── Breakdown inversión → ganancia ────────────────────────
+    html += `<div class="sv-section">
+        <div class="sv-section-title">Resumen financiero</div>
+        <div class="sv-breakdown">
+            <div class="sv-breakdown-row">
+                <span class="sv-breakdown-lbl"><span class="sv-breakdown-dot" style="background:var(--blue)"></span>Inversión (costo mayorista)</span>
+                <span class="sv-breakdown-val">$${Math.round(totalInvAll).toLocaleString()}</span>
+            </div>
+            <div class="sv-breakdown-row">
+                <span class="sv-breakdown-lbl"><span class="sv-breakdown-dot" style="background:var(--green)"></span>Ganancia bruta aplicada</span>
+                <span class="sv-breakdown-val" style="color:var(--green)">+ $${Math.round(totalGainAll).toLocaleString()}</span>
+            </div>
+            <div class="sv-breakdown-row total">
+                <span class="sv-breakdown-lbl"><span class="sv-breakdown-dot" style="background:var(--text)"></span>Facturación al cliente</span>
+                <span class="sv-breakdown-val">$${Math.round(totalFacAll).toLocaleString()}</span>
+            </div>
+        </div>
+    </div>`;
+
+    // ── Ganancia por nicho ────────────────────────────────────
     const nichos = [
-        { k:'perfumes', l:'Perfumes Árabes' },
-        { k:'multishop', l:'Multishop' },
-        { k:'calzados', l:'Calzados' }
+        { k:'perfumes',  l:'Perfumes Árabes', emoji:'🌹' },
+        { k:'multishop', l:'Multishop',       emoji:'🛍' },
+        { k:'calzados',  l:'Calzados',        emoji:'👟' }
     ];
-    nichos.forEach((n, i) => {
-        const ps = all.filter(p => cat(p) === n.k);
+    const nichoData = nichos.map(n => {
+        const ps  = all.filter(p => cat(p) === n.k);
         const gain = ps.reduce((s,p) => s + resellerGainOf(p), 0);
         const fac  = ps.reduce((s,p) => s + totalFinalRevendedor(p), 0);
-        if (!ps.length) return;
-        html += miniRibbon(`gain-nic-${i}`, n.l, `$${Math.round(gain).toLocaleString()}`, `${ps.length} pedido${ps.length!==1?'s':''}`, [
-            ['Pedidos', ps.length],
-            ['Ganancia', `$${Math.round(gain).toLocaleString()}`],
-            ['Facturación al cliente', `$${Math.round(fac).toLocaleString()}`],
-        ], 'green', `ganancia-semanas`);
-    });
-    html += `</div></div>`;
+        const inv  = ps.reduce((s,p) => s + totalInversionRevendedor(p), 0);
+        return { ...n, cnt:ps.length, gain, fac, inv };
+    }).filter(n => n.cnt > 0);
+    const maxGain = Math.max(...nichoData.map(n => n.gain), 1);
 
-    // Configuración de márgenes activa
-    html += `<div class="section-block"><h2 class="section-title">Mi configuración de márgenes</h2>`;
+    if (nichoData.length) {
+        html += `<div class="sv-section">
+            <div class="sv-section-title">Ganancia por categoría</div>
+            <div class="sv-nicho-grid">`;
+        nichoData.forEach(n => {
+            const barW  = Math.round((n.gain / maxGain) * 100);
+            const roi   = n.inv ? ((n.gain / n.inv) * 100).toFixed(1) : '—';
+            html += `<div class="sv-nicho-card">
+                <div class="sv-nicho-head">
+                    <span class="sv-nicho-emoji">${n.emoji}</span>
+                    <div>
+                        <div class="sv-nicho-name">${n.l}</div>
+                        <div class="sv-nicho-cnt">${n.cnt} pedido${n.cnt!==1?'s':''}</div>
+                    </div>
+                </div>
+                <div class="sv-nicho-rows">
+                    <div class="sv-nicho-stat">
+                        <span class="sv-nicho-stat-lbl">Ganancia</span>
+                        <span class="sv-nicho-stat-val green">$${Math.round(n.gain).toLocaleString()}</span>
+                    </div>
+                    <div class="sv-nicho-stat">
+                        <span class="sv-nicho-stat-lbl">Facturación</span>
+                        <span class="sv-nicho-stat-val">$${Math.round(n.fac).toLocaleString()}</span>
+                    </div>
+                    <div class="sv-nicho-stat">
+                        <span class="sv-nicho-stat-lbl">Inversión</span>
+                        <span class="sv-nicho-stat-val">$${Math.round(n.inv).toLocaleString()}</span>
+                    </div>
+                    <div class="sv-nicho-stat">
+                        <span class="sv-nicho-stat-lbl">ROI</span>
+                        <span class="sv-nicho-stat-val green">${roi}%</span>
+                    </div>
+                </div>
+                <div class="sv-nicho-bar"><div class="sv-nicho-bar-fill" style="width:${barW}%"></div></div>
+            </div>`;
+        });
+        html += `</div></div>`;
+    }
+
+    // ── Tabla de márgenes configurados ────────────────────────
     const cats = ['perfumes','multishop','calzados','general'];
-    cats.forEach(c => {
-        const cfg = configTienda[c];
-        if (!cfg || !Array.isArray(cfg.rangos) || !cfg.rangos.length) return;
-        html += `<div class="chart-card" style="margin-bottom:10px">
-            <h4 style="text-transform:capitalize">${c}</h4>
-            ${cfg.rangos.map(r => `<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2);margin-bottom:4px"><span>De $${Number(r.de||0).toLocaleString()} hasta $${Number(r.hasta).toLocaleString()}</span><strong style="color:var(--green)">+${r.porcentaje}%</strong></div>`).join('')}
-        </div>`;
-    });
-    html += `</div>`;
+    const configuredCats = cats.filter(c => configTienda[c] && Array.isArray(configTienda[c].rangos) && configTienda[c].rangos.length);
+
+    if (configuredCats.length) {
+        html += `<div class="sv-section">
+            <div class="sv-section-title">Márgenes configurados</div>`;
+        configuredCats.forEach(c => {
+            const cfg = configTienda[c];
+            const label = c === 'perfumes' ? '🌹 Perfumes Árabes'
+                        : c === 'multishop' ? '🛍 Multishop'
+                        : c === 'calzados' ? '👟 Calzados' : '⚙️ General';
+            html += `<div style="margin-bottom:10px">
+                <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">${label}</div>
+                <div class="sv-margin-table">
+                    <div class="sv-margin-row head">
+                        <span>Desde</span><span>Hasta</span><span>Margen</span><span class="sv-col-ex">Ejemplo $1000</span>
+                    </div>
+                    ${cfg.rangos.map(r => {
+                        const desde = Number(r.de||0);
+                        const hasta = Number(r.hasta)||Infinity;
+                        const pct   = Number(r.porcentaje)||0;
+                        const ejemplo = Math.round(1000 * (1 + pct/100));
+                        return `<div class="sv-margin-row">
+                            <span style="color:var(--text2)">$${desde.toLocaleString()}</span>
+                            <span style="color:var(--text2)">${isFinite(hasta) ? '$'+hasta.toLocaleString() : 'sin límite'}</span>
+                            <span class="sv-margin-pct">+${pct}%</span>
+                            <span class="sv-margin-example sv-col-ex">→ $${ejemplo.toLocaleString()}</span>
+                        </div>`;
+                    }).join('')}
+                </div>
+            </div>`;
+        });
+        html += `</div>`;
+    }
 
     el.innerHTML = html;
 }
+
 
 // ═══════════════════════════════════════════════════════════
 // VISTA: RANKING DE CLIENTES
@@ -1723,13 +2017,12 @@ function renderRankingView() {
 // FIREBASE + GOOGLE AUTH
 // ═══════════════════════════════════════════════════════════
 const firebaseConfig = {
-    apiKey:            "AIzaSyBRzd3HXbY6xIBIBNkzATo70kredodhKwc",
-    authDomain:        "revende-weys.firebaseapp.com",
-    projectId:         "revende-weys",
-    storageBucket:     "revende-weys.firebasestorage.app",
-    messagingSenderId: "606182275212",
-    appId:             "1:606182275212:web:69089eb56f10b8a02063a9",
-    measurementId:     "G-MBX4GSRCBL"
+    apiKey:            "TU_API_KEY",
+    authDomain:        "TU_PROJECT_ID.firebaseapp.com",
+    projectId:         "TU_PROJECT_ID",
+    storageBucket:     "TU_PROJECT_ID.appspot.com",
+    messagingSenderId: "TU_SENDER_ID",
+    appId:             "TU_APP_ID"
 };
 if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
