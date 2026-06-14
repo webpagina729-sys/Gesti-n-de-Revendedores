@@ -85,23 +85,164 @@
         /* ── LIGHT THEME ── */
         body.light-theme {
             --bg:          #f0f2f8;
-            --bg2:         #e6e9f2;
-            --bg3:         #dde1ee;
+            --bg2:         #e4e7f0;
+            --bg3:         #d8dcea;
             --surface:     #ffffff;
             --surface2:    #ebeef7;
-            --border:      rgba(0,0,0,.09);
-            --border2:     rgba(0,0,0,.14);
+            --border:      rgba(0,0,0,.10);
+            --border2:     rgba(0,0,0,.16);
             --text:        #1a1d2e;
             --text2:       #4a5068;
-            --text3:       #8890aa;
+            --text3:       #6e7590;
             --shadow:      0 4px 20px rgba(0,0,0,.10);
             --shadow-lg:   0 12px 40px rgba(0,0,0,.15);
+            background: #f0f2f8;
+            color: #1a1d2e;
         }
         body.light-theme .topbar {
             background: rgba(240,242,248,.95);
         }
         body.light-theme .modal-overlay {
             background: rgba(0,0,0,.45);
+        }
+        /* Ensure text visibility in light mode for all key elements */
+        body.light-theme .ribbon,
+        body.light-theme .mini-ribbon,
+        body.light-theme .rank-row,
+        body.light-theme .client-ribbon,
+        body.light-theme .vendor-profile-card,
+        body.light-theme .kpi,
+        body.light-theme .stat-card,
+        body.light-theme .chart-card,
+        body.light-theme .vendor-stat-item,
+        body.light-theme .client-stat-item,
+        body.light-theme .ship-block,
+        body.light-theme .login-box,
+        body.light-theme .theme-box,
+        body.light-theme .modal-box,
+        body.light-theme .color-editor-box,
+        body.light-theme .toast {
+            background: var(--surface);
+            border-color: var(--border2);
+            color: var(--text);
+        }
+        body.light-theme .ribbon-head,
+        body.light-theme .mini-head,
+        body.light-theme .ribbon-inner,
+        body.light-theme .mini-content,
+        body.light-theme .client-head,
+        body.light-theme .client-inner {
+            background: var(--bg2);
+            color: var(--text);
+        }
+        body.light-theme .r-name,
+        body.light-theme .vendor-info-name,
+        body.light-theme .client-name,
+        body.light-theme .rank-name,
+        body.light-theme .mini-title,
+        body.light-theme .section-title,
+        body.light-theme .page-title,
+        body.light-theme .brand,
+        body.light-theme .brand-title,
+        body.light-theme h1, body.light-theme h2, body.light-theme h3,
+        body.light-theme .kpi-val,
+        body.light-theme .mini-value,
+        body.light-theme .modal-box h3,
+        body.light-theme .prod-name,
+        body.light-theme .price-cell,
+        body.light-theme .foot-meta strong,
+        body.light-theme .ship-row strong,
+        body.light-theme .sent-item-name,
+        body.light-theme .theme-box h2 {
+            color: var(--text) !important;
+        }
+        body.light-theme .r-code,
+        body.light-theme .r-date,
+        body.light-theme .vendor-info-code,
+        body.light-theme .client-sub,
+        body.light-theme .rank-sub,
+        body.light-theme .kpi-lbl,
+        body.light-theme .stat-lbl,
+        body.light-theme .vendor-stat-lbl,
+        body.light-theme .client-stat-lbl,
+        body.light-theme .mini-sub,
+        body.light-theme .foot-meta,
+        body.light-theme .text3,
+        body.light-theme .modal-box p,
+        body.light-theme .theme-box p,
+        body.light-theme .sent-item-meta {
+            color: var(--text3) !important;
+        }
+        body.light-theme .prod-table td,
+        body.light-theme .mini-row {
+            color: var(--text2) !important;
+        }
+        body.light-theme .menu-btn {
+            background: var(--surface);
+            color: var(--text2);
+            border-color: var(--border2);
+        }
+        body.light-theme .menu-btn:hover:not(.active) {
+            background: var(--surface2);
+            color: var(--text);
+        }
+        body.light-theme .btn-head {
+            background: var(--surface);
+            color: var(--text);
+            border-color: var(--border2);
+        }
+        body.light-theme .btn-logout {
+            color: var(--text2);
+            border-color: var(--border2);
+        }
+        body.light-theme .stab {
+            background: var(--surface);
+            color: var(--text2);
+            border-color: var(--border2);
+        }
+        body.light-theme .tab-btn {
+            color: var(--text2);
+        }
+        body.light-theme .tabs-bar {
+            border-bottom-color: var(--border2);
+        }
+        body.light-theme .prod-table th {
+            color: var(--text3);
+            border-bottom-color: var(--border2);
+        }
+        body.light-theme .prod-table td {
+            border-bottom-color: var(--border);
+        }
+        body.light-theme .field input {
+            background: var(--bg2);
+            color: var(--text);
+            border-color: var(--border2);
+        }
+        body.light-theme .color-preview-row input[type="text"] {
+            background: var(--surface2);
+            color: var(--text);
+            border-color: var(--border2);
+        }
+        body.light-theme .chart-tab {
+            background: var(--surface2);
+            color: var(--text2);
+            border-color: var(--border2);
+        }
+        body.light-theme .section-tab {
+            background: var(--surface);
+            color: var(--text2);
+            border-color: var(--border2);
+        }
+        body.light-theme .badge-code {
+            background: var(--blue-pale);
+            color: var(--blue);
+        }
+        body.light-theme .modal-cancel {
+            color: var(--text2);
+            border-color: var(--border2);
+        }
+        body.light-theme .rev-expandable-inner {
+            border-top-color: var(--border2);
         }
 
         /* ── THEME SELECTOR ── */
@@ -386,6 +527,13 @@
         .vendor-stat-val { font-size: 18px; font-weight: 700; color: var(--blue); }
         .vendor-stat-val.green { color: var(--green); }
 
+        /* Ribbon expand for vendor profile */
+        .rev-caret-icon { width: 16px; height: 16px; color: var(--text3); transition: transform .25s; flex-shrink: 0; }
+        .rev-expandable { max-height: 0; overflow: hidden; transition: max-height .35s ease; }
+        .rev-expandable-inner { padding-top: 14px; margin-top: 14px; border-top: 1px solid var(--border); }
+        .rev-ribbon.rev-expanded .rev-caret-icon { transform: rotate(180deg); }
+        .rev-ribbon.rev-expanded .rev-expandable { max-height: 800px; }
+
         /* ── MIS CLIENTES ── */
         .client-ribbon { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 10px; overflow: hidden; }
         .client-ribbon:hover { border-color: var(--border2); }
@@ -470,8 +618,8 @@
 
         /* Chart tabs */
         .chart-card { padding: 18px; }
-        .chart-card .chart-tabs { flex-wrap: nowrap; overflow: hidden; gap: 6px; }
-        .chart-card .chart-tabs .chart-tab { padding: 7px 10px; font-size: 11.5px; white-space: nowrap; flex: 1; text-align: center; }
+        .chart-card .chart-tabs { flex-wrap: wrap; overflow: visible; gap: 5px; }
+        .chart-card .chart-tabs .chart-tab { padding: 6px 8px; font-size: 11px; white-space: nowrap; flex: 1; text-align: center; min-width: 0; }
 
         /* Mini ribbon */
         .mini-content .mini-chart-btn { margin: 8px 0 0; align-self: flex-start; }
@@ -626,7 +774,7 @@
             </button>
             <button class="menu-btn mn-top" data-view="revendedor" onclick="switchView('revendedor')">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                <span>Revendedores</span>
+                <span>Revendedor</span>
             </button>
             <button class="menu-btn active mn-bot" data-view="pedidos" onclick="switchView('pedidos')">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
@@ -2268,27 +2416,32 @@ function renderRevendedorView() {
     const aprobados  = pedidos.filter(p => p.estado === 'pagado').length;
 
     let html = `
-    <div class="vendor-profile-card">
-        <div class="vendor-profile-row">
+    <div class="vendor-profile-card rev-ribbon" id="rev-ribbon-card">
+        <div class="vendor-profile-row" style="cursor:pointer;margin-bottom:0" onclick="document.getElementById('rev-ribbon-card').classList.toggle('rev-expanded')">
             <div class="vendor-avatar">${initials}</div>
             <div class="vendor-profile-info">
-                <div class="vendor-info-name">${esc(nombre)} ${esc(apellido)}</div>
+                <div class="vendor-info-name">${esc(nombre)}${apellido ? ' ' + esc(apellido) : ''}</div>
                 <div class="vendor-info-code">Código: ${esc(currentCode)}</div>
-                ${email ? `<div class="vendor-info-code">✉️ ${esc(email)}</div>` : ''}
-                ${telefono ? `<div class="vendor-info-code">📞 ${esc(telefono)}</div>` : ''}
-                ${ciudad ? `<div class="vendor-info-code">📍 ${esc(ciudad)}</div>` : ''}
+            </div>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="rev-caret-icon"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="rev-expandable">
+            <div class="rev-expandable-inner">
+                ${email ? `<div class="vendor-info-code" style="margin-bottom:4px">✉️ ${esc(email)}</div>` : ''}
+                ${telefono ? `<div class="vendor-info-code" style="margin-bottom:4px">📞 ${esc(telefono)}</div>` : ''}
+                ${ciudad ? `<div class="vendor-info-code" style="margin-bottom:10px">📍 ${esc(ciudad)}</div>` : ''}
+                <div class="vendor-stats-grid">
+                    <div class="vendor-stat-item"><div class="vendor-stat-lbl">Pedidos totales</div><div class="vendor-stat-val">${totalPeds}</div></div>
+                    <div class="vendor-stat-item"><div class="vendor-stat-lbl">Aprobados</div><div class="vendor-stat-val green">${aprobados}</div></div>
+                    <div class="vendor-stat-item"><div class="vendor-stat-lbl">Ganancia total</div><div class="vendor-stat-val green">$${Math.round(totalGain).toLocaleString()}</div></div>
+                    <div class="vendor-stat-item"><div class="vendor-stat-lbl">Facturación</div><div class="vendor-stat-val">$${Math.round(totalFac).toLocaleString()}</div></div>
+                </div>
+                <button class="btn-head" style="margin-top:16px" id="btn-mis-clientes" onclick="toggleMisClientes()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    Mi clientes
+                </button>
             </div>
         </div>
-        <div class="vendor-stats-grid">
-            <div class="vendor-stat-item"><div class="vendor-stat-lbl">Pedidos totales</div><div class="vendor-stat-val">${totalPeds}</div></div>
-            <div class="vendor-stat-item"><div class="vendor-stat-lbl">Aprobados</div><div class="vendor-stat-val green">${aprobados}</div></div>
-            <div class="vendor-stat-item"><div class="vendor-stat-lbl">Ganancia total</div><div class="vendor-stat-val green">$${Math.round(totalGain).toLocaleString()}</div></div>
-            <div class="vendor-stat-item"><div class="vendor-stat-lbl">Facturación</div><div class="vendor-stat-val">$${Math.round(totalFac).toLocaleString()}</div></div>
-        </div>
-        <button class="btn-head" style="margin-top:16px" id="btn-mis-clientes" onclick="toggleMisClientes()">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            Mi clientes
-        </button>
     </div>
 
     <div id="mis-clientes-section" style="display:none">
