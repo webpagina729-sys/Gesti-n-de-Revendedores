@@ -1391,6 +1391,68 @@ async function executeSendConfirmed() {
     }
 }
 
+// ═══════════════════════════════════════════════════════════
+// GENERAR REGISTRO EN PANEL DE GESTIÓN
+// Solo se ejecuta cuando estadoAprobacion = aprobado
+// Se llama dentro de sendPedido() tras respuesta exitosa
+// ═══════════════════════════════════════════════════════════
+async function generarRegistroPanelGestion(p) {
+    const nichoKey   = cat(p);
+    const hasConfig  = Object.keys(configTienda).length > 0;
+    const env        = p.envio || p.cliente || {};
+    const categoria  = nichoKey;
+
+    // ── Cálculo de costo según categoría ──────────────────
+    function costoPorCategoria(item, cat) {
+        const qty = Number(item.cantidad || 1);
+        if (cat === 'calzados') {
+            // Detectar si es calzado niño por nombre del producto
+            const nm = (item.nombre || '').toUpperCase();
+            const esNino = nm.includes('NIÑ') || nm.includes('NINO') || nm.includes('KIDS') || nm.includes('JUNIOR') || nm.includes('INFANTIL');
+            return (esNino ? 22000 : 30500) * qty;
+        }
+        // perfumes y multishop: usar precio_costo original (precio mayorista)
+        return Number(item.precio || 0) * qty;
+    }
+
+    const precioVentaTotal = Math.round(totalFinalRevendedor(p));
+    const preciosCosto     = (p.items || []).reduce((s, i) => s + costoPorCategoria(i, categoria), 0);
+    const precioCostoTotal = Math.round(preciosCosto);
+    const gananciaReal     = precioVentaTotal - precioCostoTotal;
+
+    const registroPanel = {
+        action:          'generarRegistroPanelGestion',
+        estadoAprobacion:'aprobado',
+        pedidoId:        p.id,
+        codigoVendedor:  currentCode,
+        categoria,
+        productos:       (p.items || []).map(it => ({
+            nombre:   it.nombre,
+            cantidad: it.cantidad,
+            precio:   it.precio
+        })),
+        cantidad: (p.items || []).reduce((s, i) => s + Number(i.cantidad || 1), 0),
+        cliente:   fullName(env) || p._clienteName || '',
+        telefono:  env.telefono || '',
+        direccion: [env.direccion, env.ciudad, env.provincia, env.cp].filter(Boolean).join(', '),
+        fecha:     new Date().toISOString(),
+        // Datos financieros calculados
+        precio_venta: precioVentaTotal,
+        precio_costo: precioCostoTotal,
+        ganancia_real: gananciaReal
+    };
+
+    try {
+        await fetch(WORKER_DATA, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify(registroPanel)
+        });
+    } catch(e) {
+        console.warn('Panel de Gestión: error al registrar pedido aprobado', e);
+    }
+}
+
 async function sendPedido(id, btn) {
     const p = pedidos.find(x => x.id === id);
     if (!p) return;
@@ -1433,6 +1495,10 @@ async function sendPedido(id, btn) {
             body: JSON.stringify(payload)
         });
         if (res.ok) {
+            // ── Generar registro financiero en Panel de Gestión ──────
+            // Solo para pedidos aprobados; validación anti-duplicado incluida en el worker
+            await generarRegistroPanelGestion(p);
+
             // Mover a pedidos enviados
             const env = p.envio || p.cliente || {};
             sentPedidos.push({
