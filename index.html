@@ -633,7 +633,7 @@ let deleteTarget    = null;
 let currentCode     = '';
 let currentVendorNombre   = '';
 let currentVendorApellido = '';
-const WORKER_PANEL_PRINCIPAL = 'https://workerpagos.tuweb.workers.dev';
+const WORKER_PANEL_PRINCIPAL = 'https://datosderevendedor.tuweb.workers.dev';
 let configTienda    = {};  // configTiendaAll del revendedor (rangos de ganancia)
 let chartModalInst  = null;
 
@@ -1207,39 +1207,37 @@ async function sendPedido(id, btn) {
             // ── Reenvío al PANEL PRINCIPAL (worker /api/pedido) ──
             try {
                 const cli = p.cliente || p.envio || {};
-                const env = p.envio || p.cliente || {};
-                const direccionFull = [env.direccion, env.ciudad, env.provincia, env.cp]
+                const envData = p.envio || p.cliente || {};
+                const direccionFull = [envData.direccion, envData.ciudad, envData.provincia, envData.cp]
                     .filter(Boolean).join(', ');
-                const productosCosto = (p.items || []).map(it => ({
-                    nombre: it.nombre,
-                    cantidad: Number(it.cantidad) || 1,
-                    precio: Number(it.precio) || 0   // PRECIO DE COSTO (mayorista original)
-                }));
                 const payloadPanel = {
-                    cliente: {
-                        nombre: (cli.nombre || '') + (cli.apellido ? ' ' + cli.apellido : ''),
-                        email: cli.email || env.email || '',
-                        telefono: cli.telefono || env.telefono || '',
-                        direccion: direccionFull
-                    },
-                    productos: productosCosto,
-                    total: Math.round(totalInv),   // total con precio de COSTO
+                    pedidoId:       p.id,
                     codigoVendedor: currentCode,
-                    uid: p.id,
-                    vendedor: {
-                        codigo: currentCode,
-                        nombre: currentVendorNombre,
-                        apellido: currentVendorApellido
-                    },
-                    estadoPagoRevendedor: 'APROBADO',
-                    nicho: nichoKey
+                    categoria:      nichoKey,
+                    nicho:          nichoKey,
+                    cliente:        [(cli.nombre||''), (cli.apellido||'')].filter(Boolean).join(' '),
+                    telefono:       cli.telefono || envData.telefono || '',
+                    direccion:      direccionFull,
+                    fecha:          new Date().toISOString(),
+                    items: (p.items || []).map(it => ({
+                        nombre:     it.nombre,
+                        cantidad:   Number(it.cantidad) || 1,
+                        precio:     Number(it.precio) || 0,
+                        precioFinal: hasConfig ? resellerPriceFinal(it, nichoKey) : Number(it.precio) || 0,
+                        talle:      it.talle   || null,
+                        catalogo:   it.catalogo || null,
+                        id:         it.id      || null
+                    }))
                 };
-                await fetch(WORKER_PANEL_PRINCIPAL + '/api/pedido', {
+                const panelRes = await fetch(WORKER_PANEL_PRINCIPAL + '/api/panel-gestion', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payloadPanel)
                 });
-            } catch(_) { /* no romper el flujo principal */ }
+                if (!panelRes.ok) {
+                    console.warn('Panel gestión HTTP error:', panelRes.status, await panelRes.text());
+                }
+            } catch(e) { console.warn('Error panel-gestion:', e); /* no romper el flujo principal */ }
         } else {
             toast('Error al enviar: HTTP ' + res.status, 'err');
         }
