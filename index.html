@@ -1169,6 +1169,23 @@ async function loadData() {
             } catch(_) {}
         }
 
+        // 2. Traer pedidos aprobados desde la web del revendedor (WORKER_PAGOS)
+        try {
+            const rp = await fetch(`${WORKER_PAGOS}?codigo=${encodeURIComponent(currentCode)}&action=getPedidos`);
+            if (rp.ok) {
+                const dp = await rp.json();
+                const pagosPedidos = Array.isArray(dp.pedidos) ? dp.pedidos
+                    : Array.isArray(dp) ? dp : [];
+                pagosPedidos.forEach(p => {
+                    // Solo agregar los del código actual
+                    const cod = (p.codigoVendedor || p.codigo || '').toUpperCase();
+                    if (cod && cod !== currentCode) return;
+                    // Marcar que viene de la tienda (llegará como pendiente hasta que el revendedor lo apruebe)
+                    rawPedidos.push({ ...p, _fromTienda: true });
+                });
+            }
+        } catch(_) {}
+
         // Normalizar pedidos
         const seen = new Set();
         rawPedidos.forEach(p => {
@@ -1178,7 +1195,10 @@ async function loadData() {
             if (isLocallyDeleted(id)) return;
 
             const ep = (p.estadoPago || p.estado || '').toUpperCase();
-            const estado = ep === 'APROBADO' || ep === 'PAGADO' ? 'pagado'
+            // Pedidos que vienen de la tienda web del revendedor (_fromTienda) se muestran
+            // como pendientes para que el revendedor los procese y apruebe desde el panel.
+            const estado = p._fromTienda ? 'pendiente'
+                         : ep === 'APROBADO' || ep === 'PAGADO' ? 'pagado'
                          : ep === 'RECHAZADO' || ep === 'CANCELADO' ? 'cancelado'
                          : 'pendiente';
 
