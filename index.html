@@ -994,94 +994,28 @@ async function doLogin() {
     btn.textContent = 'Verificando...'; btn.disabled = true;
 
     try {
-        // Verificar contraseña con el worker de datos de revendedor
-        let ok = false;
-        let vendedorData = null;
+        // POST /api/login-vendedor — único endpoint de autenticación
+        const authRes = await fetch(`${WORKER_DATA}/api/login-vendedor`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ codigo: code, contrasena: pin })
+        });
+        const authData = await authRes.json();
 
-        try {
-            const authRes = await fetch(WORKER_AUTH, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ codigo: code, contrasena: pin })
-            });
-            if (authRes.ok) {
-                const authData = await authRes.json();
-                if (authData.success || authData.ok || authData.vendedor) {
-                    ok = true;
-                    vendedorData = authData.vendedor || authData;
-                } else if (authData.error) {
-                    loginErr(authData.error || 'Código o contraseña incorrectos.');
-                    btn.textContent = 'Ingresar'; btn.disabled = false;
-                    return;
-                }
-            } else if (authRes.status === 401 || authRes.status === 403) {
-                loginErr('Código o contraseña incorrectos.');
-                btn.textContent = 'Ingresar'; btn.disabled = false;
-                return;
-            } else {
-                // Fallback: intentar GET
-                const r2 = await fetch(`${WORKER_AUTH}?codigo=${encodeURIComponent(code)}`);
-                if (r2.ok) {
-                    const d2 = await r2.json();
-                    if (d2 && (d2.vendedor || d2.codigoVendedor)) {
-                        const v = d2.vendedor || d2;
-                        const storedPass = v.contrasena || v.password || v.clave || v.pin;
-                        if (!storedPass || storedPass === pin) {
-                            ok = true;
-                            vendedorData = v;
-                        } else {
-                            loginErr('Código o contraseña incorrectos.');
-                            btn.textContent = 'Ingresar'; btn.disabled = false;
-                            return;
-                        }
-                    }
-                }
-            }
-        } catch(authErr) {
-            // Si el worker de auth falla, intentar con el worker de datos original
-            const res = await fetch(WORKER_DATA, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'login', codigo: code, pin })
-            });
-            if (res.ok) {
-                const data = await res.json();
-                if (data.success || data.ok || data.vendedor) {
-                    ok = true;
-                    vendedorData = data.vendedor || data;
-                }
-            }
-        }
-
-        if (!ok && !vendedorData) {
-            // Último fallback: sólo verificar que el worker devuelva datos con ese código
-            try {
-                const r3 = await fetch(WORKER_DATA);
-                if (r3.ok) {
-                    const d3 = await r3.json();
-                    const ranking = d3.ranking || [];
-                    const v = ranking.find(x => (x.codigoVendedor||'').toUpperCase() === code);
-                    if (v) { ok = true; vendedorData = v; }
-                }
-            } catch(_) {}
-        }
-
-        if (!ok) {
-            loginErr('Código o contraseña incorrectos. Verificá tus datos.');
+        if (!authData.success || !authData.vendedor) {
+            loginErr(authData.error || 'Código o contraseña incorrectos.');
             btn.textContent = 'Ingresar'; btn.disabled = false;
             return;
         }
 
-        // Extraer configTiendaAll del vendedor
-        const cfgAll = (vendedorData && (vendedorData.configTiendaAll || vendedorData.configTienda)) || {};
+        const vendedorData = authData.vendedor;
+        const cfgAll = vendedorData.configTiendaAll || vendedorData.configTienda || {};
         configTienda = cfgAll;
-        vendedorProfile = vendedorData || null;
+        vendedorProfile = vendedorData;
 
         sessionStorage.setItem(S_KEY, JSON.stringify({ code, config: cfgAll, vendedor: vendedorProfile }));
         currentCode = code;
         loginErr('');
-
-        // Mostrar selector de tema
         showThemeSelector();
 
     } catch(e) {
@@ -1121,20 +1055,12 @@ async function loadData() {
     try {
         pedidos = [];
 
-        // Traer todos los pedidos desde el worker (GET /api/pedidos)
-        // y filtrar por el código del revendedor actual
-        let rawPedidos = [];
-        try {
-            const res = await fetch(`${WORKER_DATA}/api/pedidos`);
-            if (res.ok) {
-                const data = await res.json();
-                if (Array.isArray(data.pedidos)) {
-                    rawPedidos = data.pedidos.filter(p =>
-                        (p.codigoVendedor || '').toUpperCase() === currentCode
-                    );
-                }
-            }
-        } catch(_) {}
+        // GET /api/pedidos — único endpoint, filtrar por código del revendedor
+        const res = await fetch(`${WORKER_DATA}/api/pedidos`);
+        const data = await res.json();
+        const rawPedidos = (data.pedidos || []).filter(p =>
+            (p.codigoVendedor || '').toUpperCase() === currentCode
+        );
 
         // Normalizar pedidos
         const seen = new Set();
@@ -1144,9 +1070,8 @@ async function loadData() {
             seen.add(id);
             if (isLocallyDeleted(id)) return;
 
-            // estadoPago viene del worker: PENDIENTE, APROBADO, RECHAZADO
             const ep = (p.estadoPago || p.estado || '').toUpperCase();
-            const estado = ep === 'APROBADO' ? 'pagado'
+            const estado = ep === 'APROBADO' || ep === 'PAGADO' ? 'pagado'
                          : ep === 'RECHAZADO' || ep === 'CANCELADO' ? 'cancelado'
                          : 'pendiente';
 
@@ -2468,11 +2393,28 @@ async function loginWithGoogle() {
     try {
         const result = await auth.signInWithPopup(provider);
         const user = result.user;
-        // Usar el email como código de sesión
         const emailCode = (user.email || '').split('@')[0].toUpperCase();
+
+        // Buscar datos del vendedor en el worker usando el código derivado del email
+        let cfgAll = {};
+        let vendedorData = null;
+        try {
+            const authRes = await fetch(`${WORKER_DATA}/api/login-vendedor`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ codigo: emailCode, contrasena: '' })
+            });
+            const authData = await authRes.json();
+            if (authData.success && authData.vendedor) {
+                vendedorData = authData.vendedor;
+                cfgAll = vendedorData.configTiendaAll || vendedorData.configTienda || {};
+            }
+        } catch(_) {}
+
         currentCode = emailCode;
-        configTienda = {};
-        sessionStorage.setItem(S_KEY, JSON.stringify({ code: emailCode, config: {} }));
+        configTienda = cfgAll;
+        vendedorProfile = vendedorData;
+        sessionStorage.setItem(S_KEY, JSON.stringify({ code: emailCode, config: cfgAll, vendedor: vendedorData }));
         showThemeSelector();
     } catch(e) {
         if (e.code !== 'auth/popup-closed-by-user') {
