@@ -807,7 +807,7 @@
 // ═══════════════════════════════════════════════════════════
 // CONFIG
 // ═══════════════════════════════════════════════════════════
-const WORKER_DATA   = 'https://workerwebcliente.tuweb.workers.dev';
+const WORKER_DATA   = 'https://datosderevendedor.tuweb.workers.dev';
 const WORKER_PAGOS  = 'https://workerpagos.tuweb.workers.dev';
 const S_KEY         = 'rw_reseller_v1';
 const D_KEY         = 'rw_reseller_del_v1';
@@ -1443,7 +1443,7 @@ async function generarRegistroPanelGestion(p) {
     };
 
     try {
-        await fetch(WORKER_DATA, {
+        await fetch('https://datosderevendedor.tuweb.workers.dev', {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
             body:    JSON.stringify(registroPanel)
