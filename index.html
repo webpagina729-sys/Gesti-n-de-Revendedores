@@ -1121,68 +1121,18 @@ async function loadData() {
     try {
         pedidos = [];
 
-        // 1. Intentar GET /ranking o raíz del worker → buscar pedidos del revendedor
-        let data = {};
-        try {
-            const res = await fetch(WORKER_DATA);
-            if (res.ok) data = await res.json();
-        } catch(_) {}
-
-        // El worker puede devolver { ranking, pedidos, ... }
-        // Buscar los pedidos que correspondan al código actual
+        // Traer todos los pedidos desde el worker (GET /api/pedidos)
+        // y filtrar por el código del revendedor actual
         let rawPedidos = [];
-
-        if (Array.isArray(data.pedidos)) {
-            rawPedidos = data.pedidos.filter(p =>
-                (p.codigoVendedor||'').toUpperCase() === currentCode ||
-                (p.codigo||'').toUpperCase() === currentCode
-            );
-        }
-
-        if (!rawPedidos.length && Array.isArray(data.ranking)) {
-            // El worker devuelve ranking con info agregada, buscar los pedidos del vendedor
-            const vendorEntry = data.ranking.find(v => (v.codigoVendedor||'').toUpperCase() === currentCode);
-            if (vendorEntry && Array.isArray(vendorEntry.pedidos)) {
-                rawPedidos = vendorEntry.pedidos;
-            }
-        }
-
-        // Si el worker tiene un endpoint específico por código
-        if (!rawPedidos.length) {
-            try {
-                const r2 = await fetch(`${WORKER_DATA}?codigo=${encodeURIComponent(currentCode)}`);
-                if (r2.ok) {
-                    const d2 = await r2.json();
-                    if (Array.isArray(d2.pedidos)) rawPedidos = d2.pedidos;
-                    else if (Array.isArray(d2)) rawPedidos = d2;
-                    // También actualizar config si viene
-                    if (d2.vendedor && d2.vendedor.configTiendaAll) {
-                        configTienda = d2.vendedor.configTiendaAll;
-                        const stored = sessionStorage.getItem(S_KEY);
-                        if (stored) {
-                            const s = JSON.parse(stored);
-                            s.config = configTienda;
-                            sessionStorage.setItem(S_KEY, JSON.stringify(s));
-                        }
-                    }
-                }
-            } catch(_) {}
-        }
-
-        // 2. Traer pedidos aprobados desde la web del revendedor (WORKER_PAGOS)
         try {
-            const rp = await fetch(`${WORKER_PAGOS}?codigo=${encodeURIComponent(currentCode)}&action=getPedidos`);
-            if (rp.ok) {
-                const dp = await rp.json();
-                const pagosPedidos = Array.isArray(dp.pedidos) ? dp.pedidos
-                    : Array.isArray(dp) ? dp : [];
-                pagosPedidos.forEach(p => {
-                    // Solo agregar los del código actual
-                    const cod = (p.codigoVendedor || p.codigo || '').toUpperCase();
-                    if (cod && cod !== currentCode) return;
-                    // Marcar que viene de la tienda (llegará como pendiente hasta que el revendedor lo apruebe)
-                    rawPedidos.push({ ...p, _fromTienda: true });
-                });
+            const res = await fetch(`${WORKER_DATA}/api/pedidos`);
+            if (res.ok) {
+                const data = await res.json();
+                if (Array.isArray(data.pedidos)) {
+                    rawPedidos = data.pedidos.filter(p =>
+                        (p.codigoVendedor || '').toUpperCase() === currentCode
+                    );
+                }
             }
         } catch(_) {}
 
@@ -1194,11 +1144,9 @@ async function loadData() {
             seen.add(id);
             if (isLocallyDeleted(id)) return;
 
+            // estadoPago viene del worker: PENDIENTE, APROBADO, RECHAZADO
             const ep = (p.estadoPago || p.estado || '').toUpperCase();
-            // Pedidos que vienen de la tienda web del revendedor (_fromTienda) se muestran
-            // como pendientes para que el revendedor los procese y apruebe desde el panel.
-            const estado = p._fromTienda ? 'pendiente'
-                         : ep === 'APROBADO' || ep === 'PAGADO' ? 'pagado'
+            const estado = ep === 'APROBADO' ? 'pagado'
                          : ep === 'RECHAZADO' || ep === 'CANCELADO' ? 'cancelado'
                          : 'pendiente';
 
