@@ -571,7 +571,7 @@
 // ═══════════════════════════════════════════════════════════
 // CONFIG
 // ═══════════════════════════════════════════════════════════
-const WORKER_DATA   = 'https://datosderevendedor.tuweb.workers.dev';
+const WORKER_DATA   = 'https://workerwebcliente.tuweb.workers.dev';
 const WORKER_PAGOS  = 'https://workerpagos.tuweb.workers.dev';
 const S_KEY         = 'rw_reseller_v1';
 const D_KEY         = 'rw_reseller_del_v1';
@@ -791,11 +791,55 @@ async function loadData() {
     try {
         pedidos = [];
 
-        // GET /api/pedidos — trae todos los pedidos del worker
-        const res = await fetch(`${WORKER_DATA}/api/pedidos`);
-        if (!res.ok) { renderAll(); return; }
+        // 1. Intentar GET /ranking o raíz del worker → buscar pedidos del revendedor
+        const res = await fetch(WORKER_DATA);
+        if (!res.ok) {
+            // Worker no disponible: mostrar estado vacío sin error
+            renderAll();
+            return;
+        }
         const data = await res.json();
-        const rawPedidos = Array.isArray(data.pedidos) ? data.pedidos : [];
+
+        // El worker puede devolver { ranking, pedidos, ... }
+        // Buscar los pedidos que correspondan al código actual
+        let rawPedidos = [];
+
+        if (Array.isArray(data.pedidos)) {
+            rawPedidos = data.pedidos.filter(p =>
+                (p.codigoVendedor||'').toUpperCase() === currentCode ||
+                (p.codigo||'').toUpperCase() === currentCode
+            );
+        }
+
+        if (!rawPedidos.length && Array.isArray(data.ranking)) {
+            // El worker devuelve ranking con info agregada, buscar los pedidos del vendedor
+            const vendorEntry = data.ranking.find(v => (v.codigoVendedor||'').toUpperCase() === currentCode);
+            if (vendorEntry && Array.isArray(vendorEntry.pedidos)) {
+                rawPedidos = vendorEntry.pedidos;
+            }
+        }
+
+        // Si el worker tiene un endpoint específico por código
+        if (!rawPedidos.length) {
+            try {
+                const r2 = await fetch(`${WORKER_DATA}?codigo=${encodeURIComponent(currentCode)}`);
+                if (r2.ok) {
+                    const d2 = await r2.json();
+                    if (Array.isArray(d2.pedidos)) rawPedidos = d2.pedidos;
+                    else if (Array.isArray(d2)) rawPedidos = d2;
+                    // También actualizar config si viene
+                    if (d2.vendedor && d2.vendedor.configTiendaAll) {
+                        configTienda = d2.vendedor.configTiendaAll;
+                        const stored = sessionStorage.getItem(S_KEY);
+                        if (stored) {
+                            const s = JSON.parse(stored);
+                            s.config = configTienda;
+                            sessionStorage.setItem(S_KEY, JSON.stringify(s));
+                        }
+                    }
+                }
+            } catch(_) {}
+        }
 
         // Normalizar pedidos
         const seen = new Set();
@@ -805,8 +849,9 @@ async function loadData() {
             seen.add(id);
             if (isLocallyDeleted(id)) return;
 
-            const ep = (p.estadoPago || p.estado || '').toUpperCase();
-            const estado = ep === 'APROBADO' || ep === 'PAGADO' ? 'pagado'
+            const ep  = (p.estadoPago      || p.estado            || '').toUpperCase();
+            const ea  = (p.estadoAprobacion || '').toLowerCase();
+            const estado = ep === 'APROBADO' || ep === 'PAGADO' || ea === 'aprobado' ? 'pagado'
                          : ep === 'RECHAZADO' || ep === 'CANCELADO' ? 'cancelado'
                          : 'pendiente';
 
@@ -1673,14 +1718,33 @@ async function renderRevendedoresView() {
 
     let revendedores = [];
     try {
-        const res = await fetch(WORKER_DATA);
+        // GET /api/pedidos → agrupar por codigoVendedor para el ranking
+        const res = await fetch(`${WORKER_DATA}/api/pedidos`);
         if (res.ok) {
             const data = await res.json();
-            if (Array.isArray(data.ranking)) {
-                revendedores = data.ranking;
-            } else if (Array.isArray(data.vendedores)) {
-                revendedores = data.vendedores;
-            }
+            const todos = Array.isArray(data.pedidos) ? data.pedidos : [];
+            // Agrupar pedidos por codigoVendedor — un solo casillero por revendedor
+            const mapa = {};
+            todos.forEach(p => {
+                const cod = (p.codigoVendedor || '').toUpperCase();
+                if (!cod) return;
+                if (!mapa[cod]) {
+                    mapa[cod] = {
+                        codigoVendedor: cod,
+                        nombre: p.vendedor?.nombre || '',
+                        apellido: p.vendedor?.apellido || '',
+                        pedidos: [],
+                        totalPedidos: 0,
+                        totalVentaProductos: 0,
+                    };
+                }
+                mapa[cod].pedidos.push(p);
+                mapa[cod].totalPedidos++;
+                // Sumar el total de venta (precio de costo, sin revelar ganancia)
+                const totalPedido = Number(p.total || p.totalFinal || 0);
+                mapa[cod].totalVentaProductos += totalPedido;
+            });
+            revendedores = Object.values(mapa).sort((a,b) => b.totalPedidos - a.totalPedidos);
         }
     } catch(_) {}
 
@@ -1711,12 +1775,15 @@ function renderRevendedoresLista(el, revendedores) {
     revendedores.forEach((rv, i) => {
         const nombre = [rv.nombre, rv.apellido].filter(Boolean).join(' ') || rv.codigoVendedor || rv.codigo || 'Revendedor';
         const codigo = rv.codigoVendedor || rv.codigo || '';
-        const pedidosCount = Array.isArray(rv.pedidos) ? rv.pedidos.length :
-                             (rv.totalPedidos || rv.pedidos_count || 0);
+        const pedidosCount = rv.totalPedidos || (Array.isArray(rv.pedidos) ? rv.pedidos.length : 0);
         const aprobados = Array.isArray(rv.pedidos)
-            ? rv.pedidos.filter(p => (p.estadoPago||p.estado||'').toUpperCase().includes('APROBAD') || (p.estadoPago||p.estado||'').toUpperCase().includes('PAGADO')).length
+            ? rv.pedidos.filter(p => {
+                const ep = (p.estadoPago||p.estado||'').toUpperCase();
+                const ea = (p.estadoAprobacion||'').toLowerCase();
+                return ep.includes('APROBAD') || ep.includes('PAGADO') || ea === 'aprobado';
+              }).length
             : (rv.aprobados || 0);
-        const ganancia = rv.gananciaTotal || rv.ganancia || 0;
+        const totalVenta = rv.totalVentaProductos || rv.facturacionTotal || 0;
 
         html += `<div class="rv-ribbon" onclick="selectRevendedor('${codigo}')">
             <div class="rv-avatar">${nombre.charAt(0).toUpperCase()}</div>
@@ -1729,7 +1796,7 @@ function renderRevendedoresLista(el, revendedores) {
                 </div>
             </div>
             <div class="rv-right">
-                ${ganancia ? `<div style="font-size:14px;font-weight:800;color:var(--green)">$${Math.round(ganancia).toLocaleString()}</div>` : ''}
+                ${totalVenta ? `<div style="font-size:14px;font-weight:800;color:var(--blue-glow)">$${Math.round(totalVenta).toLocaleString()}</div>` : ''}
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" style="color:var(--text3)"><polyline points="9 18 15 12 9 6"/></svg>
             </div>
         </div>`;
