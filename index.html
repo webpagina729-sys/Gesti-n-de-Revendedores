@@ -142,8 +142,8 @@
         .btn-send-all:hover { background: var(--green); color: #0b0d12; border-color: var(--green); }
 
         /* ── MENU NAV ── */
-        .menu-nav { display: flex; gap: 4px; margin-bottom: 24px; flex-wrap: nowrap; overflow-x: auto; }
-        .menu-btn { display: flex; align-items: center; gap: 6px; padding: 8px 13px; border-radius: 9px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid var(--border2); background: var(--surface); color: var(--text2); font-family: var(--font); transition: all .18s; white-space: nowrap; flex-shrink: 0; }
+        .menu-nav { display: flex; gap: 6px; margin-bottom: 24px; flex-wrap: wrap; overflow-x: visible; }
+        .menu-btn { display: flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 9px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid var(--border2); background: var(--surface); color: var(--text2); font-family: var(--font); transition: all .18s; white-space: nowrap; flex-shrink: 0; }
         .menu-btn.active { background: var(--blue-pale); border-color: var(--blue); color: var(--blue); }
         .menu-btn:hover:not(.active) { border-color: var(--border2); color: var(--text); background: var(--surface2); }
 
@@ -152,7 +152,7 @@
         .view.active { display: block; }
 
         /* ── STATUS TABS ── */
-        .status-tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: nowrap; overflow-x: auto; }
+        .status-tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; overflow-x: visible; }
         .stab { display: flex; align-items: center; gap: 7px; padding: 9px 16px; border-radius: 9px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid var(--border2); background: var(--surface); color: var(--text2); font-family: var(--font); transition: all .18s; white-space: nowrap; flex-shrink: 0; }
         .stab.active.pend { border-color: var(--amber); color: var(--amber); background: var(--amber-pale); }
         .stab.active.apro { border-color: var(--green); color: var(--green); background: var(--green-pale); }
@@ -161,8 +161,8 @@
         .stab.active.apro .cnt { background: var(--green); color: #0b0d12; }
 
         /* ── NICHO TABS ── */
-        .tabs-bar { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 28px; overflow-x: auto; flex-wrap: nowrap; }
-        .tab-btn { display: flex; align-items: center; gap: 7px; padding: 10px 16px; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; font-size: 12px; font-weight: 600; color: var(--text2); cursor: pointer; font-family: var(--font); transition: all .18s; white-space: nowrap; flex-shrink: 0; }
+        .tabs-bar { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 28px; overflow-x: visible; flex-wrap: wrap; }
+        .tab-btn { display: flex; align-items: center; gap: 7px; padding: 10px 16px; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; font-size: 12px; font-weight: 600; color: var(--text2); cursor: pointer; font-family: var(--font); transition: all .18s; white-space: nowrap; flex-shrink: 0; min-width: fit-content; }
         .tab-btn.active { color: var(--blue); border-bottom-color: var(--blue); }
         .tab-btn:hover:not(.active) { color: var(--text); }
         .pill { background: var(--surface2); color: var(--text3); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; }
@@ -664,7 +664,7 @@
 // ═══════════════════════════════════════════════════════════
 // CONFIG
 // ═══════════════════════════════════════════════════════════
-const WORKER_DATA   = 'https://workerwebcliente.tuweb.workers.dev';
+const WORKER_DATA   = 'https://datosderevendedor.tuweb.workers.dev'; // compatibilidad con renderRevendedoresView
 const WORKER_PAGOS  = 'https://workerpagos.tuweb.workers.dev';
 const S_KEY         = 'rw_reseller_v1';
 const D_KEY         = 'rw_reseller_del_v1';
@@ -956,7 +956,133 @@ function showMain() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// CARGA DE DATOS DESDE WORKER
+// WORKER URLS — ambas fuentes de pedidos
+// ═══════════════════════════════════════════════════════════
+const WORKER_CLIENTES  = 'https://workerwebcliente.tuweb.workers.dev';   // pedidos pendientes
+const WORKER_APROBADOS = 'https://datosderevendedor.tuweb.workers.dev';  // pedidos aprobados
+
+// ═══════════════════════════════════════════════════════════
+// EXTRAE PEDIDOS CRUDOS DE UNA RESPUESTA JSON DEL WORKER
+// ═══════════════════════════════════════════════════════════
+async function _fetchPedidosFromWorker(baseUrl) {
+    let rawPedidos = [];
+    try {
+        // Intento 1: raíz del worker
+        const res = await fetch(baseUrl);
+        if (!res.ok) return rawPedidos;
+        const data = await res.json();
+
+        if (Array.isArray(data.pedidos)) {
+            rawPedidos = data.pedidos.filter(p =>
+                !currentCode || currentCode === 'PANEL' ||
+                (p.codigoVendedor||'').toUpperCase() === currentCode ||
+                (p.codigo||'').toUpperCase() === currentCode
+            );
+        }
+
+        if (!rawPedidos.length && Array.isArray(data.ranking)) {
+            const vendorEntry = data.ranking.find(v =>
+                !currentCode || currentCode === 'PANEL' ||
+                (v.codigoVendedor||'').toUpperCase() === currentCode
+            );
+            if (vendorEntry && Array.isArray(vendorEntry.pedidos)) {
+                rawPedidos = vendorEntry.pedidos;
+            }
+            // Si es PANEL, traer todos los pedidos de todos los vendedores
+            if (!rawPedidos.length && currentCode === 'PANEL') {
+                data.ranking.forEach(v => {
+                    if (Array.isArray(v.pedidos)) rawPedidos.push(...v.pedidos);
+                });
+            }
+        }
+
+        // También intentar extraer config de tienda si viene
+        if (data.vendedor && data.vendedor.configTiendaAll && !Object.keys(configTienda).length) {
+            configTienda = data.vendedor.configTiendaAll;
+            try {
+                const stored = sessionStorage.getItem(S_KEY);
+                if (stored) { const s=JSON.parse(stored); s.config=configTienda; sessionStorage.setItem(S_KEY,JSON.stringify(s)); }
+            } catch(_) {}
+        }
+
+        // Intento 2: endpoint por código si aún no hay pedidos
+        if (!rawPedidos.length && currentCode && currentCode !== 'PANEL') {
+            try {
+                const r2 = await fetch(`${baseUrl}?codigo=${encodeURIComponent(currentCode)}`);
+                if (r2.ok) {
+                    const d2 = await r2.json();
+                    if (Array.isArray(d2.pedidos)) rawPedidos = d2.pedidos;
+                    else if (Array.isArray(d2)) rawPedidos = d2;
+                    if (d2.vendedor && d2.vendedor.configTiendaAll && !Object.keys(configTienda).length) {
+                        configTienda = d2.vendedor.configTiendaAll;
+                        try {
+                            const stored = sessionStorage.getItem(S_KEY);
+                            if (stored) { const s=JSON.parse(stored); s.config=configTienda; sessionStorage.setItem(S_KEY,JSON.stringify(s)); }
+                        } catch(_) {}
+                    }
+                }
+            } catch(_) {}
+        }
+
+        // Intento 3: endpoint /api/panel-gestion o /pedidos
+        if (!rawPedidos.length) {
+            const endpoints = ['/api/panel-gestion', '/pedidos', '/api/pedidos'];
+            for (const ep of endpoints) {
+                try {
+                    const r3 = await fetch(baseUrl + ep + (currentCode && currentCode !== 'PANEL' ? `?codigo=${encodeURIComponent(currentCode)}` : ''));
+                    if (r3.ok) {
+                        const d3 = await r3.json();
+                        const arr = Array.isArray(d3) ? d3 : (Array.isArray(d3.pedidos) ? d3.pedidos : []);
+                        if (arr.length) { rawPedidos = arr; break; }
+                    }
+                } catch(_) {}
+            }
+        }
+    } catch(_) {}
+    return rawPedidos;
+}
+
+// ═══════════════════════════════════════════════════════════
+// NORMALIZA UN PEDIDO CRUDO A ESTRUCTURA INTERNA
+// ═══════════════════════════════════════════════════════════
+function _normalizePedido(p) {
+    const id = p.pedidoId || p.id || p._id;
+    if (!id) return null;
+    if (isLocallyDeleted(id)) return null;
+
+    const ep = (p.estadoPago || p.estado || '').toUpperCase();
+    const estado = ep.includes('APROBAD') || ep.includes('PAGADO') ? 'pagado'
+                 : ep.includes('RECHAZAD') || ep.includes('CANCELAD') ? 'cancelado'
+                 : 'pendiente';
+
+    const clienteNombre = fullName(p.cliente) || fullName(p.envio) || p.nombreCliente || p._clienteName || '';
+
+    return {
+        id,
+        estado,
+        items: (p.productos || p.items || []).map(pr => ({
+            nombre:   pr.nombre || pr.title || '—',
+            cantidad: Number(pr.cantidad || pr.quantity || 1),
+            precio:   Number(pr.precio || pr.unit_price || pr.precioBase || pr.precioCosto || 0)
+        })),
+        cliente: p.cliente || null,
+        envio:   p.envio || p.cliente || null,
+        nicho:   p.nicho || null,
+        codigoVendedor: p.codigoVendedor || currentCode,
+        _vCode:  p.codigoVendedor || currentCode,
+        _clienteName: clienteNombre,
+        fechaCreacion: { seconds: Math.floor(
+            p.fechaCreacion?.seconds
+            || (typeof p.fecha === 'number' ? p.fecha / (p.fecha > 1e10 ? 1000 : 1) : 0)
+            || (typeof p.fecha === 'string' ? new Date(p.fecha).getTime() / 1000 : 0)
+            || Date.now() / 1000
+        )},
+        _raw: p
+    };
+}
+
+// ═══════════════════════════════════════════════════════════
+// CARGA DE DATOS DESDE AMBOS WORKERS (pendientes + aprobados)
 // ═══════════════════════════════════════════════════════════
 async function loadData() {
     ['perfumes','multishop','calzados'].forEach(k => {
@@ -967,93 +1093,28 @@ async function loadData() {
     try {
         pedidos = [];
 
-        // 1. Intentar GET /ranking o raíz del worker → buscar pedidos del revendedor
-        const res = await fetch(WORKER_DATA);
-        if (!res.ok) {
-            // Worker no disponible: mostrar estado vacío sin error
-            renderAll();
-            return;
-        }
-        const data = await res.json();
+        // ── Traer de AMBOS workers en paralelo ──
+        const [rawClientes, rawAprobados] = await Promise.all([
+            _fetchPedidosFromWorker(WORKER_CLIENTES),
+            _fetchPedidosFromWorker(WORKER_APROBADOS)
+        ]);
 
-        // El worker puede devolver { ranking, pedidos, ... }
-        // Buscar los pedidos que correspondan al código actual
-        let rawPedidos = [];
+        // ── Mergear deduplicando por ID; aprobados tienen prioridad de estado ──
+        const seen    = new Map(); // id → índice en pedidos[]
+        const allRaw  = [...rawClientes, ...rawAprobados];
 
-        if (Array.isArray(data.pedidos)) {
-            rawPedidos = data.pedidos.filter(p =>
-                (p.codigoVendedor||'').toUpperCase() === currentCode ||
-                (p.codigo||'').toUpperCase() === currentCode
-            );
-        }
+        allRaw.forEach(p => {
+            const norm = _normalizePedido(p);
+            if (!norm) return;
 
-        if (!rawPedidos.length && Array.isArray(data.ranking)) {
-            // El worker devuelve ranking con info agregada, buscar los pedidos del vendedor
-            const vendorEntry = data.ranking.find(v => (v.codigoVendedor||'').toUpperCase() === currentCode);
-            if (vendorEntry && Array.isArray(vendorEntry.pedidos)) {
-                rawPedidos = vendorEntry.pedidos;
+            if (seen.has(norm.id)) {
+                // Si ya existe, actualizar estado solo si el nuevo tiene prioridad (aprobado > pendiente)
+                const idx = seen.get(norm.id);
+                if (norm.estado === 'pagado') pedidos[idx].estado = 'pagado';
+            } else {
+                seen.set(norm.id, pedidos.length);
+                pedidos.push(norm);
             }
-        }
-
-        // Si el worker tiene un endpoint específico por código
-        if (!rawPedidos.length) {
-            try {
-                const r2 = await fetch(`${WORKER_DATA}?codigo=${encodeURIComponent(currentCode)}`);
-                if (r2.ok) {
-                    const d2 = await r2.json();
-                    if (Array.isArray(d2.pedidos)) rawPedidos = d2.pedidos;
-                    else if (Array.isArray(d2)) rawPedidos = d2;
-                    // También actualizar config si viene
-                    if (d2.vendedor && d2.vendedor.configTiendaAll) {
-                        configTienda = d2.vendedor.configTiendaAll;
-                        const stored = sessionStorage.getItem(S_KEY);
-                        if (stored) {
-                            const s = JSON.parse(stored);
-                            s.config = configTienda;
-                            sessionStorage.setItem(S_KEY, JSON.stringify(s));
-                        }
-                    }
-                }
-            } catch(_) {}
-        }
-
-        // Normalizar pedidos
-        const seen = new Set();
-        rawPedidos.forEach(p => {
-            const id = p.pedidoId || p.id || p._id;
-            if (!id || seen.has(id)) return;
-            seen.add(id);
-            if (isLocallyDeleted(id)) return;
-
-            const ep = (p.estadoPago || p.estado || '').toUpperCase();
-            const estado = ep === 'APROBADO' || ep === 'PAGADO' ? 'pagado'
-                         : ep === 'RECHAZADO' || ep === 'CANCELADO' ? 'cancelado'
-                         : 'pendiente';
-
-            const clienteNombre = fullName(p.cliente) || p.nombreCliente || '';
-            const rawVendedor = p.vendedor || {};
-            const vendedorNombre = [rawVendedor.nombre, rawVendedor.apellido].filter(Boolean).join(' ')
-                || (currentVendorNombre + (currentVendorApellido ? ' ' + currentVendorApellido : '')).trim()
-                || p.codigoVendedor || currentCode;
-
-            pedidos.push({
-                id,
-                estado,
-                items: (p.productos || p.items || []).map(pr => ({
-                    nombre:   pr.nombre || pr.title || '—',
-                    cantidad: Number(pr.cantidad || pr.quantity || 1),
-                    precio:   Number(pr.precio || pr.unit_price || pr.precioBase || 0)
-                })),
-                cliente: p.cliente || null,
-                envio: p.envio || p.cliente || null,
-                nicho: p.nicho || null,
-                codigoVendedor: p.codigoVendedor || currentCode,
-                _vCode: p.codigoVendedor || currentCode,
-                _clienteName: clienteNombre,
-                _vendedorNombre: vendedorNombre,
-                fechaCreacion: { seconds: Math.floor(Number(p.fecha || p.fechaCreacion || Date.now()) / 1000) },
-                _raw: p
-            });
         });
 
         pedidos.sort((a,b) => (b.fechaCreacion?.seconds||0) - (a.fechaCreacion?.seconds||0));
@@ -1069,7 +1130,7 @@ async function loadData() {
         renderAll();
 
     } catch(e) {
-        console.error(e);
+        console.error('loadData error:', e);
         ['perfumes','multishop','calzados'].forEach(k => {
             document.getElementById('list-'+k).innerHTML =
                 `<div class="empty"><div class="empty-icon">⚠️</div><h3>Error al cargar</h3><p>${esc(e.message)}</p></div>`;
@@ -1112,33 +1173,7 @@ function renderList(ps, k) {
         el.innerHTML = `<div class="empty"><div class="empty-icon">📭</div><h3>Sin pedidos</h3><p>${activeStatus === 'pendiente' ? 'No hay pedidos pendientes en este nicho.' : 'No hay pedidos aprobados en este nicho.'}</p></div>`;
         return;
     }
-    // Agrupar por revendedor
-    const grupos = {};
-    ps.forEach(p => {
-        const key = p._vCode || 'sin_codigo';
-        if (!grupos[key]) grupos[key] = { nombre: p._vendedorNombre || key, codigo: key, pedidos: [] };
-        grupos[key].pedidos.push(p);
-    });
-    let html = '';
-    Object.values(grupos).forEach((g, gi) => {
-        const gid = 'vg-' + k + '-' + gi;
-        const inicial = (g.nombre.trim().charAt(0) || '?').toUpperCase();
-        html += `<div style="margin-bottom:12px;border:1px solid var(--border);border-radius:12px;overflow:hidden;">
-            <button onclick="(function(el){var b=document.getElementById('${gid}');var open=b.style.display==='block';b.style.display=open?'none':'block';el.querySelector('.vg-chev').style.transform=open?'rotate(0deg)':'rotate(180deg)';})(this)"
-                style="width:100%;display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--surface2);border:none;cursor:pointer;text-align:left;">
-                <div style="width:38px;height:38px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;flex-shrink:0;">${inicial}</div>
-                <div style="flex:1;min-width:0;">
-                    <div style="font-weight:700;font-size:14px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(g.nombre)}</div>
-                    <div style="font-size:11px;color:var(--text3);">${g.codigo} · ${g.pedidos.length} pedido${g.pedidos.length !== 1 ? 's' : ''}</div>
-                </div>
-                <span class="vg-chev" style="font-size:20px;color:var(--text3);transition:transform .2s;display:inline-block;">▾</span>
-            </button>
-            <div id="${gid}" style="display:none;padding:8px 8px 4px;">
-                ${g.pedidos.map(p => card(p)).join('')}
-            </div>
-        </div>`;
-    });
-    el.innerHTML = html;
+    el.innerHTML = ps.map(p => card(p)).join('');
 }
 
 function card(p) {
@@ -1366,15 +1401,6 @@ async function confirmDelete() {
     const id = deleteTarget;
     const btn = document.getElementById('del-confirm-btn');
     btn.textContent = 'Eliminando...'; btn.disabled = true;
-
-    // Borrar definitivamente de la base de datos del worker
-    try {
-        await fetch(WORKER_DATA + '/logistica/borrar', {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ pedidoId: id, codigoVendedor: currentCode })
-        });
-    } catch(_) { /* continuar igual aunque falle la red */ }
 
     rememberLocalDelete(id);
     pedidos = pedidos.filter(p => p.id !== id);
@@ -1971,13 +1997,32 @@ async function renderRevendedoresView() {
 
     let revendedores = [];
     try {
-        const res = await fetch(WORKER_DATA);
+        // datosderevendedor tiene el ranking de revendedores
+        const res = await fetch(WORKER_APROBADOS);
         if (res.ok) {
             const data = await res.json();
             if (Array.isArray(data.ranking)) {
                 revendedores = data.ranking;
             } else if (Array.isArray(data.vendedores)) {
                 revendedores = data.vendedores;
+            } else if (Array.isArray(data.pedidos)) {
+                // Agrupar pedidos por vendedor si no viene ranking
+                const map = {};
+                data.pedidos.forEach(p => {
+                    const cod = (p.codigoVendedor || p.codigo || 'SIN_CODIGO').toUpperCase();
+                    if (!map[cod]) map[cod] = { codigoVendedor: cod, nombre: p.vendedor?.nombre || cod, pedidos: [] };
+                    map[cod].pedidos.push(p);
+                });
+                revendedores = Object.values(map);
+            }
+        }
+        // Si no trajo nada, intentar workerwebcliente también
+        if (!revendedores.length) {
+            const res2 = await fetch(WORKER_CLIENTES);
+            if (res2.ok) {
+                const data2 = await res2.json();
+                if (Array.isArray(data2.ranking)) revendedores = data2.ranking;
+                else if (Array.isArray(data2.vendedores)) revendedores = data2.vendedores;
             }
         }
     } catch(_) {}
@@ -2232,6 +2277,93 @@ function saveGift() {
 }
 
 document.getElementById('gift-modal').addEventListener('click', function(e) { if (e.target === this) closeGiftModal(); });
+
+// ═══════════════════════════════════════════════════════════
+// SINCRONIZACIÓN EN VIVO CON PANEL DE TIENDA DEL REVENDEDOR
+// ═══════════════════════════════════════════════════════════
+(function() {
+    // ── 1. BroadcastChannel: recibe eventos instantáneos de la tienda ──
+    var rwChannel = null;
+    try {
+        rwChannel = new BroadcastChannel('rw_pedidos');
+        rwChannel.onmessage = function(ev) {
+            var msg = ev.data || {};
+            if (!msg.pedidoId) return;
+
+            if (msg.accion === 'aprobado') {
+                // Buscar si el pedido ya está en el panel
+                var existente = pedidos.find(function(p) { return p.id === msg.pedidoId; });
+                if (existente) {
+                    // Ya existe: actualizar su estado a pagado
+                    existente.estado = 'pagado';
+                    _refreshCounts();
+                    renderAll();
+                } else {
+                    // No existe aún: recargar del worker para traerlo
+                    loadData();
+                }
+            } else if (msg.accion === 'eliminado' || msg.accion === 'no_aprobado') {
+                // Eliminar del panel local sin recargar
+                rememberLocalDelete(msg.pedidoId);
+                pedidos = pedidos.filter(function(p) { return p.id !== msg.pedidoId; });
+                _refreshCounts();
+                renderAll();
+            }
+        };
+    } catch(_) {}
+
+    // ── 2. Polling cada 30 segundos para mantener sincronización ──
+    var _pollingTimer = null;
+    function startPolling() {
+        stopPolling();
+        _pollingTimer = setInterval(function() {
+            // Solo recargar si el panel está activo (tab visible)
+            if (document.visibilityState !== 'hidden' && currentCode) {
+                loadData();
+            }
+        }, 30000);
+    }
+    function stopPolling() {
+        if (_pollingTimer) { clearInterval(_pollingTimer); _pollingTimer = null; }
+    }
+
+    // Pausar polling cuando la pestaña está oculta, reanudar al volver
+    document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'hidden') {
+            stopPolling();
+        } else {
+            if (currentCode) { loadData(); startPolling(); }
+        }
+    });
+
+    // Arrancar el polling cuando el panel carga datos por primera vez
+    var _origLoadData = null;
+    document.addEventListener('DOMContentLoaded', function() {
+        // Interceptar loadData para arrancar polling la primera vez que se llama con éxito
+        var _origShowMain = showMain;
+        window.showMain = function() {
+            _origShowMain.apply(this, arguments);
+            if (!_pollingTimer) startPolling();
+        };
+    });
+
+    // Exponer para que la tienda pueda notificar si están en la misma pestaña
+    window._rwBroadcast = function(msg) {
+        try { if (rwChannel) rwChannel.postMessage(msg); } catch(_) {}
+    };
+
+    function _refreshCounts() {
+        var pend = pedidos.filter(function(p) { return p.estado === 'pendiente'; }).length;
+        var apro = pedidos.filter(function(p) { return p.estado === 'pagado'; }).length;
+        var tot  = pedidos.length;
+        var elP = document.getElementById('scnt-pendiente');
+        var elA = document.getElementById('scnt-pagado');
+        var elT = document.getElementById('count-lbl');
+        if (elP) elP.textContent = pend;
+        if (elA) elA.textContent = apro;
+        if (elT) elT.textContent = tot ? '(' + tot + ' pedido' + (tot !== 1 ? 's' : '') + ')' : '';
+    }
+})();
 
 window.addEventListener('load', init);
 </script>
