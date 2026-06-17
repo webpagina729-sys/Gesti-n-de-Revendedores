@@ -1046,57 +1046,76 @@ function showMain() {
 }
 
 // ─── normaliza cualquier pedido crudo a estructura interna ───
+// Maneja el formato exacto que manda index.html a /api/panel-gestion:
+//   pedidoId, codigoVendedor, cliente (STRING), telefono, items [{nombre,cantidad,precio}]
+// Y también el formato de workerwebcliente /logistica:
+//   id, nombre, apellido, telefono, productos (array strings), cantidades, preciosIndividuales
 function _norm(p, estadoForzado) {
     const id = p.pedidoId || p.id || p._id;
     if (!id) return null;
     if (isLocallyDeleted(id)) return null;
 
+    // Estado
     let estado = estadoForzado;
     if (!estado) {
         const ep = (p.estadoAprobacion || p.estadoPago || p.estado || '').toLowerCase();
         estado = (ep.includes('aprobad') || ep.includes('pagado') || ep === 'entregado') ? 'pagado'
-               : (ep.includes('rechazad') || ep.includes('cancelad') || ep === 'no_aprobado') ? 'cancelado'
+               : (ep.includes('rechazad') || ep.includes('no_aprobad') || ep.includes('cancelad')) ? 'cancelado'
                : 'pendiente';
     }
 
-    // cliente puede ser string o objeto
+    // Cliente — puede ser string (del index) u objeto (del worker logistica)
     let envObj = {};
     if (p.cliente && typeof p.cliente === 'object') {
-        envObj = p.cliente;
-    } else if (p.envio && typeof p.envio === 'object') {
-        envObj = p.envio;
-    } else if (typeof p.cliente === 'string') {
-        envObj = { nombre: p.cliente, telefono: p.telefono || '', ciudad: p.direccion || '' };
+        envObj = { ...p.cliente };
+    } else {
+        // cliente es string "Nombre Apellido" o viene suelto en campos raíz
+        const nombreStr = (typeof p.cliente === 'string' ? p.cliente : '') ||
+                          [p.nombre, p.apellido].filter(Boolean).join(' ');
+        const partes = nombreStr.trim().split(' ');
+        envObj = {
+            nombre:   partes[0] || '',
+            apellido: partes.slice(1).join(' ') || '',
+            telefono: p.telefono || '',
+            direccion: p.direccion || p.ciudad || '',
+        };
     }
-    envObj.telefono = envObj.telefono || p.telefono || '';
+    // telefono puede venir suelto en raíz aunque cliente sea objeto
+    if (!envObj.telefono) envObj.telefono = p.telefono || '';
 
-    const clienteNombre = [envObj.nombre, envObj.apellido].filter(Boolean).join(' ')
-                        || (typeof p.cliente === 'string' ? p.cliente : '')
-                        || p.nombreCliente || '';
+    const clienteNombre = [envObj.nombre, envObj.apellido].filter(Boolean).join(' ') || 'Cliente';
 
-    // items
+    // Items — dos formatos:
+    // 1. Del index:   items: [{nombre, cantidad, precio}]
+    // 2. Del worker:  productos: ["Nike Dunk (T.42)", ...] + cantidades + preciosIndividuales
+    let items = [];
     const rawItems = p.items || p.productos || [];
-    let items;
     if (rawItems.length && typeof rawItems[0] === 'string') {
+        // Formato worker: arrays paralelos
         const cants  = p.cantidades || [];
         const prices = p.preciosIndividuales || p.precios || [];
-        items = rawItems.map((n, i) => ({ nombre: n, cantidad: Number(cants[i])||1, precio: Number(prices[i])||0 }));
+        items = rawItems.map((nombre, i) => ({
+            nombre,
+            cantidad: Number(cants[i])  || 1,
+            precio:   Number(prices[i]) || 0,
+        }));
     } else {
         items = rawItems.map(i => ({
             nombre:   i.nombre || i.name || '—',
             cantidad: Number(i.cantidad || i.qty || 1),
-            precio:   Number(i.precio || i.precioFinal || i.unit_price || i.precioBase || 0)
+            precio:   Number(i.precio || i.precioFinal || i.unit_price || 0),
         }));
     }
 
-    // fecha
+    // Fecha
     let fechaSecs = 0;
-    if (p.fechaCreacion?.seconds) fechaSecs = p.fechaCreacion.seconds;
-    else if (p.fecha) {
+    if (p.fechaCreacion?.seconds) {
+        fechaSecs = p.fechaCreacion.seconds;
+    } else if (p.fecha) {
         const d = new Date(p.fecha);
-        fechaSecs = isNaN(d) ? 0 : Math.floor(d.getTime()/1000);
+        fechaSecs = isNaN(d) ? 0 : Math.floor(d.getTime() / 1000);
     }
-    if (!fechaSecs) fechaSecs = Math.floor(Date.now()/1000);
+    if (!fechaSecs) fechaSecs = Math.floor(Date.now() / 1000);
 
     return {
         id, estado, items,
@@ -1107,7 +1126,7 @@ function _norm(p, estadoForzado) {
         _vCode:  p.codigoVendedor || currentCode,
         _clienteName: clienteNombre,
         fechaCreacion: { seconds: fechaSecs },
-        _raw: p
+        _raw: p,
     };
 }
 
@@ -1136,32 +1155,56 @@ async function _cargarPendientes() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// CARGA PEDIDOS APROBADOS desde datosderevendedor /api/panel-gestion
+// CARGA PEDIDOS APROBADOS desde datosderevendedor
+// El index los guarda en POST /api/panel-gestion
+// Los intentamos leer con GET en todas las variantes posibles
 // ═══════════════════════════════════════════════════════════
 async function _cargarAprobados() {
-    if (!currentCode) return [];
-    try {
-        const url = `${WORKER_APROBADOS}/api/panel-gestion?codigo=${encodeURIComponent(currentCode)}`;
-        const ctrl = new AbortController();
-        const t = setTimeout(() => ctrl.abort(), 8000);
-        const res = await fetch(url, { signal: ctrl.signal });
-        clearTimeout(t);
-        if (!res.ok) {
-            // Intentar sin query param (algunos workers devuelven todo)
-            const res2 = await fetch(`${WORKER_APROBADOS}/api/panel-gestion`).catch(() => null);
-            if (!res2 || !res2.ok) return [];
-            const data2 = await res2.json().catch(() => null);
-            const arr2 = Array.isArray(data2) ? data2
-                       : (data2 && Array.isArray(data2.pedidos)) ? data2.pedidos : [];
-            return arr2.filter(p =>
-                !currentCode ||
-                (p.codigoVendedor||'').toUpperCase() === currentCode.toUpperCase()
-            );
-        }
-        const data = await res.json().catch(() => null);
-        return Array.isArray(data) ? data
-             : (data && Array.isArray(data.pedidos)) ? data.pedidos : [];
-    } catch(_) { return []; }
+    const codigo = currentCode || '';
+
+    // Todas las variantes que puede exponer el worker
+    const endpoints = [
+        `${WORKER_APROBADOS}/api/panel-gestion?codigo=${encodeURIComponent(codigo)}`,
+        `${WORKER_APROBADOS}/api/panel-gestion?codigoVendedor=${encodeURIComponent(codigo)}`,
+        `${WORKER_APROBADOS}/api/panel-gestion`,
+        `${WORKER_APROBADOS}/pedidos?codigo=${encodeURIComponent(codigo)}`,
+        `${WORKER_APROBADOS}?codigo=${encodeURIComponent(codigo)}`,
+        `${WORKER_APROBADOS}`,
+    ];
+
+    for (const url of endpoints) {
+        try {
+            const ctrl = new AbortController();
+            const t = setTimeout(() => ctrl.abort(), 6000);
+            const res = await fetch(url, { signal: ctrl.signal });
+            clearTimeout(t);
+            if (!res.ok) continue;
+
+            const data = await res.json().catch(() => null);
+            if (!data) continue;
+
+            // Puede venir como array directo, o { pedidos: [] }, o { data: [] }
+            let arr = Array.isArray(data) ? data
+                    : Array.isArray(data.pedidos) ? data.pedidos
+                    : Array.isArray(data.data)    ? data.data
+                    : [];
+
+            if (!arr.length) continue;
+
+            // Filtrar por código si el worker devolvió todo
+            if (codigo) {
+                const filtrado = arr.filter(p =>
+                    (p.codigoVendedor || p.codigo || '').toUpperCase() === codigo.toUpperCase()
+                );
+                // Usar filtrado solo si tiene resultados; si no, usar todo (puede ser que el worker
+                // ya filtre por código en la URL y devuelva solo los del vendedor)
+                arr = filtrado.length ? filtrado : arr;
+            }
+
+            if (arr.length) return arr;
+        } catch(_) { continue; }
+    }
+    return [];
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1182,9 +1225,17 @@ async function loadData() {
             _cargarAprobados()
         ]);
 
-        const seen = new Map(); // id → índice en pedidos[]
+        // Debug visible — aparece en consola Y en un toast para que puedas ver qué trajo
+        console.log('[Panel] Pendientes del worker:', rawPend.length, rawPend);
+        console.log('[Panel] Aprobados del worker:', rawApro.length, rawApro);
+        if (!rawPend.length && !rawApro.length) {
+            toast(`⚠️ Workers sin datos. Código: "${currentCode}". Abrí consola (F12) para detalles.`, 'err');
+        } else {
+            toast(`Cargados: ${rawPend.length} pendientes · ${rawApro.length} aprobados`, true);
+        }
 
-        // Primero los pendientes
+        const seen = new Map();
+
         rawPend.forEach(p => {
             const norm = _norm(p, 'pendiente');
             if (!norm) return;
@@ -1192,7 +1243,6 @@ async function loadData() {
             pedidos.push(norm);
         });
 
-        // Luego los aprobados — si ya existe el ID, marcar como pagado; si no, agregar
         rawApro.forEach(p => {
             const norm = _norm(p, 'pagado');
             if (!norm) return;
@@ -1218,6 +1268,7 @@ async function loadData() {
 
     } catch(e) {
         console.error('loadData error:', e);
+        toast('Error al cargar: ' + e.message, 'err');
         ['perfumes','multishop','calzados'].forEach(k => {
             document.getElementById('list-'+k).innerHTML =
                 `<div class="empty"><div class="empty-icon">⚠️</div><h3>Error al cargar</h3><p>${esc(e.message)}</p></div>`;
