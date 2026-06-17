@@ -51,11 +51,12 @@
             border-bottom: 1px solid var(--border);
             padding: 0 32px; height: 60px;
             display: flex; align-items: center; justify-content: space-between;
+            gap: 10px;
         }
-        .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
-        .brand-info { display: flex; flex-direction: column; line-height: 1.15; }
+        .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; min-width: 0; }
+        .brand-info { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; overflow: hidden; }
         .brand-title { font-size: 17px; font-weight: 700; color: var(--text); white-space: nowrap; }
-        .brand-code { font-size: 11px; font-weight: 600; color: var(--blue); letter-spacing: .3px; }
+        .brand-code { font-size: 11px; font-weight: 600; color: var(--blue); letter-spacing: .3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
         .brand-mark { width: 34px; height: 34px; border-radius: 50%; overflow: hidden; flex-shrink: 0; border: 2px solid var(--blue-glow); box-shadow: 0 0 0 2px var(--blue-pale); display: flex; align-items: center; justify-content: center; }
         .brand-mark img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .topbar-right { display: flex; align-items: center; gap: 10px; }
@@ -82,7 +83,7 @@
         .login-err { background: var(--red-pale); color: var(--red); border: 1px solid rgba(244,63,94,.2); padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; display: none; }
         .login-err.show { display: block; }
         .recaptcha-wrap { display: flex; justify-content: center; margin-bottom: 16px; transform: scale(0.88); transform-origin: center; }
- font-size: 11px; font-weight: 500; color: var(--text3); margin-top: 10px; letter-spacing: .4px; }
+        .login-foot { font-size: 11px; font-weight: 500; color: var(--text3); margin-top: 10px; letter-spacing: .4px; text-align: center; }
 
         /* ── LIGHT THEME ── */
         body.light-theme {
@@ -385,6 +386,22 @@
             .btn-head { padding: 8px 12px; font-size: 12px; }
             .page-title { font-size: 20px; }
             .badge-live { display: none; }
+
+            /* Las pestañas con flex:1 + nowrap se desbordan en pantallas chicas:
+               se les quita flex:1 para que cada una mida solo lo que necesita
+               y se reduce tipografía/padding para que entren sin cortarse. */
+            .menu-btn { flex: 0 0 auto; padding: 10px 14px; font-size: 12px; }
+            .stab     { flex: 0 0 auto; padding: 8px 12px; font-size: 11px; gap: 5px; }
+            .tab-btn  { flex: 0 0 auto; padding: 9px 12px; font-size: 11.5px; gap: 5px; }
+        }
+
+        @media (max-width: 400px) {
+            .menu-btn { padding: 9px 11px; font-size: 11.5px; gap: 4px; }
+            .stab     { padding: 7px 10px; font-size: 10.5px; }
+            .tab-btn  { padding: 8px 10px; font-size: 11px; }
+            .page-title { font-size: 18px; }
+            .brand-code { max-width: 110px; }
+            .brand-title { font-size: 15px; }
         }
 
         /* ── GUÍA ── */
@@ -767,6 +784,7 @@ let activeTab       = 'calzados';
 let activeStatus    = 'pendiente';
 let deleteTarget    = null;
 let currentCode     = '';
+let currentUid      = '';
 let currentVendorNombre   = '';
 let currentVendorApellido = '';
 let configTienda    = {};
@@ -895,39 +913,29 @@ function init() {
     const savedTheme = localStorage.getItem('rw_theme') || 'dark';
     if (savedTheme === 'light') document.body.classList.add('light-theme');
 
-    // ── AUTO-LOGIN: detectar código por URL o localStorage ──
-    try {
-        const params = new URLSearchParams(window.location.search);
-        const urlCode = (params.get('codigo') || params.get('code') || '').trim().toUpperCase();
-        const lsCode  = (localStorage.getItem('rw_code') || '').trim().toUpperCase();
-        const autoCode = urlCode || lsCode;
-        if (autoCode) {
-            currentCode = autoCode;
-            configTienda = {};
-            currentVendorNombre = '';
-            currentVendorApellido = '';
-            localStorage.setItem('rw_code', autoCode);
-            sessionStorage.setItem(S_KEY, JSON.stringify({ code: currentCode, config: {}, nombre: '', apellido: '' }));
-            showMain();
-            loadData();
-            maybeShowGuide && maybeShowGuide();
-            return;
-        }
-    } catch(_) {}
-
+    // La sesión válida es SIEMPRE la de Firebase Auth, resuelta por UID.
+    // Si hay una sesión local guardada con un uid coincidente con el usuario
+    // actual de Firebase, la usamos como caché rápida; si no, esperamos a
+    // onAuthStateChanged (más abajo) para resolver el código real.
     const stored = sessionStorage.getItem(S_KEY);
     if (stored) {
         try {
             const d = JSON.parse(stored);
-            currentCode = d.code || '';
-            configTienda = d.config || {};
-            currentVendorNombre = d.nombre || '';
-            currentVendorApellido = d.apellido || '';
-            showMain();
-            loadData();
-        } catch(_) { showLogin(); }
-    } else { showLogin(); }
+            if (d.code && d.uid) {
+                currentCode = d.code;
+                currentUid  = d.uid;
+                configTienda = d.config || {};
+                currentVendorNombre = d.nombre || '';
+                currentVendorApellido = d.apellido || '';
+                showMain();
+                loadData();
+                return;
+            }
+        } catch(_) {}
+    }
+    showLogin();
 }
+
 
 function showThemeSelector() {
     document.getElementById('login-wrap').style.display = 'none';
@@ -963,33 +971,34 @@ async function doGoogleLogin() {
         showThemeSelector();
     } catch (e) {
         console.error(e);
-        loginErr(e && e.message ? e.message : 'No se pudo iniciar sesión con Google.');
+        if (!document.getElementById('login-err').classList.contains('show')) {
+            loginErr(e && e.message ? e.message : 'No se pudo iniciar sesión con Google.');
+        }
     } finally {
         btn.disabled = false;
         btn.innerHTML = origHTML;
     }
 }
 
-// ─── Resuelve el código real de revendedor a partir del usuario de Firebase ───
-// Deriva el código del email (igual que tienda.html) y lo valida contra
-// datosderevendedor /api/login-vendedor para traer también su configTiendaAll.
+// ─── Resuelve el código real de revendedor a partir del UID de Firebase ───
+// Busca en datosderevendedor /api/login-vendedor-uid filtrando por el campo
+// "uid" del documento en la colección "usuarios" (igual UID que Firebase Auth).
 async function _resolverCodigoVendedor(user) {
-    const emailCode = (user.email || '').split('@')[0].toUpperCase().replace(/[^A-Z0-9\-_]/g,'');
-    let codigoFinal = emailCode || 'PANEL';
+    let codigoFinal = '';
     let cfg = {};
     let nombre  = (user.displayName || '').split(' ')[0] || '';
     let apellido = (user.displayName || '').split(' ').slice(1).join(' ') || '';
 
     try {
-        const res = await fetch(`${WORKER_APROBADOS}/api/login-vendedor`, {
+        const res = await fetch(`${WORKER_APROBADOS}/api/login-vendedor-uid`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ codigo: emailCode })
+            body: JSON.stringify({ uid: user.uid })
         });
         if (res.ok) {
             const data = await res.json().catch(() => null);
             if (data && data.success && data.vendedor) {
-                codigoFinal = data.vendedor.codigoVendedor || codigoFinal;
+                codigoFinal = data.vendedor.codigoVendedor || '';
                 cfg = data.vendedor.configTiendaAll || data.vendedor.configTienda || {};
                 nombre   = data.vendedor.nombre   || nombre;
                 apellido = data.vendedor.apellido || apellido;
@@ -997,18 +1006,27 @@ async function _resolverCodigoVendedor(user) {
         }
     } catch(_) {}
 
+    if (!codigoFinal) {
+        // Sin coincidencia por UID en la base: avisar en vez de inventar un código falso
+        loginErr('No encontramos tu cuenta de revendedor vinculada. Contactá al administrador.');
+        throw new Error('UID sin código de revendedor asociado');
+    }
+
     currentCode = codigoFinal;
     currentVendorNombre   = nombre;
     currentVendorApellido = apellido;
     configTienda = cfg;
+    currentUid = user.uid;
     localStorage.setItem('rw_code', currentCode);
+    localStorage.setItem('rw_uid', currentUid);
     sessionStorage.setItem(S_KEY, JSON.stringify({
         code: currentCode,
         config: configTienda,
         nombre: currentVendorNombre,
         apellido: currentVendorApellido,
         email: user.email || '',
-        photo: user.photoURL || ''
+        photo: user.photoURL || '',
+        uid: currentUid
     }));
 }
 
@@ -1035,7 +1053,9 @@ async function doEmailLogin() {
         else if (code === 'auth/invalid-email')    msg = 'Correo inválido.';
         else if (code === 'auth/invalid-credential') msg = 'Correo o contraseña incorrectos.';
         else if (code === 'auth/too-many-requests')msg = 'Demasiados intentos. Probá más tarde.';
-        loginErr(msg);
+        if (!document.getElementById('login-err').classList.contains('show')) {
+            loginErr(msg);
+        }
     } finally {
         btn.disabled = false; btn.innerHTML = orig;
     }
@@ -1052,6 +1072,8 @@ function loginErr(m) {
 function logout() {
     sessionStorage.removeItem(S_KEY);
     localStorage.removeItem('rw_code');
+    localStorage.removeItem('rw_uid');
+    currentCode = ''; currentUid = '';
     try { const u=new URL(location.href); u.searchParams.delete('codigo'); u.searchParams.delete('code'); history.replaceState({}, '', u.toString()); } catch(_) {}
     try { firebase.auth().signOut(); } catch(_) {}
     location.reload();
@@ -2266,21 +2288,35 @@ const auth = firebase.auth();
 // Sesión persistente (queda iniciada hasta logout explícito)
 try { auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL); } catch(_) {}
 
-// Auto-login al volver: si Firebase recuerda la sesión y no hay sesión local, entrar automáticamente
+// Auto-login al volver: si Firebase recuerda la sesión, validamos que el UID
+// guardado coincida con el usuario actual antes de confiar en la sesión local.
 auth.onAuthStateChanged(async function(user) {
-    if (!user) return;
+    if (!user) {
+        // Sesión de Firebase cerrada/expirada: no dejar una sesión local huérfana
+        if (currentUid && currentUid !== '') {
+            sessionStorage.removeItem(S_KEY);
+            currentCode = ''; currentUid = '';
+            showLogin();
+        }
+        return;
+    }
     try {
-        if (sessionStorage.getItem(S_KEY)) return; // ya hay sesión activa
-        if (currentCode) return;
-        // Reconstruir sesión a partir del usuario de Firebase, resolviendo el código real
+        const stored = sessionStorage.getItem(S_KEY);
+        if (stored) {
+            const d = JSON.parse(stored);
+            if (d.uid === user.uid && d.code) return; // sesión local ya válida para este usuario
+        }
+        // No hay sesión local válida para este usuario: resolver el código real por UID
         await _resolverCodigoVendedor(user);
-        // Si el login está visible, entrar directo al panel
         const lw = document.getElementById('login-wrap');
         if (lw && lw.style.display !== 'none') {
-            if (typeof showMain === 'function') { showMain(); }
-            if (typeof loadData === 'function') { loadData(); }
+            showMain();
+            loadData();
         }
-    } catch(_) {}
+    } catch(e) {
+        console.error('Auto-login: no se pudo resolver el revendedor', e);
+        showLogin();
+    }
 });
 
 
