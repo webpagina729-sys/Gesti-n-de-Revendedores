@@ -2193,6 +2193,93 @@ function saveGift() {
 
 document.getElementById('gift-modal').addEventListener('click', function(e) { if (e.target === this) closeGiftModal(); });
 
+// ═══════════════════════════════════════════════════════════
+// SINCRONIZACIÓN EN VIVO CON PANEL DE TIENDA DEL REVENDEDOR
+// ═══════════════════════════════════════════════════════════
+(function() {
+    // ── 1. BroadcastChannel: recibe eventos instantáneos de la tienda ──
+    var rwChannel = null;
+    try {
+        rwChannel = new BroadcastChannel('rw_pedidos');
+        rwChannel.onmessage = function(ev) {
+            var msg = ev.data || {};
+            if (!msg.pedidoId) return;
+
+            if (msg.accion === 'aprobado') {
+                // Buscar si el pedido ya está en el panel
+                var existente = pedidos.find(function(p) { return p.id === msg.pedidoId; });
+                if (existente) {
+                    // Ya existe: actualizar su estado a pagado
+                    existente.estado = 'pagado';
+                    _refreshCounts();
+                    renderAll();
+                } else {
+                    // No existe aún: recargar del worker para traerlo
+                    loadData();
+                }
+            } else if (msg.accion === 'eliminado' || msg.accion === 'no_aprobado') {
+                // Eliminar del panel local sin recargar
+                rememberLocalDelete(msg.pedidoId);
+                pedidos = pedidos.filter(function(p) { return p.id !== msg.pedidoId; });
+                _refreshCounts();
+                renderAll();
+            }
+        };
+    } catch(_) {}
+
+    // ── 2. Polling cada 30 segundos para mantener sincronización ──
+    var _pollingTimer = null;
+    function startPolling() {
+        stopPolling();
+        _pollingTimer = setInterval(function() {
+            // Solo recargar si el panel está activo (tab visible)
+            if (document.visibilityState !== 'hidden' && currentCode) {
+                loadData();
+            }
+        }, 30000);
+    }
+    function stopPolling() {
+        if (_pollingTimer) { clearInterval(_pollingTimer); _pollingTimer = null; }
+    }
+
+    // Pausar polling cuando la pestaña está oculta, reanudar al volver
+    document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'hidden') {
+            stopPolling();
+        } else {
+            if (currentCode) { loadData(); startPolling(); }
+        }
+    });
+
+    // Arrancar el polling cuando el panel carga datos por primera vez
+    var _origLoadData = null;
+    document.addEventListener('DOMContentLoaded', function() {
+        // Interceptar loadData para arrancar polling la primera vez que se llama con éxito
+        var _origShowMain = showMain;
+        window.showMain = function() {
+            _origShowMain.apply(this, arguments);
+            if (!_pollingTimer) startPolling();
+        };
+    });
+
+    // Exponer para que la tienda pueda notificar si están en la misma pestaña
+    window._rwBroadcast = function(msg) {
+        try { if (rwChannel) rwChannel.postMessage(msg); } catch(_) {}
+    };
+
+    function _refreshCounts() {
+        var pend = pedidos.filter(function(p) { return p.estado === 'pendiente'; }).length;
+        var apro = pedidos.filter(function(p) { return p.estado === 'pagado'; }).length;
+        var tot  = pedidos.length;
+        var elP = document.getElementById('scnt-pendiente');
+        var elA = document.getElementById('scnt-pagado');
+        var elT = document.getElementById('count-lbl');
+        if (elP) elP.textContent = pend;
+        if (elA) elA.textContent = apro;
+        if (elT) elT.textContent = tot ? '(' + tot + ' pedido' + (tot !== 1 ? 's' : '') + ')' : '';
+    }
+})();
+
 window.addEventListener('load', init);
 </script>
 </body>
