@@ -38,8 +38,8 @@
             --font:        'DM Sans', sans-serif;
         }
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        html { scroll-behavior: smooth; }
-        body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; line-height: 1.6; min-height: 100vh; }
+        html { scroll-behavior: smooth; overflow-x: hidden; width: 100%; }
+        body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; line-height: 1.6; min-height: 100vh; width: 100%; overflow-x: hidden; }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: var(--bg2); }
         ::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 3px; }
@@ -142,7 +142,7 @@
         .btn-send-all:hover { background: var(--green); color: #0b0d12; border-color: var(--green); }
 
         /* ── MENU NAV ── */
-        .menu-nav { display: flex; gap: 0; margin-bottom: 24px; flex-wrap: nowrap; overflow-x: visible; border-bottom: 2px solid var(--border); }
+        .menu-nav { display: flex; gap: 0; margin-bottom: 24px; flex-wrap: nowrap; overflow-x: auto; border-bottom: 2px solid var(--border); -webkit-overflow-scrolling: touch; }
         .menu-btn { display: flex; align-items: center; gap: 6px; padding: 12px 20px; border-radius: 0; font-size: 13px; font-weight: 600; cursor: pointer; border: none; border-bottom: 3px solid transparent; margin-bottom: -2px; background: transparent; color: var(--text2); font-family: var(--font); transition: all .18s; white-space: nowrap; flex: 1; justify-content: center; }
         .menu-btn.active { color: var(--blue); border-bottom-color: var(--blue); }
         .menu-btn:hover:not(.active) { color: var(--text); background: var(--surface); }
@@ -152,7 +152,7 @@
         .view.active { display: block; }
 
         /* ── STATUS TABS ── */
-        .status-tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: nowrap; overflow-x: visible; }
+        .status-tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; }
         .stab { display: flex; align-items: center; gap: 7px; padding: 9px 16px; border-radius: 9px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid var(--border2); background: var(--surface); color: var(--text2); font-family: var(--font); transition: all .18s; white-space: nowrap; flex: 1; justify-content: center; }
         .stab.active.pend { border-color: var(--amber); color: var(--amber); background: var(--amber-pale); }
         .stab.active.apro { border-color: var(--green); color: var(--green); background: var(--green-pale); }
@@ -161,7 +161,7 @@
         .stab.active.apro .cnt { background: var(--green); color: #0b0d12; }
 
         /* ── NICHO TABS ── */
-        .tabs-bar { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 28px; overflow-x: visible; flex-wrap: nowrap; }
+        .tabs-bar { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 28px; overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
         .tab-btn { display: flex; align-items: center; justify-content: center; gap: 7px; padding: 10px 16px; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; font-size: 12px; font-weight: 600; color: var(--text2); cursor: pointer; font-family: var(--font); transition: all .18s; white-space: nowrap; flex: 1; }
         .tab-btn.active { color: var(--blue); border-bottom-color: var(--blue); }
         .tab-btn:hover:not(.active) { color: var(--text); }
@@ -959,18 +959,7 @@ async function doGoogleLogin() {
         const user = result.user;
         if (!user) throw new Error('No se pudo obtener el usuario');
 
-        currentCode = 'PANEL';
-        currentVendorNombre  = (user.displayName || '').split(' ')[0] || '';
-        currentVendorApellido = (user.displayName || '').split(' ').slice(1).join(' ') || '';
-        configTienda = {};
-        sessionStorage.setItem(S_KEY, JSON.stringify({
-            code: currentCode,
-            config: {},
-            nombre: currentVendorNombre,
-            apellido: currentVendorApellido,
-            email: user.email || '',
-            photo: user.photoURL || ''
-        }));
+        await _resolverCodigoVendedor(user);
         showThemeSelector();
     } catch (e) {
         console.error(e);
@@ -979,6 +968,48 @@ async function doGoogleLogin() {
         btn.disabled = false;
         btn.innerHTML = origHTML;
     }
+}
+
+// ─── Resuelve el código real de revendedor a partir del usuario de Firebase ───
+// Deriva el código del email (igual que tienda.html) y lo valida contra
+// datosderevendedor /api/login-vendedor para traer también su configTiendaAll.
+async function _resolverCodigoVendedor(user) {
+    const emailCode = (user.email || '').split('@')[0].toUpperCase().replace(/[^A-Z0-9\-_]/g,'');
+    let codigoFinal = emailCode || 'PANEL';
+    let cfg = {};
+    let nombre  = (user.displayName || '').split(' ')[0] || '';
+    let apellido = (user.displayName || '').split(' ').slice(1).join(' ') || '';
+
+    try {
+        const res = await fetch(`${WORKER_APROBADOS}/api/login-vendedor`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ codigo: emailCode })
+        });
+        if (res.ok) {
+            const data = await res.json().catch(() => null);
+            if (data && data.success && data.vendedor) {
+                codigoFinal = data.vendedor.codigoVendedor || codigoFinal;
+                cfg = data.vendedor.configTiendaAll || data.vendedor.configTienda || {};
+                nombre   = data.vendedor.nombre   || nombre;
+                apellido = data.vendedor.apellido || apellido;
+            }
+        }
+    } catch(_) {}
+
+    currentCode = codigoFinal;
+    currentVendorNombre   = nombre;
+    currentVendorApellido = apellido;
+    configTienda = cfg;
+    localStorage.setItem('rw_code', currentCode);
+    sessionStorage.setItem(S_KEY, JSON.stringify({
+        code: currentCode,
+        config: configTienda,
+        nombre: currentVendorNombre,
+        apellido: currentVendorApellido,
+        email: user.email || '',
+        photo: user.photoURL || ''
+    }));
 }
 
 // Login con correo + contraseña (si el usuario ya existe en Firebase, entra)
@@ -994,15 +1025,7 @@ async function doEmailLogin() {
         const result = await firebase.auth().signInWithEmailAndPassword(email, pass);
         const user = result.user;
         if (!user) throw new Error('No se pudo iniciar sesión.');
-        currentCode = 'PANEL';
-        currentVendorNombre   = (user.displayName || email).split(' ')[0] || '';
-        currentVendorApellido = (user.displayName || '').split(' ').slice(1).join(' ') || '';
-        configTienda = {};
-        sessionStorage.setItem(S_KEY, JSON.stringify({
-            code: currentCode, config: {},
-            nombre: currentVendorNombre, apellido: currentVendorApellido,
-            email: user.email || email, photo: user.photoURL || ''
-        }));
+        await _resolverCodigoVendedor(user);
         showThemeSelector();
     } catch (e) {
         const code = (e && e.code) || '';
@@ -1103,7 +1126,8 @@ function _norm(p, estadoForzado) {
         items = rawItems.map(i => ({
             nombre:   i.nombre || i.name || '—',
             cantidad: Number(i.cantidad || i.qty || 1),
-            precio:   Number(i.precio || i.precioFinal || i.unit_price || 0),
+            // precioMayorista = precio de costo original guardado por /api/panel-gestion
+            precio:   Number(i.precioMayorista ?? i.precio ?? i.precioFinal ?? i.unit_price ?? 0),
         }));
     }
 
@@ -1111,8 +1135,8 @@ function _norm(p, estadoForzado) {
     let fechaSecs = 0;
     if (p.fechaCreacion?.seconds) {
         fechaSecs = p.fechaCreacion.seconds;
-    } else if (p.fecha) {
-        const d = new Date(p.fecha);
+    } else if (p.fecha || p.fechaRegistro) {
+        const d = new Date(p.fecha || p.fechaRegistro);
         fechaSecs = isNaN(d) ? 0 : Math.floor(d.getTime() / 1000);
     }
     if (!fechaSecs) fechaSecs = Math.floor(Date.now() / 1000);
@@ -1156,55 +1180,30 @@ async function _cargarPendientes() {
 
 // ═══════════════════════════════════════════════════════════
 // CARGA PEDIDOS APROBADOS desde datosderevendedor
-// El index los guarda en POST /api/panel-gestion
-// Los intentamos leer con GET en todas las variantes posibles
+// Endpoint confirmado: GET /api/panel-gestion?codigo=X
+// (el index.html guarda los aprobados con POST /api/panel-gestion)
 // ═══════════════════════════════════════════════════════════
 async function _cargarAprobados() {
     const codigo = currentCode || '';
+    if (!codigo) return [];
 
-    // Todas las variantes que puede exponer el worker
-    const endpoints = [
-        `${WORKER_APROBADOS}/api/panel-gestion?codigo=${encodeURIComponent(codigo)}`,
-        `${WORKER_APROBADOS}/api/panel-gestion?codigoVendedor=${encodeURIComponent(codigo)}`,
-        `${WORKER_APROBADOS}/api/panel-gestion`,
-        `${WORKER_APROBADOS}/pedidos?codigo=${encodeURIComponent(codigo)}`,
-        `${WORKER_APROBADOS}?codigo=${encodeURIComponent(codigo)}`,
-        `${WORKER_APROBADOS}`,
-    ];
+    try {
+        const url = `${WORKER_APROBADOS}/api/panel-gestion?codigo=${encodeURIComponent(codigo)}`;
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 8000);
+        const res = await fetch(url, { signal: ctrl.signal });
+        clearTimeout(t);
+        if (!res.ok) return [];
 
-    for (const url of endpoints) {
-        try {
-            const ctrl = new AbortController();
-            const t = setTimeout(() => ctrl.abort(), 6000);
-            const res = await fetch(url, { signal: ctrl.signal });
-            clearTimeout(t);
-            if (!res.ok) continue;
+        const data = await res.json().catch(() => null);
+        if (!data) return [];
 
-            const data = await res.json().catch(() => null);
-            if (!data) continue;
-
-            // Puede venir como array directo, o { pedidos: [] }, o { data: [] }
-            let arr = Array.isArray(data) ? data
-                    : Array.isArray(data.pedidos) ? data.pedidos
-                    : Array.isArray(data.data)    ? data.data
-                    : [];
-
-            if (!arr.length) continue;
-
-            // Filtrar por código si el worker devolvió todo
-            if (codigo) {
-                const filtrado = arr.filter(p =>
-                    (p.codigoVendedor || p.codigo || '').toUpperCase() === codigo.toUpperCase()
-                );
-                // Usar filtrado solo si tiene resultados; si no, usar todo (puede ser que el worker
-                // ya filtre por código en la URL y devuelva solo los del vendedor)
-                arr = filtrado.length ? filtrado : arr;
-            }
-
-            if (arr.length) return arr;
-        } catch(_) { continue; }
-    }
-    return [];
+        const arr = Array.isArray(data.panelGestion) ? data.panelGestion
+                  : Array.isArray(data.pedidos)       ? data.pedidos
+                  : Array.isArray(data)                ? data
+                  : [];
+        return arr;
+    } catch(_) { return []; }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -2268,24 +2267,13 @@ const auth = firebase.auth();
 try { auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL); } catch(_) {}
 
 // Auto-login al volver: si Firebase recuerda la sesión y no hay sesión local, entrar automáticamente
-auth.onAuthStateChanged(function(user) {
+auth.onAuthStateChanged(async function(user) {
     if (!user) return;
     try {
         if (sessionStorage.getItem(S_KEY)) return; // ya hay sesión activa
         if (currentCode) return;
-        // Reconstruir sesión a partir del usuario de Firebase
-        currentCode = 'PANEL';
-        currentVendorNombre   = (user.displayName || user.email || '').split(' ')[0] || '';
-        currentVendorApellido = (user.displayName || '').split(' ').slice(1).join(' ') || '';
-        configTienda = {};
-        sessionStorage.setItem(S_KEY, JSON.stringify({
-            code: currentCode,
-            config: {},
-            nombre: currentVendorNombre,
-            apellido: currentVendorApellido,
-            email: user.email || '',
-            photo: user.photoURL || ''
-        }));
+        // Reconstruir sesión a partir del usuario de Firebase, resolviendo el código real
+        await _resolverCodigoVendedor(user);
         // Si el login está visible, entrar directo al panel
         const lw = document.getElementById('login-wrap');
         if (lw && lw.style.display !== 'none') {
