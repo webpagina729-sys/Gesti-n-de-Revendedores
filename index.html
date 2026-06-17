@@ -887,7 +887,13 @@ function totalInversionRevendedor(p) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// CLASIFICAR NICHO (igual que panel principal)
+// CLASIFICAR NICHO
+// Prioridad absoluta: la categoría tal como la envía el panel de
+// index.html en p.nicho ('calzados' | 'perfumes' | 'multishop').
+// El fallback por palabras clave es solo un respaldo para pedidos
+// viejos sin ese campo; si no se puede determinar con certeza,
+// se devuelve null en vez de forzar una categoría (evita aplicar
+// el % de margen de una categoría equivocada).
 // ═══════════════════════════════════════════════════════════
 function cat(p) {
     if (p.nicho) {
@@ -902,7 +908,7 @@ function cat(p) {
     if (items.some(i => KP.some(k => nm(i).includes(k)))) return 'perfumes';
     const KZ = ['DUNK','NIKE','ADIDAS','JORDAN','AIR FORCE','CAMPUS','FORUM','SAMBA','SUPERSTAR','BOSTON','NEW BALANCE','ADIZERO','DURAMO','BOTITA','ZAPATILLA'];
     if (items.some(i => KZ.some(k => nm(i).includes(k)))) return 'calzados';
-    return 'perfumes';
+    return null;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -2062,16 +2068,9 @@ function renderRankingView() {
         else clienteMap[key].pendientes++;
     });
 
-    // Calcular score (promedio ponderado: 60% dinero gastado normalizado + 40% cantidad compras normalizada)
+    // Ranking ordenado por ingresos totales (costo + ganancia = lo que pagó el cliente)
     const clientes = Object.values(clienteMap);
-    const maxDinero = Math.max(...clientes.map(c => c.totalFinal), 1);
-    const maxCompras = Math.max(...clientes.map(c => c.compras), 1);
-    clientes.forEach(c => {
-        const normDinero  = c.totalFinal / maxDinero;
-        const normCompras = c.compras / maxCompras;
-        c.score = (normDinero * 0.6 + normCompras * 0.4) * 100;
-    });
-    clientes.sort((a,b) => b.score - a.score);
+    clientes.sort((a,b) => b.totalFinal - a.totalFinal);
 
     // ── Cliente del mes (top del mes actual) ──
     const now = new Date();
@@ -2112,7 +2111,7 @@ function renderRankingView() {
     }
 
     html += `<h2 class="section-title">Ranking de clientes</h2>
-        <div class="mini-sub" style="margin-bottom:16px;color:var(--text3)">Ordenado por promedio ponderado de compras y gasto. Tocá el 🎁 arriba para configurar el regalo al mejor cliente.</div>`;
+        <div class="mini-sub" style="margin-bottom:16px;color:var(--text3)">Ordenado por total de ingresos (costo + ganancia). Tocá el 🎁 arriba para configurar el regalo al mejor cliente.</div>`;
 
     if (!clientes.length) {
         html += `<div class="empty"><div class="empty-icon">👥</div><h3>Sin clientes</h3><p>No hay datos de clientes en los pedidos.</p></div>`;
