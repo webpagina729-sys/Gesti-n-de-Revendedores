@@ -142,18 +142,18 @@
         .btn-send-all:hover { background: var(--green); color: #0b0d12; border-color: var(--green); }
 
         /* ── MENU NAV ── */
-        .menu-nav { display: flex; gap: 6px; margin-bottom: 24px; flex-wrap: wrap; overflow-x: visible; }
-        .menu-btn { display: flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 9px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid var(--border2); background: var(--surface); color: var(--text2); font-family: var(--font); transition: all .18s; white-space: nowrap; flex-shrink: 0; }
-        .menu-btn.active { background: var(--blue-pale); border-color: var(--blue); color: var(--blue); }
-        .menu-btn:hover:not(.active) { border-color: var(--border2); color: var(--text); background: var(--surface2); }
+        .menu-nav { display: flex; gap: 0; margin-bottom: 24px; flex-wrap: nowrap; overflow-x: visible; border-bottom: 2px solid var(--border); }
+        .menu-btn { display: flex; align-items: center; gap: 6px; padding: 12px 20px; border-radius: 0; font-size: 13px; font-weight: 600; cursor: pointer; border: none; border-bottom: 3px solid transparent; margin-bottom: -2px; background: transparent; color: var(--text2); font-family: var(--font); transition: all .18s; white-space: nowrap; flex: 1; justify-content: center; }
+        .menu-btn.active { color: var(--blue); border-bottom-color: var(--blue); }
+        .menu-btn:hover:not(.active) { color: var(--text); background: var(--surface); }
 
         /* ── VIEWS ── */
         .view { display: none; }
         .view.active { display: block; }
 
         /* ── STATUS TABS ── */
-        .status-tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; overflow-x: visible; }
-        .stab { display: flex; align-items: center; gap: 7px; padding: 9px 16px; border-radius: 9px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid var(--border2); background: var(--surface); color: var(--text2); font-family: var(--font); transition: all .18s; white-space: nowrap; flex-shrink: 0; }
+        .status-tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: nowrap; overflow-x: visible; }
+        .stab { display: flex; align-items: center; gap: 7px; padding: 9px 16px; border-radius: 9px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid var(--border2); background: var(--surface); color: var(--text2); font-family: var(--font); transition: all .18s; white-space: nowrap; flex: 1; justify-content: center; }
         .stab.active.pend { border-color: var(--amber); color: var(--amber); background: var(--amber-pale); }
         .stab.active.apro { border-color: var(--green); color: var(--green); background: var(--green-pale); }
         .stab .cnt { min-width: 20px; height: 20px; padding: 0 6px; display: flex; align-items: center; justify-content: center; background: var(--surface2); border-radius: 20px; font-size: 11px; font-weight: 800; color: var(--text3); }
@@ -161,8 +161,8 @@
         .stab.active.apro .cnt { background: var(--green); color: #0b0d12; }
 
         /* ── NICHO TABS ── */
-        .tabs-bar { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 28px; overflow-x: visible; flex-wrap: wrap; }
-        .tab-btn { display: flex; align-items: center; gap: 7px; padding: 10px 16px; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; font-size: 12px; font-weight: 600; color: var(--text2); cursor: pointer; font-family: var(--font); transition: all .18s; white-space: nowrap; flex-shrink: 0; min-width: fit-content; }
+        .tabs-bar { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 28px; overflow-x: visible; flex-wrap: nowrap; }
+        .tab-btn { display: flex; align-items: center; justify-content: center; gap: 7px; padding: 10px 16px; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; font-size: 12px; font-weight: 600; color: var(--text2); cursor: pointer; font-family: var(--font); transition: all .18s; white-space: nowrap; flex: 1; }
         .tab-btn.active { color: var(--blue); border-bottom-color: var(--blue); }
         .tab-btn:hover:not(.active) { color: var(--text); }
         .pill { background: var(--surface2); color: var(--text3); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; }
@@ -658,16 +658,109 @@
     </div>
 </div>
 
+<!-- ══ MODAL GUÍA ══ -->
+<div class="modal-overlay" id="guide-modal" onclick="if(event.target===this)closeGuide()">
+    <div class="modal-box" id="guide-box" style="max-width:500px;max-height:85vh;overflow-y:auto">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+            <div style="display:flex;align-items:center;gap:10px">
+                <div style="width:38px;height:38px;border-radius:10px;background:var(--blue-pale);border:1px solid var(--blue-glow);display:flex;align-items:center;justify-content:center">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                </div>
+                <div>
+                    <div style="font-size:16px;font-weight:800">Guía del panel</div>
+                    <div style="font-size:11px;color:var(--text3)">Cómo usar cada sección</div>
+                </div>
+            </div>
+            <button class="modal-cancel" style="padding:6px 12px;flex:none" onclick="closeGuide()">✕</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+
+            <div class="guide-ribbon" onclick="toggleGuide(this)">
+                <div class="guide-head">
+                    <span class="guide-icon">📦</span>
+                    <span class="guide-title">Pedidos — Pendientes y Aprobados</span>
+                    <svg class="guide-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <div class="guide-body">
+                    <p>Acá ves todos tus pedidos organizados por estado. Los <strong>Pedidos Pendientes</strong> son los que tus clientes hicieron pero todavía no confirmaste. Los <strong>Pedidos Aprobados</strong> son los que ya aprobaste desde el panel de la tienda (index).</p>
+                    <p>Para que un pedido pase de Pendiente a Aprobado, tenés que ir a tu perfil en la tienda → Pedidos recibidos → tocá "Aprobado" en el pedido. Automáticamente aparecerá aquí en Aprobados.</p>
+                    <p>Dentro de cada pedido encontrás los productos, datos del cliente, dirección de envío y tus ganancias estimadas.</p>
+                </div>
+            </div>
+
+            <div class="guide-ribbon" onclick="toggleGuide(this)">
+                <div class="guide-head">
+                    <span class="guide-icon">🗂️</span>
+                    <span class="guide-title">Calzados · Perfumes Árabes · Multishop</span>
+                    <svg class="guide-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <div class="guide-body">
+                    <p>Los pedidos se clasifican automáticamente por categoría según los productos que contienen. Tocá cada pestaña para ver solo los pedidos de esa categoría.</p>
+                    <p>El número en cada pestaña muestra cuántos pedidos hay en ese nicho con el estado seleccionado (pendiente o aprobado).</p>
+                </div>
+            </div>
+
+            <div class="guide-ribbon" onclick="toggleGuide(this)">
+                <div class="guide-head">
+                    <span class="guide-icon">📊</span>
+                    <span class="guide-title">Estadísticas</span>
+                    <svg class="guide-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <div class="guide-body">
+                    <p>Muestra un resumen completo de tu actividad: total de pedidos, pedidos de esta semana, comparativas con períodos anteriores y gráficos de crecimiento.</p>
+                    <p>Podés cambiar entre vista por semanas y por meses, y entre métricas de pedidos, facturación y ganancia.</p>
+                </div>
+            </div>
+
+            <div class="guide-ribbon" onclick="toggleGuide(this)">
+                <div class="guide-head">
+                    <span class="guide-icon">💰</span>
+                    <span class="guide-title">Ganancias</span>
+                    <svg class="guide-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <div class="guide-body">
+                    <p>Calculá cuánto ganás en cada pedido según los márgenes que configuraste en tu tienda. Muestra la diferencia entre el precio mayorista (lo que vos pagás) y el precio que le cobrás a tus clientes.</p>
+                    <p>Si no ves ganancias, es porque todavía no configuraste los márgenes en tu panel de tienda (index).</p>
+                </div>
+            </div>
+
+            <div class="guide-ribbon" onclick="toggleGuide(this)">
+                <div class="guide-head">
+                    <span class="guide-icon">🏆</span>
+                    <span class="guide-title">Clientes — Ranking</span>
+                    <svg class="guide-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <div class="guide-body">
+                    <p>Ranking de tus mejores clientes ordenado por compras y dinero gastado. El primero del mes puede recibir un regalo. Configurá el monto máximo del regalo tocando el botón 🎁 en la parte superior.</p>
+                </div>
+            </div>
+
+            <div class="guide-ribbon" onclick="toggleGuide(this)">
+                <div class="guide-head">
+                    <span class="guide-icon">✈️</span>
+                    <span class="guide-title">Botón "Enviar todos"</span>
+                    <svg class="guide-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <div class="guide-body">
+                    <p>Envía todos los pedidos pendientes a la plataforma de pagos de una sola vez. Cada pedido también puede enviarse individualmente con el botón "Enviar" dentro de la tarjeta del pedido.</p>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
 // ═══════════════════════════════════════════════════════════
 // CONFIG
 // ═══════════════════════════════════════════════════════════
-const WORKER_DATA   = 'https://datosderevendedor.tuweb.workers.dev'; // compatibilidad con renderRevendedoresView
-const WORKER_PAGOS  = 'https://workerpagos.tuweb.workers.dev';
-const S_KEY         = 'rw_reseller_v1';
-const D_KEY         = 'rw_reseller_del_v1';
+const WORKER_PENDIENTES     = 'https://workerwebcliente.tuweb.workers.dev';   // pedidos pendientes
+const WORKER_APROBADOS      = 'https://datosderevendedor.tuweb.workers.dev';  // pedidos aprobados
+const WORKER_PAGOS          = 'https://workerpagos.tuweb.workers.dev';         // envío de pedidos
+const S_KEY                 = 'rw_reseller_v1';
+const D_KEY                 = 'rw_reseller_del_v1';
 
 let pedidos         = [];
 let activeTab       = 'calzados';
@@ -676,8 +769,7 @@ let deleteTarget    = null;
 let currentCode     = '';
 let currentVendorNombre   = '';
 let currentVendorApellido = '';
-const WORKER_PANEL_PRINCIPAL = 'https://workerpagos.tuweb.workers.dev';
-let configTienda    = {};  // configTiendaAll del revendedor (rangos de ganancia)
+let configTienda    = {};
 let chartModalInst  = null;
 
 // ═══════════════════════════════════════════════════════════
@@ -855,8 +947,6 @@ function selectTheme(theme) {
 }
 
 
-const WORKER_AUTH    = 'https://datosderevendedor.tuweb.workers.dev';
-
 async function doGoogleLogin() {
     const btn = document.querySelector('.btn-login');
     const origHTML = btn.innerHTML;
@@ -955,134 +1045,127 @@ function showMain() {
     document.getElementById('badge-code').textContent = 'Cód: ' + currentCode;
 }
 
-// ═══════════════════════════════════════════════════════════
-// WORKER URLS — ambas fuentes de pedidos
-// ═══════════════════════════════════════════════════════════
-const WORKER_CLIENTES  = 'https://workerwebcliente.tuweb.workers.dev';   // pedidos pendientes
-const WORKER_APROBADOS = 'https://datosderevendedor.tuweb.workers.dev';  // pedidos aprobados
-
-// ═══════════════════════════════════════════════════════════
-// EXTRAE PEDIDOS CRUDOS DE UNA RESPUESTA JSON DEL WORKER
-// ═══════════════════════════════════════════════════════════
-async function _fetchPedidosFromWorker(baseUrl) {
-    let rawPedidos = [];
-    try {
-        // Intento 1: raíz del worker
-        const res = await fetch(baseUrl);
-        if (!res.ok) return rawPedidos;
-        const data = await res.json();
-
-        if (Array.isArray(data.pedidos)) {
-            rawPedidos = data.pedidos.filter(p =>
-                !currentCode || currentCode === 'PANEL' ||
-                (p.codigoVendedor||'').toUpperCase() === currentCode ||
-                (p.codigo||'').toUpperCase() === currentCode
-            );
-        }
-
-        if (!rawPedidos.length && Array.isArray(data.ranking)) {
-            const vendorEntry = data.ranking.find(v =>
-                !currentCode || currentCode === 'PANEL' ||
-                (v.codigoVendedor||'').toUpperCase() === currentCode
-            );
-            if (vendorEntry && Array.isArray(vendorEntry.pedidos)) {
-                rawPedidos = vendorEntry.pedidos;
-            }
-            // Si es PANEL, traer todos los pedidos de todos los vendedores
-            if (!rawPedidos.length && currentCode === 'PANEL') {
-                data.ranking.forEach(v => {
-                    if (Array.isArray(v.pedidos)) rawPedidos.push(...v.pedidos);
-                });
-            }
-        }
-
-        // También intentar extraer config de tienda si viene
-        if (data.vendedor && data.vendedor.configTiendaAll && !Object.keys(configTienda).length) {
-            configTienda = data.vendedor.configTiendaAll;
-            try {
-                const stored = sessionStorage.getItem(S_KEY);
-                if (stored) { const s=JSON.parse(stored); s.config=configTienda; sessionStorage.setItem(S_KEY,JSON.stringify(s)); }
-            } catch(_) {}
-        }
-
-        // Intento 2: endpoint por código si aún no hay pedidos
-        if (!rawPedidos.length && currentCode && currentCode !== 'PANEL') {
-            try {
-                const r2 = await fetch(`${baseUrl}?codigo=${encodeURIComponent(currentCode)}`);
-                if (r2.ok) {
-                    const d2 = await r2.json();
-                    if (Array.isArray(d2.pedidos)) rawPedidos = d2.pedidos;
-                    else if (Array.isArray(d2)) rawPedidos = d2;
-                    if (d2.vendedor && d2.vendedor.configTiendaAll && !Object.keys(configTienda).length) {
-                        configTienda = d2.vendedor.configTiendaAll;
-                        try {
-                            const stored = sessionStorage.getItem(S_KEY);
-                            if (stored) { const s=JSON.parse(stored); s.config=configTienda; sessionStorage.setItem(S_KEY,JSON.stringify(s)); }
-                        } catch(_) {}
-                    }
-                }
-            } catch(_) {}
-        }
-
-        // Intento 3: endpoint /api/panel-gestion o /pedidos
-        if (!rawPedidos.length) {
-            const endpoints = ['/api/panel-gestion', '/pedidos', '/api/pedidos'];
-            for (const ep of endpoints) {
-                try {
-                    const r3 = await fetch(baseUrl + ep + (currentCode && currentCode !== 'PANEL' ? `?codigo=${encodeURIComponent(currentCode)}` : ''));
-                    if (r3.ok) {
-                        const d3 = await r3.json();
-                        const arr = Array.isArray(d3) ? d3 : (Array.isArray(d3.pedidos) ? d3.pedidos : []);
-                        if (arr.length) { rawPedidos = arr; break; }
-                    }
-                } catch(_) {}
-            }
-        }
-    } catch(_) {}
-    return rawPedidos;
-}
-
-// ═══════════════════════════════════════════════════════════
-// NORMALIZA UN PEDIDO CRUDO A ESTRUCTURA INTERNA
-// ═══════════════════════════════════════════════════════════
-function _normalizePedido(p) {
+// ─── normaliza cualquier pedido crudo a estructura interna ───
+function _norm(p, estadoForzado) {
     const id = p.pedidoId || p.id || p._id;
     if (!id) return null;
     if (isLocallyDeleted(id)) return null;
 
-    const ep = (p.estadoPago || p.estado || '').toUpperCase();
-    const estado = ep.includes('APROBAD') || ep.includes('PAGADO') ? 'pagado'
-                 : ep.includes('RECHAZAD') || ep.includes('CANCELAD') ? 'cancelado'
-                 : 'pendiente';
+    let estado = estadoForzado;
+    if (!estado) {
+        const ep = (p.estadoAprobacion || p.estadoPago || p.estado || '').toLowerCase();
+        estado = (ep.includes('aprobad') || ep.includes('pagado') || ep === 'entregado') ? 'pagado'
+               : (ep.includes('rechazad') || ep.includes('cancelad') || ep === 'no_aprobado') ? 'cancelado'
+               : 'pendiente';
+    }
 
-    const clienteNombre = fullName(p.cliente) || fullName(p.envio) || p.nombreCliente || p._clienteName || '';
+    // cliente puede ser string o objeto
+    let envObj = {};
+    if (p.cliente && typeof p.cliente === 'object') {
+        envObj = p.cliente;
+    } else if (p.envio && typeof p.envio === 'object') {
+        envObj = p.envio;
+    } else if (typeof p.cliente === 'string') {
+        envObj = { nombre: p.cliente, telefono: p.telefono || '', ciudad: p.direccion || '' };
+    }
+    envObj.telefono = envObj.telefono || p.telefono || '';
+
+    const clienteNombre = [envObj.nombre, envObj.apellido].filter(Boolean).join(' ')
+                        || (typeof p.cliente === 'string' ? p.cliente : '')
+                        || p.nombreCliente || '';
+
+    // items
+    const rawItems = p.items || p.productos || [];
+    let items;
+    if (rawItems.length && typeof rawItems[0] === 'string') {
+        const cants  = p.cantidades || [];
+        const prices = p.preciosIndividuales || p.precios || [];
+        items = rawItems.map((n, i) => ({ nombre: n, cantidad: Number(cants[i])||1, precio: Number(prices[i])||0 }));
+    } else {
+        items = rawItems.map(i => ({
+            nombre:   i.nombre || i.name || '—',
+            cantidad: Number(i.cantidad || i.qty || 1),
+            precio:   Number(i.precio || i.precioFinal || i.unit_price || i.precioBase || 0)
+        }));
+    }
+
+    // fecha
+    let fechaSecs = 0;
+    if (p.fechaCreacion?.seconds) fechaSecs = p.fechaCreacion.seconds;
+    else if (p.fecha) {
+        const d = new Date(p.fecha);
+        fechaSecs = isNaN(d) ? 0 : Math.floor(d.getTime()/1000);
+    }
+    if (!fechaSecs) fechaSecs = Math.floor(Date.now()/1000);
 
     return {
-        id,
-        estado,
-        items: (p.productos || p.items || []).map(pr => ({
-            nombre:   pr.nombre || pr.title || '—',
-            cantidad: Number(pr.cantidad || pr.quantity || 1),
-            precio:   Number(pr.precio || pr.unit_price || pr.precioBase || pr.precioCosto || 0)
-        })),
-        cliente: p.cliente || null,
-        envio:   p.envio || p.cliente || null,
-        nicho:   p.nicho || null,
+        id, estado, items,
+        cliente: envObj,
+        envio:   envObj,
+        nicho:   p.nicho || p.categoria || null,
         codigoVendedor: p.codigoVendedor || currentCode,
         _vCode:  p.codigoVendedor || currentCode,
         _clienteName: clienteNombre,
-        fechaCreacion: { seconds: Math.floor(
-            p.fechaCreacion?.seconds
-            || (typeof p.fecha === 'number' ? p.fecha / (p.fecha > 1e10 ? 1000 : 1) : 0)
-            || (typeof p.fecha === 'string' ? new Date(p.fecha).getTime() / 1000 : 0)
-            || Date.now() / 1000
-        )},
+        fechaCreacion: { seconds: fechaSecs },
         _raw: p
     };
 }
 
 // ═══════════════════════════════════════════════════════════
-// CARGA DE DATOS DESDE AMBOS WORKERS (pendientes + aprobados)
+// CARGA PEDIDOS PENDIENTES desde workerwebcliente /logistica
+// ═══════════════════════════════════════════════════════════
+async function _cargarPendientes() {
+    if (!currentCode) return [];
+    try {
+        const url = `${WORKER_PENDIENTES}/logistica?codigo=${encodeURIComponent(currentCode)}`;
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 8000);
+        const res = await fetch(url, { signal: ctrl.signal });
+        clearTimeout(t);
+        if (!res.ok) return [];
+        const data = await res.json().catch(() => null);
+        const arr = Array.isArray(data) ? data
+                  : (data && Array.isArray(data.pedidos)) ? data.pedidos
+                  : (data && Array.isArray(data.items))   ? data.items : [];
+        // Filtrar solo los que NO están aprobados aún
+        return arr.filter(p => {
+            const ep = (p.estadoAprobacion || p.estado || '').toLowerCase();
+            return !ep.includes('aprobad') && !ep.includes('pagado') && ep !== 'entregado';
+        });
+    } catch(_) { return []; }
+}
+
+// ═══════════════════════════════════════════════════════════
+// CARGA PEDIDOS APROBADOS desde datosderevendedor /api/panel-gestion
+// ═══════════════════════════════════════════════════════════
+async function _cargarAprobados() {
+    if (!currentCode) return [];
+    try {
+        const url = `${WORKER_APROBADOS}/api/panel-gestion?codigo=${encodeURIComponent(currentCode)}`;
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 8000);
+        const res = await fetch(url, { signal: ctrl.signal });
+        clearTimeout(t);
+        if (!res.ok) {
+            // Intentar sin query param (algunos workers devuelven todo)
+            const res2 = await fetch(`${WORKER_APROBADOS}/api/panel-gestion`).catch(() => null);
+            if (!res2 || !res2.ok) return [];
+            const data2 = await res2.json().catch(() => null);
+            const arr2 = Array.isArray(data2) ? data2
+                       : (data2 && Array.isArray(data2.pedidos)) ? data2.pedidos : [];
+            return arr2.filter(p =>
+                !currentCode ||
+                (p.codigoVendedor||'').toUpperCase() === currentCode.toUpperCase()
+            );
+        }
+        const data = await res.json().catch(() => null);
+        return Array.isArray(data) ? data
+             : (data && Array.isArray(data.pedidos)) ? data.pedidos : [];
+    } catch(_) { return []; }
+}
+
+// ═══════════════════════════════════════════════════════════
+// CARGA DE DATOS — fusiona ambas fuentes sin duplicados
 // ═══════════════════════════════════════════════════════════
 async function loadData() {
     ['perfumes','multishop','calzados'].forEach(k => {
@@ -1093,24 +1176,28 @@ async function loadData() {
     try {
         pedidos = [];
 
-        // ── Traer de AMBOS workers en paralelo ──
-        const [rawClientes, rawAprobados] = await Promise.all([
-            _fetchPedidosFromWorker(WORKER_CLIENTES),
-            _fetchPedidosFromWorker(WORKER_APROBADOS)
+        // Traer ambas fuentes en paralelo
+        const [rawPend, rawApro] = await Promise.all([
+            _cargarPendientes(),
+            _cargarAprobados()
         ]);
 
-        // ── Mergear deduplicando por ID; aprobados tienen prioridad de estado ──
-        const seen    = new Map(); // id → índice en pedidos[]
-        const allRaw  = [...rawClientes, ...rawAprobados];
+        const seen = new Map(); // id → índice en pedidos[]
 
-        allRaw.forEach(p => {
-            const norm = _normalizePedido(p);
+        // Primero los pendientes
+        rawPend.forEach(p => {
+            const norm = _norm(p, 'pendiente');
             if (!norm) return;
+            seen.set(norm.id, pedidos.length);
+            pedidos.push(norm);
+        });
 
+        // Luego los aprobados — si ya existe el ID, marcar como pagado; si no, agregar
+        rawApro.forEach(p => {
+            const norm = _norm(p, 'pagado');
+            if (!norm) return;
             if (seen.has(norm.id)) {
-                // Si ya existe, actualizar estado solo si el nuevo tiene prioridad (aprobado > pendiente)
-                const idx = seen.get(norm.id);
-                if (norm.estado === 'pagado') pedidos[idx].estado = 'pagado';
+                pedidos[seen.get(norm.id)].estado = 'pagado';
             } else {
                 seen.set(norm.id, pedidos.length);
                 pedidos.push(norm);
@@ -1997,33 +2084,11 @@ async function renderRevendedoresView() {
 
     let revendedores = [];
     try {
-        // datosderevendedor tiene el ranking de revendedores
         const res = await fetch(WORKER_APROBADOS);
         if (res.ok) {
             const data = await res.json();
-            if (Array.isArray(data.ranking)) {
-                revendedores = data.ranking;
-            } else if (Array.isArray(data.vendedores)) {
-                revendedores = data.vendedores;
-            } else if (Array.isArray(data.pedidos)) {
-                // Agrupar pedidos por vendedor si no viene ranking
-                const map = {};
-                data.pedidos.forEach(p => {
-                    const cod = (p.codigoVendedor || p.codigo || 'SIN_CODIGO').toUpperCase();
-                    if (!map[cod]) map[cod] = { codigoVendedor: cod, nombre: p.vendedor?.nombre || cod, pedidos: [] };
-                    map[cod].pedidos.push(p);
-                });
-                revendedores = Object.values(map);
-            }
-        }
-        // Si no trajo nada, intentar workerwebcliente también
-        if (!revendedores.length) {
-            const res2 = await fetch(WORKER_CLIENTES);
-            if (res2.ok) {
-                const data2 = await res2.json();
-                if (Array.isArray(data2.ranking)) revendedores = data2.ranking;
-                else if (Array.isArray(data2.vendedores)) revendedores = data2.vendedores;
-            }
+            if (Array.isArray(data.ranking)) revendedores = data.ranking;
+            else if (Array.isArray(data.vendedores)) revendedores = data.vendedores;
         }
     } catch(_) {}
 
