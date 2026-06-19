@@ -495,6 +495,9 @@
         .level-bar-fill { height:100%; width:0%; border-radius:4px; background:linear-gradient(90deg,#f43f5e 0%,#f59e0b 50%,#2d924c 100%); transition:width 1.2s cubic-bezier(.4,0,.2,1); box-shadow:0 0 8px rgba(45,146,76,.4); }
         .level-count { font-size:10px; color:var(--text2); white-space:nowrap; font-weight:600; }
         @media (max-width:780px) { .level-block { padding:5px 9px; gap:7px; max-width:240px; } .level-name { max-width:90px; font-size:10px; } .level-avatar { width:30px; height:30px; font-size:12px; } }
+        .level-strip { display:flex; justify-content:center; padding:10px 24px 0; }
+        .level-strip .level-block { max-width:480px; width:100%; }
+        @media (max-width:640px) { .level-strip { padding:8px 14px 0; } }
 
         /* ── MODAL SUBIDA DE NIVEL ── */
         .level-up-overlay { position:fixed; inset:0; background:rgba(0,0,0,.78); backdrop-filter:blur(8px); display:none; align-items:center; justify-content:center; z-index:3000; padding:20px; animation:lvFade .3s ease; }
@@ -545,6 +548,17 @@
             <span class="brand-code" id="badge-code"></span>
         </div>
     </div>
+    <div class="topbar-right">
+        <span class="badge-live">Activo</span>
+        <button class="btn-logout btn-customize" onclick="openCustomPanel()" title="Personalizar panel" aria-label="Personalizar panel">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            Personalizar
+        </button>
+        <button class="btn-logout" onclick="logout()">Salir</button>
+    </div>
+</header>
+
+<div class="level-strip">
     <div class="level-block" id="level-block" style="display:none">
         <div class="level-avatar" id="level-avatar">R</div>
         <div class="level-info">
@@ -558,15 +572,7 @@
             </div>
         </div>
     </div>
-    <div class="topbar-right">
-        <span class="badge-live">Activo</span>
-        <button class="btn-logout btn-customize" onclick="openCustomPanel()" title="Personalizar panel" aria-label="Personalizar panel">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-            Personalizar
-        </button>
-        <button class="btn-logout" onclick="logout()">Salir</button>
-    </div>
-</header>
+</div>
 
 <!-- ══ LOGIN ══ -->
 <div class="login-wrap" id="login-wrap">
