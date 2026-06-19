@@ -1395,26 +1395,40 @@ const CATALOGO_PRECIOS_REF = {
 };
 function _precioRefCatalogo(nombre) {
     if (!nombre) return null;
-    const n = String(nombre).trim().toUpperCase();
+    // Limpiar sufijo de talle antes de buscar:
+    // tienda.html guarda el nombre como "PRODUCTO (T.42)" para calzados.
+    // El catálogo tiene solo "PRODUCTO". Hay que quitar el sufijo.
+    let n = String(nombre).trim().toUpperCase();
+    // Quitar "(T.XX)" o "(T. XX)" al final
+    n = n.replace(/\s*\(T\.\s*\d+\)\s*$/, '').trim();
     if (CATALOGO_PRECIOS_REF[n] != null) return CATALOGO_PRECIOS_REF[n];
     // match flexible: por si el nombre guardado difiere levemente (espacios extra, etc.)
     const keys = Object.keys(CATALOGO_PRECIOS_REF);
     const found = keys.find(k => k.toUpperCase() === n);
-    return found ? CATALOGO_PRECIOS_REF[found] : null;
+    if (found) return CATALOGO_PRECIOS_REF[found];
+    // match por inclusión: si el nombre del pedido empieza con la clave del catálogo
+    // (ej: "SAMBA ROSA (TALLE 38)" no quedaría cubierto por el regex anterior)
+    const foundInc = keys.find(k => n.startsWith(k.toUpperCase()) || k.toUpperCase().startsWith(n));
+    return foundInc ? CATALOGO_PRECIOS_REF[foundInc] : null;
 }
 // Precio mayorista efectivo de un ítem:
-// 1) si el pedido ya trae precioCosto (pedidos nuevos, enviados desde tienda.html
-//    con el costo real adjunto) → se usa ese, es el dato exacto.
-// 2) si no lo trae (pedidos viejos, anteriores a este cambio) → se busca por
-//    nombre en el catálogo de referencia.
-// 3) si tampoco hay match en el catálogo → cae al precio del pedido (peor caso).
+// REGLA CRÍTICA: item.precio = precioFinal cobrado al CLIENTE (viene de preciosIndividuales
+// de tienda.html, que es producto.precioFinal = precio con margen ya aplicado).
+// El precio DE COSTO mayorista solo viene de:
+//   1) item.precioCosto (campo explícito, si se enviara en el payload)
+//   2) CATALOGO_PRECIOS_REF (búsqueda por nombre — fuente de verdad para cálculo de ganancias)
+// Si NO hay match en el catálogo, NO se usa item.precio como fallback (sería el precio
+// cliente, lo que haría ganancia = 0). En ese caso se devuelve 0 para no contaminar
+// los totales con datos incorrectos.
 function precioMayoristaItem(item) {
     if (item && item.precioCosto != null && Number(item.precioCosto) > 0) {
         return Number(item.precioCosto);
     }
     const ref = _precioRefCatalogo(item && item.nombre);
     if (ref != null) return ref;
-    return Number(item && item.precio || 0);
+    // Sin match en catálogo → devolvemos 0 para no calcular ganancia incorrecta.
+    // (Si item.precio es el precio cliente y lo usamos como costo, ganancia = 0, que engaña.)
+    return 0;
 }
 
 let pedidos         = [];
