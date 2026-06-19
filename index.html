@@ -734,7 +734,7 @@
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
         </div>
         <h3>Confirmar envío</h3>
-        <p>¿Querés enviar todos los pedidos pendientes? Esta acción notificará a los destinatarios.</p>
+        <p>¿Querés enviar todos los pedidos aprobados? Esta acción notificará a los destinatarios.</p>
         <div class="modal-actions">
             <button class="modal-cancel" onclick="document.getElementById('send-all-modal').classList.remove('show')">Cancelar</button>
             <button class="modal-confirm-btn" style="background:var(--green)" onclick="confirmSendAll()">Enviar</button>
@@ -742,16 +742,46 @@
     </div>
 </div>
 
-<!-- ══ MODAL ELIMINAR ══ --><div class="modal-overlay" id="del-modal">
-    <div class="modal-box">
+<!-- ══ MODAL ELIMINAR — elegir motivo ══ -->
+<div class="modal-overlay" id="del-modal">
+    <div class="modal-box" style="max-width:400px">
         <div class="modal-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
         </div>
-        <h3>Eliminar pedido</h3>
-        <p>Esta acción eliminará el pedido de tus registros. No se puede deshacer.</p>
-        <div class="modal-actions">
+        <h3>¿Por qué eliminás este pedido?</h3>
+        <p style="margin-bottom:16px;color:var(--text2);font-size:13px;">Elegí el motivo para poder mejorar la plataforma.</p>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:6px;">
+            <button class="modal-confirm-btn" style="background:var(--amber);color:#0b0d12;padding:13px;border-radius:10px;font-size:14px;" onclick="elegirMotivoEliminar('malentendido')">
+                🤝 Malentendido
+            </button>
+            <button class="modal-confirm-btn" style="background:var(--red-pale);color:var(--red);border:1px solid rgba(244,63,94,.3);padding:13px;border-radius:10px;font-size:14px;" onclick="elegirMotivoEliminar('cancelacion')">
+                ❌ Cancelación
+            </button>
+            <button class="modal-confirm-btn" style="background:var(--surface2);color:var(--text);border:1px solid var(--border2);padding:13px;border-radius:10px;font-size:14px;" onclick="elegirMotivoEliminar('otro')">
+                💬 Otro
+            </button>
+        </div>
+        <div style="margin-top:6px;">
             <button class="modal-cancel" onclick="closeModal()">Cancelar</button>
-            <button class="modal-confirm-btn" id="del-confirm-btn" onclick="confirmDelete()">Eliminar</button>
+        </div>
+    </div>
+</div>
+
+<!-- ══ MODAL MALENTENDIDO — feedback ══ -->
+<div class="modal-overlay" id="malentendido-modal">
+    <div class="modal-box" style="max-width:420px">
+        <div class="modal-icon" style="background:var(--amber-pale)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </div>
+        <h3 style="margin-bottom:6px">¿Cómo podemos evitarlo?</h3>
+        <p style="color:var(--text2);font-size:13px;margin-bottom:16px;line-height:1.5;">Describí qué te gustaría que existiera en la plataforma para no chocar con este problema.</p>
+        <textarea id="malentendido-texto"
+            placeholder="Describí acá que te gustaría que existiera en la plataforma para no chocar con este problema..."
+            style="width:100%;min-height:96px;max-height:160px;padding:12px;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;color:var(--text);font-family:var(--font);font-size:13px;line-height:1.5;resize:vertical;outline:none;box-sizing:border-box;"
+            onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='var(--border2)'"></textarea>
+        <div style="display:flex;gap:10px;margin-top:14px;">
+            <button class="modal-cancel" style="flex:1" onclick="closeMalentendidoModal()">Omitir y eliminar</button>
+            <button class="modal-confirm-btn" id="mal-confirm-btn" style="flex:1;background:var(--blue)" onclick="confirmMalentendidoYEliminar()">Enviar y eliminar</button>
         </div>
     </div>
 </div>
@@ -1396,40 +1426,26 @@ const CATALOGO_PRECIOS_REF = {
 };
 function _precioRefCatalogo(nombre) {
     if (!nombre) return null;
-    // Limpiar sufijo de talle antes de buscar:
-    // tienda.html guarda el nombre como "PRODUCTO (T.42)" para calzados.
-    // El catálogo tiene solo "PRODUCTO". Hay que quitar el sufijo.
-    let n = String(nombre).trim().toUpperCase();
-    // Quitar "(T.XX)" o "(T. XX)" al final
-    n = n.replace(/\s*\(T\.\s*\d+\)\s*$/, '').trim();
+    const n = String(nombre).trim().toUpperCase();
     if (CATALOGO_PRECIOS_REF[n] != null) return CATALOGO_PRECIOS_REF[n];
     // match flexible: por si el nombre guardado difiere levemente (espacios extra, etc.)
     const keys = Object.keys(CATALOGO_PRECIOS_REF);
     const found = keys.find(k => k.toUpperCase() === n);
-    if (found) return CATALOGO_PRECIOS_REF[found];
-    // match por inclusión: si el nombre del pedido empieza con la clave del catálogo
-    // (ej: "SAMBA ROSA (TALLE 38)" no quedaría cubierto por el regex anterior)
-    const foundInc = keys.find(k => n.startsWith(k.toUpperCase()) || k.toUpperCase().startsWith(n));
-    return foundInc ? CATALOGO_PRECIOS_REF[foundInc] : null;
+    return found ? CATALOGO_PRECIOS_REF[found] : null;
 }
 // Precio mayorista efectivo de un ítem:
-// REGLA CRÍTICA: item.precio = precioFinal cobrado al CLIENTE (viene de preciosIndividuales
-// de tienda.html, que es producto.precioFinal = precio con margen ya aplicado).
-// El precio DE COSTO mayorista solo viene de:
-//   1) item.precioCosto (campo explícito, si se enviara en el payload)
-//   2) CATALOGO_PRECIOS_REF (búsqueda por nombre — fuente de verdad para cálculo de ganancias)
-// Si NO hay match en el catálogo, NO se usa item.precio como fallback (sería el precio
-// cliente, lo que haría ganancia = 0). En ese caso se devuelve 0 para no contaminar
-// los totales con datos incorrectos.
+// 1) si el pedido ya trae precioCosto (pedidos nuevos, enviados desde tienda.html
+//    con el costo real adjunto) → se usa ese, es el dato exacto.
+// 2) si no lo trae (pedidos viejos, anteriores a este cambio) → se busca por
+//    nombre en el catálogo de referencia.
+// 3) si tampoco hay match en el catálogo → cae al precio del pedido (peor caso).
 function precioMayoristaItem(item) {
     if (item && item.precioCosto != null && Number(item.precioCosto) > 0) {
         return Number(item.precioCosto);
     }
     const ref = _precioRefCatalogo(item && item.nombre);
     if (ref != null) return ref;
-    // Sin match en catálogo → devolvemos 0 para no calcular ganancia incorrecta.
-    // (Si item.precio es el precio cliente y lo usamos como costo, ganancia = 0, que engaña.)
-    return 0;
+    return Number(item && item.precio || 0);
 }
 
 let pedidos         = [];
@@ -2185,61 +2201,38 @@ function _norm(p, estadoForzado) {
 // CARGA PEDIDOS PENDIENTES desde workerwebcliente /logistica
 // ═══════════════════════════════════════════════════════════
 // ═══════════════════════════════════════════════════════════
-// LECTURA DIRECTA DESDE FIRESTORE
-// Lee la colección 'pedidos' filtrando por codigoVendedor.
-// Sirve como fuente complementaria/de respaldo a los workers.
+// CARGA DIRECTA DESDE FIRESTORE (por UID del usuario logueado)
+// Lee la colección 'pedidos' filtrando por uid o codigoVendedor.
+// Esto garantiza datos en vivo aunque los workers fallen.
 // ═══════════════════════════════════════════════════════════
 async function _cargarDesdeFirestore() {
-    if (!currentCode) return [];
+    if (!currentUid && !currentCode) return [];
     try {
-        // Colección principal donde workerwebcliente guarda los pedidos
-        const snap = await db.collection('pedidos')
-            .where('codigoVendedor', '==', currentCode)
-            .orderBy('fechaCreacion', 'desc')
-            .limit(200)
-            .get();
-        if (snap.empty) return [];
-        return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    } catch(e) {
-        // Si la colección no existe o hay error de permisos, intentar sin orderBy
-        try {
-            const snap2 = await db.collection('pedidos')
+        let snap = null;
+        // Primero intentar por UID (más preciso)
+        if (currentUid) {
+            snap = await db.collection('pedidos')
+                .where('uid', '==', currentUid)
+                .orderBy('fechaCreacion', 'desc')
+                .limit(200)
+                .get().catch(() => null);
+        }
+        // Fallback: por codigoVendedor
+        if ((!snap || snap.empty) && currentCode) {
+            snap = await db.collection('pedidos')
                 .where('codigoVendedor', '==', currentCode)
+                .orderBy('fechaCreacion', 'desc')
                 .limit(200)
-                .get();
-            if (snap2.empty) return [];
-            return snap2.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        } catch(e2) {
-            console.warn('[Firestore] No se pudo leer colección pedidos:', e2.message);
-            return [];
+                .get().catch(() => null);
         }
-    }
-}
-
-// Lee también desde 'panelGestion' (colección donde index.html guarda los aprobados)
-async function _cargarPanelGestionFirestore() {
-    if (!currentCode) return [];
-    try {
-        const snap = await db.collection('panelGestion')
-            .where('codigoVendedor', '==', currentCode)
-            .limit(200)
-            .get();
-        if (snap.empty) return [];
-        return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        if (!snap || snap.empty) return [];
+        return snap.docs.map(doc => {
+            const d = doc.data();
+            return { ...d, id: doc.id, pedidoId: doc.id };
+        });
     } catch(e) {
-        try {
-            // Puede estar anidada bajo el usuario: usuarios/{uid}/pedidosAprobados
-            if (!currentUid) return [];
-            const snap2 = await db.collection('usuarios').doc(currentUid)
-                .collection('pedidosAprobados')
-                .limit(200)
-                .get();
-            if (snap2.empty) return [];
-            return snap2.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        } catch(e2) {
-            console.warn('[Firestore] No se pudo leer panelGestion:', e2.message);
-            return [];
-        }
+        console.warn('[Firestore] Error cargando pedidos:', e);
+        return [];
     }
 }
 
@@ -2293,11 +2286,7 @@ async function _cargarAprobados() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// CARGA DE DATOS — fusiona 4 fuentes sin duplicados:
-// 1. workerwebcliente /logistica        → pendientes
-// 2. datosderevendedor /api/panel-gestion → aprobados
-// 3. Firestore colección 'pedidos'      → todos (fuente directa)
-// 4. Firestore panelGestion / pedidosAprobados
+// CARGA DE DATOS — fusiona ambas fuentes sin duplicados
 // ═══════════════════════════════════════════════════════════
 async function loadData() {
     ['perfumes','multishop','calzados'].forEach(k => {
@@ -2308,32 +2297,23 @@ async function loadData() {
     try {
         pedidos = [];
 
-        // Traer las 4 fuentes en paralelo
-        const [rawPend, rawApro, rawFs, rawFsApro] = await Promise.all([
+        // Traer todas las fuentes en paralelo
+        const [rawPend, rawApro, rawFs] = await Promise.all([
             _cargarPendientes(),
             _cargarAprobados(),
-            _cargarDesdeFirestore(),
-            _cargarPanelGestionFirestore()
+            _cargarDesdeFirestore()
         ]);
 
-        // Debug en consola
-        console.log('[Panel] Worker pendientes:', rawPend.length, rawPend);
-        console.log('[Panel] Worker aprobados:', rawApro.length, rawApro);
-        console.log('[Panel] Firestore pedidos:', rawFs.length, rawFs);
-        console.log('[Panel] Firestore panelGestion:', rawFsApro.length, rawFsApro);
-
-        const totalWorker = rawPend.length + rawApro.length;
-        const totalFs     = rawFs.length + rawFsApro.length;
-
-        if (!totalWorker && !totalFs) {
-            toast(`⚠️ Sin pedidos encontrados. Código: "${currentCode}". F12 para detalles.`, 'err');
+        // Debug visible
+        console.log('[Panel] Pendientes worker:', rawPend.length, '| Aprobados worker:', rawApro.length, '| Firestore:', rawFs.length);
+        if (!rawPend.length && !rawApro.length && !rawFs.length) {
+            toast(`⚠️ Sin datos. Código: "${currentCode}". Abrí consola (F12) para detalles.`, 'err');
         } else {
-            toast(`Workers: ${totalWorker} · Firestore: ${totalFs} pedido${totalFs !== 1 ? 's' : ''}`, true);
+            toast(`Workers: ${rawPend.length + rawApro.length} · Firestore: ${rawFs.length} pedidos`, true);
         }
 
         const seen = new Map();
 
-        // 1. Pendientes del worker
         rawPend.forEach(p => {
             const norm = _norm(p, 'pendiente');
             if (!norm) return;
@@ -2341,7 +2321,6 @@ async function loadData() {
             pedidos.push(norm);
         });
 
-        // 2. Aprobados del worker
         rawApro.forEach(p => {
             const norm = _norm(p, 'pagado');
             if (!norm) return;
@@ -2353,28 +2332,16 @@ async function loadData() {
             }
         });
 
-        // 3. Pedidos de Firestore (complementa lo que el worker no trajo)
+        // Fusionar datos de Firestore (sin duplicados)
         rawFs.forEach(p => {
-            const estadoRaw = (p.estado || p.estadoAprobacion || '').toLowerCase();
-            const estadoNorm = (estadoRaw.includes('aprobad') || estadoRaw.includes('pagado') || estadoRaw === 'entregado')
-                ? 'pagado' : 'pendiente';
-            const norm = _norm(p, estadoNorm);
+            const norm = _norm(p, null);  // sin forzar estado — que _norm lo resuelva
             if (!norm) return;
             if (seen.has(norm.id)) {
-                // Si ya existe vía worker y Firestore lo marca como aprobado, actualizar estado
-                if (estadoNorm === 'pagado') pedidos[seen.get(norm.id)].estado = 'pagado';
-            } else {
-                seen.set(norm.id, pedidos.length);
-                pedidos.push(norm);
-            }
-        });
-
-        // 4. Aprobados de Firestore (panelGestion / pedidosAprobados)
-        rawFsApro.forEach(p => {
-            const norm = _norm(p, 'pagado');
-            if (!norm) return;
-            if (seen.has(norm.id)) {
-                pedidos[seen.get(norm.id)].estado = 'pagado';
+                // Si ya existe y el de Firestore está aprobado, actualizar estado
+                const ep = (p.estadoAprobacion || p.estado || '').toLowerCase();
+                if (ep.includes('aprobad') || ep.includes('pagado')) {
+                    pedidos[seen.get(norm.id)].estado = 'pagado';
+                }
             } else {
                 seen.set(norm.id, pedidos.length);
                 pedidos.push(norm);
@@ -2522,10 +2489,10 @@ function card(p) {
                             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>
                             Factura PDF
                         </button>
-                        <button class="btn-act btn-send" onclick="${stop}sendPedido('${p.id}',this)">
+                        ${estado === 'pagado' ? `<button class="btn-act btn-send" onclick="${stop}sendPedido('${p.id}',this)">
                             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                             Enviar
-                        </button>
+                        </button>` : ''}
                         <button class="btn-act btn-del" onclick="${stop}askDelete('${p.id}')">
                             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
                             Eliminar
@@ -2633,15 +2600,15 @@ async function sendPedido(id, btn) {
 }
 
 async function sendAllPedidos() {
-    const toSend = pedidos.filter(p => p.estado === 'pendiente');
-    if (!toSend.length) { toast('No hay pedidos pendientes para enviar', 'err'); return; }
+    const toSend = pedidos.filter(p => p.estado === 'pagado');
+    if (!toSend.length) { toast('No hay pedidos aprobados para enviar', 'err'); return; }
     // Abrir modal de confirmación
     document.getElementById('send-all-modal').classList.add('show');
 }
 
 async function confirmSendAll() {
     document.getElementById('send-all-modal').classList.remove('show');
-    const toSend = pedidos.filter(p => p.estado === 'pendiente');
+    const toSend = pedidos.filter(p => p.estado === 'pagado');
     if (!toSend.length) return;
 
     const btn = document.querySelector('.btn-send-all');
@@ -2658,7 +2625,7 @@ async function confirmSendAll() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// ELIMINAR PEDIDO
+// ELIMINAR PEDIDO — con motivo (Malentendido / Cancelación / Otro)
 // ═══════════════════════════════════════════════════════════
 function askDelete(id) {
     deleteTarget = id;
@@ -2668,32 +2635,77 @@ function closeModal() {
     document.getElementById('del-modal').classList.remove('show');
     deleteTarget = null;
 }
-async function confirmDelete() {
-    if (!deleteTarget) return;
-    const id = deleteTarget;
-    const btn = document.getElementById('del-confirm-btn');
-    btn.textContent = 'Eliminando...'; btn.disabled = true;
+function closeMalentendidoModal() {
+    document.getElementById('malentendido-modal').classList.remove('show');
+    // Eliminar directamente sin feedback
+    _ejecutarEliminacion(deleteTarget);
+}
 
+async function elegirMotivoEliminar(motivo) {
+    document.getElementById('del-modal').classList.remove('show');
+    if (motivo === 'malentendido') {
+        // Abrir modal de feedback antes de eliminar
+        document.getElementById('malentendido-texto').value = '';
+        document.getElementById('malentendido-modal').classList.add('show');
+    } else {
+        // Cancelación / Otro: guardar en Firestore y eliminar
+        await _guardarFeedbackEliminar(motivo, '');
+        _ejecutarEliminacion(deleteTarget);
+    }
+}
+
+async function confirmMalentendidoYEliminar() {
+    const btn = document.getElementById('mal-confirm-btn');
+    const texto = (document.getElementById('malentendido-texto').value || '').trim();
+    btn.textContent = 'Enviando...'; btn.disabled = true;
+    await _guardarFeedbackEliminar('malentendido', texto);
+    btn.textContent = 'Enviar y eliminar'; btn.disabled = false;
+    document.getElementById('malentendido-modal').classList.remove('show');
+    _ejecutarEliminacion(deleteTarget);
+}
+
+async function _guardarFeedbackEliminar(motivo, texto) {
+    try {
+        if (!currentUid && !currentCode) return;
+        await db.collection('feedbackEliminar').add({
+            uid: currentUid || '',
+            codigoVendedor: currentCode || '',
+            pedidoId: deleteTarget || '',
+            motivo,
+            texto,
+            fecha: firebase.firestore.FieldValue.serverTimestamp()
+        });
+    } catch(e) { console.warn('Feedback eliminar error:', e); }
+}
+
+async function _ejecutarEliminacion(id) {
+    if (!id) return;
     await _eliminarPedidoBackend(id);
-
+    // También eliminar en Firestore si existe
+    try {
+        await db.collection('pedidos').doc(id).delete();
+    } catch(_) {}
     rememberLocalDelete(id);
     pedidos = pedidos.filter(p => p.id !== id);
+    deleteTarget = null;
 
     const pend = pedidos.filter(p => p.estado === 'pendiente').length;
     const apro = pedidos.filter(p => p.estado === 'pagado').length;
+    const tot  = pedidos.length;
     document.getElementById('scnt-pendiente').textContent = pend;
     document.getElementById('scnt-pagado').textContent    = apro;
-    const tot = pedidos.length;
     document.getElementById('count-lbl').textContent = tot ? `(${tot} pedido${tot!==1?'s':''})` : '';
 
-    closeModal();
     renderAll();
-    btn.textContent = 'Eliminar'; btn.disabled = false;
     toast('Pedido eliminado', true);
 }
 
+// Para compatibilidad con event listener antiguo
+async function confirmDelete() { _ejecutarEliminacion(deleteTarget); }
+
 document.getElementById('send-all-modal').addEventListener('click', function(e) { if (e.target === this) this.classList.remove('show'); });
 document.getElementById('del-modal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+document.getElementById('malentendido-modal').addEventListener('click', function(e) { if (e.target === this) closeMalentendidoModal(); });
 document.getElementById('chart-modal').addEventListener('click', function(e) { if (e.target === this) closeChartModal(); });
 
 // ═══════════════════════════════════════════════════════════
