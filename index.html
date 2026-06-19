@@ -742,6 +742,21 @@
     </div>
 </div>
 
+<!-- ══ MODAL CONFIRMAR PEDIDO INDIVIDUAL ══ -->
+<div class="modal-overlay" id="send-confirm-modal">
+    <div class="modal-box">
+        <div class="modal-icon" style="background:var(--green-pale)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </div>
+        <h3>Confirmar pedido</h3>
+        <p id="send-confirm-desc">¿Querés enviar este pedido? Serás redirigido a Mercado Pago para completar el pago.</p>
+        <div class="modal-actions">
+            <button class="modal-cancel" onclick="closeSendConfirmModal()">Cancelar</button>
+            <button class="modal-confirm-btn" id="send-confirm-btn" style="background:var(--green)" onclick="confirmSendPedido()">Enviar y pagar</button>
+        </div>
+    </div>
+</div>
+
 <!-- ══ MODAL ELIMINAR ══ --><div class="modal-overlay" id="del-modal">
     <div class="modal-box">
         <div class="modal-icon">
@@ -797,6 +812,12 @@
         <div class="modal-actions">
             <button class="modal-cancel" onclick="closeGiftModal()">Cancelar</button>
             <button class="modal-confirm-btn" style="background:#f59e0b" onclick="saveGift()">Guardar</button>
+        </div>
+        <div id="gift-notify-wrap" style="display:none;margin-top:10px;text-align:center">
+            <button onclick="notificarClienteMes()" style="background:transparent;border:1px solid #25D366;color:#25D366;border-radius:8px;padding:8px 18px;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M11.999 2C6.477 2 2 6.477 2 12c0 1.883.516 3.646 1.41 5.162L2 22l4.956-1.391A9.951 9.951 0 0 0 12 22c5.523 0 10-4.477 10-10S17.523 2 12 2z" fill-rule="evenodd"/></svg>
+                Notificar
+            </button>
         </div>
     </div>
 </div>
@@ -2154,11 +2175,45 @@ function cat(p) {
 // ═══════════════════════════════════════════════════════════
 // SESIÓN
 // ═══════════════════════════════════════════════════════════
+function _checkMercadoPagoReturn() {
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const pedidoId = params.get('pedidoId') || params.get('external_reference') || params.get('preference_id');
+        const status = params.get('status') || params.get('collection_status') || '';
+        const paymentId = params.get('payment_id') || params.get('collection_id') || '';
+        if (!pedidoId && !paymentId) return;
+        // Limpiar query params de la URL sin recargar
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+        if (status === 'approved' || status === 'APROBADO') {
+            // Notificar al worker que el pago fue confirmado
+            const payload = {
+                action: 'confirmarPago',
+                pedidoId: pedidoId,
+                paymentId: paymentId,
+                status: status,
+                codigoVendedor: currentCode || ''
+            };
+            fetch(WORKER_PAGOS, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }).catch(() => {});
+            toast('✅ ¡Pago aprobado! El pedido fue confirmado.', true);
+        } else if (status === 'pending' || status === 'in_process') {
+            toast('⏳ Pago en proceso. Te avisaremos cuando se confirme.', true);
+        } else if (status === 'failure' || status === 'rejected') {
+            toast('❌ El pago fue rechazado. Intentá nuevamente.', 'err');
+        }
+    } catch(_) {}
+}
+
 function init() {
     // Aplicar tema guardado antes de mostrar nada
     const savedTheme = localStorage.getItem('rw_theme') || 'dark';
     if (savedTheme === 'light') document.body.classList.add('light-theme');
     applySavedCustomColors();
+    _checkMercadoPagoReturn();
 
     // La sesión válida es SIEMPRE la de Firebase Auth, resuelta por UID.
     // Si hay una sesión local guardada con un uid coincidente con el usuario
@@ -2780,24 +2835,47 @@ function toggleRibbon(id) { document.getElementById('oc-'+id)?.classList.toggle(
 // ═══════════════════════════════════════════════════════════
 // ENVIAR PEDIDO A workerpagos
 // ═══════════════════════════════════════════════════════════
-async function sendPedido(id, btn) {
+// ── Estado temporal para el modal de confirmación de envío individual ──
+let _pendingSendId = null;
+
+function sendPedido(id, btn) {
+    const p = pedidos.find(x => x.id === id);
+    if (!p) return;
+    const totalInv = totalInversionRevendedor(p);
+    _pendingSendId = id;
+    const env = p.envio || p.cliente || {};
+    const nombre = fullName(env) || p._clienteName || 'Cliente';
+    document.getElementById('send-confirm-desc').textContent =
+        `Pedido de ${nombre} · Total a pagar: $${Math.round(totalInv).toLocaleString('es-AR')}. Serás redirigido a Mercado Pago para completar el pago.`;
+    document.getElementById('send-confirm-modal').classList.add('show');
+}
+
+function closeSendConfirmModal() {
+    document.getElementById('send-confirm-modal').classList.remove('show');
+    _pendingSendId = null;
+}
+
+async function confirmSendPedido() {
+    if (!_pendingSendId) return;
+    const id = _pendingSendId;
+    _pendingSendId = null;
+    document.getElementById('send-confirm-modal').classList.remove('show');
+
     const p = pedidos.find(x => x.id === id);
     if (!p) return;
 
-    const orig = btn ? btn.innerHTML : '';
-    if (btn) { btn.innerHTML = 'Enviando...'; btn.disabled = true; }
+    const btn = document.getElementById('send-confirm-btn');
+    if (btn) { btn.textContent = 'Enviando...'; btn.disabled = true; }
 
     const nichoKey = cat(p);
-    const hasConfig = Object.keys(configTienda).length > 0;
     const ganancia = resellerGainOf(p);
     const totalFin = totalFinalRevendedor(p);
     const totalInv = totalInversionRevendedor(p);
 
-    // Productos a PRECIO DE COSTO (mayorista original del catálogo, verificado)
     const productosCosto = (p.items || []).map(it => ({
         nombre: it.nombre,
         cantidad: Number(it.cantidad) || 1,
-        precio: precioMayoristaItem(it)    // PRECIO DE COSTO verificado contra catálogo
+        precio: precioMayoristaItem(it)
     }));
 
     const cli = p.cliente || p.envio || {};
@@ -2805,7 +2883,6 @@ async function sendPedido(id, btn) {
     const direccionFull = [env.direccion, env.ciudad, env.provincia, env.cp]
         .filter(Boolean).join(', ');
 
-    // Payload: información idéntica al pedido, a precio de COSTO
     const payload = {
         action: 'pedidoAprobado',
         pedidoId: p.id,
@@ -2814,12 +2891,10 @@ async function sendPedido(id, btn) {
         estado: 'APROBADO',
         estadoPagoRevendedor: 'APROBADO',
         nicho: nichoKey,
-        // Productos al PRECIO DE COSTO con info idéntica
         productos: productosCosto,
         items: productosCosto,
-        total: Math.round(totalInv),                  // total a precio de COSTO
+        total: Math.round(totalInv),
         totalCosto: Math.round(totalInv),
-        // Info de referencia para el panel de pagos
         totalGananciaRevendedor: Math.round(ganancia),
         totalFinalCliente: Math.round(totalFin),
         cliente: {
@@ -2849,25 +2924,36 @@ async function sendPedido(id, btn) {
             body: JSON.stringify(payload)
         });
         if (res.ok) {
-            toastRich(ganancia, totalInv, `¡Felicidades! En este pedido has ganado $${Math.round(ganancia).toLocaleString('es-AR')}`);
-            // Marcar localmente como aprobado para que se mueva al tab "aprobados"
+            let data = {};
+            try { data = await res.json(); } catch(_) {}
+            // Marcar localmente como aprobado
             p.estado = 'pagado';
             const pend = pedidos.filter(x => x.estado === 'pendiente').length;
             const apro = pedidos.filter(x => x.estado === 'pagado').length;
             document.getElementById('scnt-pendiente').textContent = pend;
             document.getElementById('scnt-pagado').textContent    = apro;
             renderAll();
+            toast('¡Pedido Enviado!', true);
+            // Redirigir a Mercado Pago con el link de pago que devuelve el worker
+            const mpUrl = data.init_point || data.url || data.link_pago || data.payment_url || data.mp_url || null;
+            if (mpUrl) {
+                setTimeout(() => { window.location.href = mpUrl; }, 800);
+            } else {
+                // Si el worker no devuelve URL, redirigir al worker con params para que genere el pago
+                const fallbackUrl = `${WORKER_PAGOS}?action=pagar&pedidoId=${encodeURIComponent(p.id)}&total=${Math.round(totalInv)}&codigo=${encodeURIComponent(currentCode)}`;
+                setTimeout(() => { window.location.href = fallbackUrl; }, 800);
+            }
         } else {
             const txt = await res.text().catch(() => '');
             console.warn('workerpagos respondió', res.status, txt);
             toast('Error al enviar: HTTP ' + res.status, 'err');
+            if (btn) { btn.textContent = 'Enviar y pagar'; btn.disabled = false; }
         }
     } catch(e) {
         console.error('Error envío workerpagos:', e);
         toast('Error de conexión al enviar', 'err');
+        if (btn) { btn.textContent = 'Enviar y pagar'; btn.disabled = false; }
     }
-
-    if (btn) { btn.innerHTML = orig; btn.disabled = false; }
 }
 
 async function sendAllPedidos() {
@@ -2931,6 +3017,7 @@ async function confirmDelete() {
 }
 
 document.getElementById('send-all-modal').addEventListener('click', function(e) { if (e.target === this) this.classList.remove('show'); });
+document.getElementById('send-confirm-modal').addEventListener('click', function(e) { if (e.target === this) closeSendConfirmModal(); });
 document.getElementById('del-modal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
 document.getElementById('chart-modal').addEventListener('click', function(e) { if (e.target === this) closeChartModal(); });
 
@@ -3841,9 +3928,12 @@ document.getElementById('custom-modal').addEventListener('click', function(e) { 
 // ═══════════════════════════════════════════════════════════
 const GIFT_KEY = 'rw_gift_max_v1';
 
+let _giftTopCliente = null;
+
 function openGiftModal() {
     const val = Number(localStorage.getItem(GIFT_KEY) || 0);
     document.getElementById('gift-input').value = val > 0 ? val : '';
+    _giftTopCliente = null;
     // Preview cliente del mes
     try {
         const now = new Date();
@@ -3854,22 +3944,45 @@ function openGiftModal() {
             const nombre = fullName(env) || p._clienteName || 'Cliente';
             const tel = env.telefono || '';
             const key = (nombre + '|' + tel).toLowerCase().trim();
-            if (!mesMap[key]) mesMap[key] = { nombre, compras: 0, total: 0 };
+            if (!mesMap[key]) mesMap[key] = { nombre, tel, compras: 0, total: 0 };
             mesMap[key].compras++;
             mesMap[key].total += totalFinalRevendedor(p);
         });
         const top = Object.values(mesMap).sort((a,b) => b.total - a.total)[0];
         const prev = document.getElementById('gift-preview');
+        const notifyWrap = document.getElementById('gift-notify-wrap');
         if (top) {
+            _giftTopCliente = top;
             prev.style.display = 'block';
             document.getElementById('gift-preview-name').textContent = top.nombre;
             document.getElementById('gift-preview-meta').textContent =
                 `${top.compras} compra${top.compras!==1?'s':''} · $${Math.round(top.total).toLocaleString()} este mes`;
+            notifyWrap.style.display = top.tel ? 'block' : 'none';
         } else {
             prev.style.display = 'none';
+            notifyWrap.style.display = 'none';
         }
     } catch(_) {}
     document.getElementById('gift-modal').classList.add('show');
+}
+
+function notificarClienteMes() {
+    if (!_giftTopCliente) return;
+    const top = _giftTopCliente;
+    const giftVal = Number(localStorage.getItem(GIFT_KEY) || 0);
+    const vendedor = [currentVendorNombre, currentVendorApellido].filter(Boolean).join(' ') || 'Tu vendedor';
+    let msg = `🎁 *¡Hola ${top.nombre}!*\n\n`;
+    msg += `Sos el *cliente del mes* de ${vendedor} 🏆\n`;
+    msg += `Realizaste ${top.compras} compra${top.compras!==1?'s':''} este mes por un total de $${Math.round(top.total).toLocaleString()}.\n\n`;
+    if (giftVal > 0) {
+        msg += `Por eso, ¡te ganaste un regalo de hasta *$${giftVal.toLocaleString()}*! 🎉\n`;
+        msg += `Contactame para coordinar tu sorpresa 😊`;
+    } else {
+        msg += `Queremos agradecerte tu confianza. ¡Contactanos para tu sorpresa especial! 🎉`;
+    }
+    const tel = top.tel.replace(/\D/g, '');
+    const waUrl = `https://wa.me/${tel}?text=${encodeURIComponent(msg)}`;
+    window.open(waUrl, '_blank');
 }
 
 function closeGiftModal() {
