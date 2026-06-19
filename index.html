@@ -2188,13 +2188,12 @@ function _checkMercadoPagoReturn() {
         if (status === 'approved' || status === 'APROBADO') {
             // Notificar al worker que el pago fue confirmado
             const payload = {
-                action: 'confirmarPago',
                 pedidoId: pedidoId,
-                paymentId: paymentId,
-                status: status,
-                codigoVendedor: currentCode || ''
+                estado: 'aprobado',
+                fecha: Date.now(),
+                uid: currentUid || null
             };
-            fetch(WORKER_PAGOS, {
+            fetch(`${WORKER_PAGOS}/api/aprobar-pedido`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -2888,6 +2887,9 @@ async function confirmSendPedido() {
         pedidoId: p.id,
         uid: p.id,
         codigoVendedor: currentCode,
+        categoria: nichoKey,
+        telefono: cli.telefono || env.telefono || '',
+        direccion: direccionFull,
         estado: 'APROBADO',
         estadoPagoRevendedor: 'APROBADO',
         nicho: nichoKey,
@@ -2918,7 +2920,7 @@ async function confirmSendPedido() {
     };
 
     try {
-        const res = await fetch(WORKER_PAGOS, {
+        const res = await fetch(`${WORKER_PAGOS}/api/panel-gestion`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -2934,14 +2936,36 @@ async function confirmSendPedido() {
             document.getElementById('scnt-pagado').textContent    = apro;
             renderAll();
             toast('¡Pedido Enviado!', true);
-            // Redirigir a Mercado Pago con el link de pago que devuelve el worker
-            const mpUrl = data.init_point || data.url || data.link_pago || data.payment_url || data.mp_url || null;
-            if (mpUrl) {
-                setTimeout(() => { window.location.href = mpUrl; }, 800);
-            } else {
-                // Si el worker no devuelve URL, redirigir al worker con params para que genere el pago
-                const fallbackUrl = `${WORKER_PAGOS}?action=pagar&pedidoId=${encodeURIComponent(p.id)}&total=${Math.round(totalInv)}&codigo=${encodeURIComponent(currentCode)}`;
-                setTimeout(() => { window.location.href = fallbackUrl; }, 800);
+            // El panel-gestion solo registra el costo; el link de pago real
+            // hay que pedirlo aparte a Mercado Pago vía /api/mp/create-preference
+            try {
+                const mpRes = await fetch(`${WORKER_PAGOS}/api/mp/create-preference`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        items: productosCosto.map(it => ({
+                            title: it.nombre,
+                            quantity: it.cantidad,
+                            unit_price: it.precio
+                        })),
+                        payer: {
+                            name: cli.nombre || '',
+                            email: cli.email || env.email || ''
+                        },
+                        external_reference: p.id
+                    })
+                });
+                const mpData = await mpRes.json().catch(() => ({}));
+                const mpUrl = mpRes.ok ? (mpData.init_point || mpData.sandbox_init_point) : null;
+                if (mpUrl) {
+                    setTimeout(() => { window.location.href = mpUrl; }, 800);
+                } else {
+                    console.warn('No se pudo generar la preferencia de Mercado Pago', mpData);
+                    toast('Pedido registrado, pero no se pudo generar el link de pago', 'err');
+                }
+            } catch (mpErr) {
+                console.error('Error creando preferencia de Mercado Pago:', mpErr);
+                toast('Pedido registrado, pero no se pudo generar el link de pago', 'err');
             }
         } else {
             const txt = await res.text().catch(() => '');
