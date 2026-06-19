@@ -2188,12 +2188,13 @@ function _checkMercadoPagoReturn() {
         if (status === 'approved' || status === 'APROBADO') {
             // Notificar al worker que el pago fue confirmado
             const payload = {
+                action: 'confirmarPago',
                 pedidoId: pedidoId,
-                estado: 'aprobado',
-                fecha: Date.now(),
-                uid: currentUid || null
+                paymentId: paymentId,
+                status: status,
+                codigoVendedor: currentCode || ''
             };
-            fetch(`${WORKER_PAGOS}/api/aprobar-pedido`, {
+            fetch(WORKER_PAGOS, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -2449,19 +2450,37 @@ function _norm(p, estadoForzado) {
             precioCosto: (costos[i] != null && Number(costos[i]) > 0) ? Number(costos[i]) : null,
         }));
     } else {
-        items = rawItems.map(i => ({
-            nombre:   i.nombre || i.name || '—',
-            cantidad: Number(i.cantidad || i.qty || 1),
-            // precio = SIEMPRE el precio FINAL del cliente (lo que paga el cliente al revendedor).
-            // Nunca confundir con el precio mayorista: ese llega desde workerpagos.
-            precio:   Number(i.precioFinal ?? i.precio ?? i.unit_price ?? 0),
-            // precioCosto = costo mayorista. Será PISADO por workerpagos vía UID
-            // (ver _aplicarMayoristaDesdeWorkerpagos). Acá solo dejamos un respaldo
-            // por si en el doc viejo ya venía cargado.
-            precioCosto: (i.precioCosto != null && Number(i.precioCosto) > 0) ? Number(i.precioCosto)
-                       : (i.precioMayorista != null && Number(i.precioMayorista) > 0) ? Number(i.precioMayorista)
-                       : null,
-        }));
+        items = rawItems.map(i => {
+            // Costo mayorista: puede venir como precioCosto, precioMayorista,
+            // o costoMayoristaUnitario (este último es el nombre que usa
+            // específicamente el registro de /api/panel-gestion en workerpagos,
+            // que NO trae el campo "precio" — antes, al no contemplar este
+            // shape, ese ítem quedaba con precioCosto=null y el costo mayorista
+            // se perdía o terminaba leído desde el lugar equivocado).
+            const costoMayorista =
+                (i.precioCosto != null && Number(i.precioCosto) > 0) ? Number(i.precioCosto)
+              : (i.precioMayorista != null && Number(i.precioMayorista) > 0) ? Number(i.precioMayorista)
+              : (i.costoMayoristaUnitario != null && Number(i.costoMayoristaUnitario) > 0) ? Number(i.costoMayoristaUnitario)
+              : null;
+
+            // Precio cliente: SIEMPRE el precio FINAL que paga el cliente
+            // (con margen del revendedor incluido). Importante: items del
+            // shape panelGestion (costoMayoristaUnitario) NO tienen "precio"
+            // real de cliente — ahí no hay que confundirlo con el costo.
+            const tienePrecioClienteExplicito =
+                i.precioFinal != null || i.precioCliente != null ||
+                (i.precio != null && i.costoMayoristaUnitario == null);
+            const precioCliente = tienePrecioClienteExplicito
+                ? Number(i.precioFinal ?? i.precioCliente ?? i.precio ?? i.unit_price ?? 0)
+                : 0; // shape panelGestion sin precio de cliente real: no inventar un valor
+
+            return {
+                nombre:   i.nombre || i.name || '—',
+                cantidad: Number(i.cantidad || i.qty || 1),
+                precio:      precioCliente,
+                precioCosto: costoMayorista,
+            };
+        });
     }
 
     // Fecha
@@ -2871,11 +2890,27 @@ async function confirmSendPedido() {
     const totalFin = totalFinalRevendedor(p);
     const totalInv = totalInversionRevendedor(p);
 
-    const productosCosto = (p.items || []).map(it => ({
-        nombre: it.nombre,
-        cantidad: Number(it.cantidad) || 1,
-        precio: precioMayoristaItem(it)
-    }));
+    // IMPORTANTE: acá viajan los DOS precios de cada ítem, bien separados:
+    //   - precio                 → lo que paga el CLIENTE final (con margen del revendedor)
+    //   - precioCosto            → precio MAYORISTA (costo real del revendedor)
+    //   - costoMayoristaUnitario → mismo dato que precioCosto, con el nombre que
+    //                              espera /api/panel-gestion en workerpagos
+    // Antes acá se mandaba precio = precioMayoristaItem(it), lo que pisaba el
+    // precio del cliente con el mayorista al aprobar el pedido. Por eso al
+    // recargar, "Precio mayorista" mostraba el precio cliente y "Precio
+    // cliente"/"Mi ganancia" quedaban en $0 (no había dato real de cliente
+    // guardado, solo el mayorista repetido en el campo equivocado).
+    const productosCosto = (p.items || []).map(it => {
+        const pCliente   = resellerPriceFinal(it, nichoKey);
+        const pMayorista = precioMayoristaItem(it);
+        return {
+            nombre: it.nombre,
+            cantidad: Number(it.cantidad) || 1,
+            precio: pCliente,                       // precio CLIENTE (lo que cobra el revendedor)
+            precioCosto: pMayorista,                // precio MAYORISTA (costo real)
+            costoMayoristaUnitario: pMayorista       // alias para workerpagos /api/panel-gestion
+        };
+    });
 
     const cli = p.cliente || p.envio || {};
     const env = p.envio || p.cliente || {};
@@ -2887,9 +2922,6 @@ async function confirmSendPedido() {
         pedidoId: p.id,
         uid: p.id,
         codigoVendedor: currentCode,
-        categoria: nichoKey,
-        telefono: cli.telefono || env.telefono || '',
-        direccion: direccionFull,
         estado: 'APROBADO',
         estadoPagoRevendedor: 'APROBADO',
         nicho: nichoKey,
@@ -2920,7 +2952,7 @@ async function confirmSendPedido() {
     };
 
     try {
-        const res = await fetch(`${WORKER_PAGOS}/api/panel-gestion`, {
+        const res = await fetch(WORKER_PAGOS, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -2936,36 +2968,14 @@ async function confirmSendPedido() {
             document.getElementById('scnt-pagado').textContent    = apro;
             renderAll();
             toast('¡Pedido Enviado!', true);
-            // El panel-gestion solo registra el costo; el link de pago real
-            // hay que pedirlo aparte a Mercado Pago vía /api/mp/create-preference
-            try {
-                const mpRes = await fetch(`${WORKER_PAGOS}/api/mp/create-preference`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        items: productosCosto.map(it => ({
-                            title: it.nombre,
-                            quantity: it.cantidad,
-                            unit_price: it.precio
-                        })),
-                        payer: {
-                            name: cli.nombre || '',
-                            email: cli.email || env.email || ''
-                        },
-                        external_reference: p.id
-                    })
-                });
-                const mpData = await mpRes.json().catch(() => ({}));
-                const mpUrl = mpRes.ok ? (mpData.init_point || mpData.sandbox_init_point) : null;
-                if (mpUrl) {
-                    setTimeout(() => { window.location.href = mpUrl; }, 800);
-                } else {
-                    console.warn('No se pudo generar la preferencia de Mercado Pago', mpData);
-                    toast('Pedido registrado, pero no se pudo generar el link de pago', 'err');
-                }
-            } catch (mpErr) {
-                console.error('Error creando preferencia de Mercado Pago:', mpErr);
-                toast('Pedido registrado, pero no se pudo generar el link de pago', 'err');
+            // Redirigir a Mercado Pago con el link de pago que devuelve el worker
+            const mpUrl = data.init_point || data.url || data.link_pago || data.payment_url || data.mp_url || null;
+            if (mpUrl) {
+                setTimeout(() => { window.location.href = mpUrl; }, 800);
+            } else {
+                // Si el worker no devuelve URL, redirigir al worker con params para que genere el pago
+                const fallbackUrl = `${WORKER_PAGOS}?action=pagar&pedidoId=${encodeURIComponent(p.id)}&total=${Math.round(totalInv)}&codigo=${encodeURIComponent(currentCode)}`;
+                setTimeout(() => { window.location.href = fallbackUrl; }, 800);
             }
         } else {
             const txt = await res.text().catch(() => '');
