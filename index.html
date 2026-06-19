@@ -13,6 +13,7 @@
     <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
     <style>
         :root {
             --blue:        #0066ff;
@@ -2183,6 +2184,65 @@ function _norm(p, estadoForzado) {
 // ═══════════════════════════════════════════════════════════
 // CARGA PEDIDOS PENDIENTES desde workerwebcliente /logistica
 // ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+// LECTURA DIRECTA DESDE FIRESTORE
+// Lee la colección 'pedidos' filtrando por codigoVendedor.
+// Sirve como fuente complementaria/de respaldo a los workers.
+// ═══════════════════════════════════════════════════════════
+async function _cargarDesdeFirestore() {
+    if (!currentCode) return [];
+    try {
+        // Colección principal donde workerwebcliente guarda los pedidos
+        const snap = await db.collection('pedidos')
+            .where('codigoVendedor', '==', currentCode)
+            .orderBy('fechaCreacion', 'desc')
+            .limit(200)
+            .get();
+        if (snap.empty) return [];
+        return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch(e) {
+        // Si la colección no existe o hay error de permisos, intentar sin orderBy
+        try {
+            const snap2 = await db.collection('pedidos')
+                .where('codigoVendedor', '==', currentCode)
+                .limit(200)
+                .get();
+            if (snap2.empty) return [];
+            return snap2.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        } catch(e2) {
+            console.warn('[Firestore] No se pudo leer colección pedidos:', e2.message);
+            return [];
+        }
+    }
+}
+
+// Lee también desde 'panelGestion' (colección donde index.html guarda los aprobados)
+async function _cargarPanelGestionFirestore() {
+    if (!currentCode) return [];
+    try {
+        const snap = await db.collection('panelGestion')
+            .where('codigoVendedor', '==', currentCode)
+            .limit(200)
+            .get();
+        if (snap.empty) return [];
+        return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch(e) {
+        try {
+            // Puede estar anidada bajo el usuario: usuarios/{uid}/pedidosAprobados
+            if (!currentUid) return [];
+            const snap2 = await db.collection('usuarios').doc(currentUid)
+                .collection('pedidosAprobados')
+                .limit(200)
+                .get();
+            if (snap2.empty) return [];
+            return snap2.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        } catch(e2) {
+            console.warn('[Firestore] No se pudo leer panelGestion:', e2.message);
+            return [];
+        }
+    }
+}
+
 async function _cargarPendientes() {
     if (!currentCode) return [];
     try {
@@ -2233,7 +2293,11 @@ async function _cargarAprobados() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// CARGA DE DATOS — fusiona ambas fuentes sin duplicados
+// CARGA DE DATOS — fusiona 4 fuentes sin duplicados:
+// 1. workerwebcliente /logistica        → pendientes
+// 2. datosderevendedor /api/panel-gestion → aprobados
+// 3. Firestore colección 'pedidos'      → todos (fuente directa)
+// 4. Firestore panelGestion / pedidosAprobados
 // ═══════════════════════════════════════════════════════════
 async function loadData() {
     ['perfumes','multishop','calzados'].forEach(k => {
@@ -2244,23 +2308,32 @@ async function loadData() {
     try {
         pedidos = [];
 
-        // Traer ambas fuentes en paralelo
-        const [rawPend, rawApro] = await Promise.all([
+        // Traer las 4 fuentes en paralelo
+        const [rawPend, rawApro, rawFs, rawFsApro] = await Promise.all([
             _cargarPendientes(),
-            _cargarAprobados()
+            _cargarAprobados(),
+            _cargarDesdeFirestore(),
+            _cargarPanelGestionFirestore()
         ]);
 
-        // Debug visible — aparece en consola Y en un toast para que puedas ver qué trajo
-        console.log('[Panel] Pendientes del worker:', rawPend.length, rawPend);
-        console.log('[Panel] Aprobados del worker:', rawApro.length, rawApro);
-        if (!rawPend.length && !rawApro.length) {
-            toast(`⚠️ Workers sin datos. Código: "${currentCode}". Abrí consola (F12) para detalles.`, 'err');
+        // Debug en consola
+        console.log('[Panel] Worker pendientes:', rawPend.length, rawPend);
+        console.log('[Panel] Worker aprobados:', rawApro.length, rawApro);
+        console.log('[Panel] Firestore pedidos:', rawFs.length, rawFs);
+        console.log('[Panel] Firestore panelGestion:', rawFsApro.length, rawFsApro);
+
+        const totalWorker = rawPend.length + rawApro.length;
+        const totalFs     = rawFs.length + rawFsApro.length;
+
+        if (!totalWorker && !totalFs) {
+            toast(`⚠️ Sin pedidos encontrados. Código: "${currentCode}". F12 para detalles.`, 'err');
         } else {
-            toast(`Cargados: ${rawPend.length} pendientes · ${rawApro.length} aprobados`, true);
+            toast(`Workers: ${totalWorker} · Firestore: ${totalFs} pedido${totalFs !== 1 ? 's' : ''}`, true);
         }
 
         const seen = new Map();
 
+        // 1. Pendientes del worker
         rawPend.forEach(p => {
             const norm = _norm(p, 'pendiente');
             if (!norm) return;
@@ -2268,7 +2341,36 @@ async function loadData() {
             pedidos.push(norm);
         });
 
+        // 2. Aprobados del worker
         rawApro.forEach(p => {
+            const norm = _norm(p, 'pagado');
+            if (!norm) return;
+            if (seen.has(norm.id)) {
+                pedidos[seen.get(norm.id)].estado = 'pagado';
+            } else {
+                seen.set(norm.id, pedidos.length);
+                pedidos.push(norm);
+            }
+        });
+
+        // 3. Pedidos de Firestore (complementa lo que el worker no trajo)
+        rawFs.forEach(p => {
+            const estadoRaw = (p.estado || p.estadoAprobacion || '').toLowerCase();
+            const estadoNorm = (estadoRaw.includes('aprobad') || estadoRaw.includes('pagado') || estadoRaw === 'entregado')
+                ? 'pagado' : 'pendiente';
+            const norm = _norm(p, estadoNorm);
+            if (!norm) return;
+            if (seen.has(norm.id)) {
+                // Si ya existe vía worker y Firestore lo marca como aprobado, actualizar estado
+                if (estadoNorm === 'pagado') pedidos[seen.get(norm.id)].estado = 'pagado';
+            } else {
+                seen.set(norm.id, pedidos.length);
+                pedidos.push(norm);
+            }
+        });
+
+        // 4. Aprobados de Firestore (panelGestion / pedidosAprobados)
+        rawFsApro.forEach(p => {
             const norm = _norm(p, 'pagado');
             if (!norm) return;
             if (seen.has(norm.id)) {
@@ -3302,6 +3404,7 @@ const firebaseConfig = {
 };
 if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
+const db   = firebase.firestore();
 
 // Sesión persistente (queda iniciada hasta logout explícito)
 try { auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL); } catch(_) {}
