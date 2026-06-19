@@ -180,7 +180,13 @@
         .tab-pane.active { display: block; }
 
         /* ── STATS ROW ── */
-        .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px; }
+        .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 24px; }
+        @media (max-width: 480px) {
+            .stats-row { gap: 6px; }
+            .stat-card { padding: 12px 8px !important; }
+            .stat-lbl { font-size: 9px !important; }
+            .stat-val { font-size: 18px !important; }
+        }
         .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; }
         .stat-lbl { font-size: 10px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 6px; }
         .stat-val { font-size: 24px; font-weight: 700; color: var(--blue); }
@@ -2046,7 +2052,7 @@ async function sendPedido(id, btn) {
             body: JSON.stringify(payload)
         });
         if (res.ok) {
-            toastRich(ganancia, totalInv, '¡Pedido enviado! Felicidades');
+            toastRich(ganancia, totalInv, `¡Felicidades! En este pedido has ganado $${Math.round(ganancia).toLocaleString('es-AR')}`);
             // Marcar localmente como aprobado para que se mueva al tab "aprobados"
             p.estado = 'pagado';
             const pend = pedidos.filter(x => x.estado === 'pendiente').length;
