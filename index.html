@@ -202,6 +202,8 @@
         .status-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
         .s-pendiente { background: var(--amber-pale); color: var(--amber); border: 1px solid rgba(245,158,11,.2); }
         .s-pagado { background: var(--green-pale); color: var(--green); border: 1px solid rgba(0,201,110,.2); }
+        /* badge de estado flotante en esquina de la cinta */
+        .ribbon-status-badge { position:absolute; top:0; right:14px; padding:2px 10px; border-radius:0 0 8px 8px; font-size:10px; font-weight:800; letter-spacing:.3px; z-index:2; border-top:none; }
 
         /* product table */
         .prod-table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
@@ -440,19 +442,19 @@
         .cliente-mes-gift-lbl { font-size:10px;text-transform:uppercase;color:var(--text3);font-weight:700; }
         .cliente-mes-gift-val { font-size:18px;font-weight:800;color:#f59e0b; }
 
-        /* ── NIVEL REVENDEDOR (topbar) ── */
-        .level-block { display:flex; align-items:center; gap:10px; padding:6px 12px; background:rgba(10,71,222,.08); border:1px solid rgba(57,104,246,.25); border-radius:12px; min-width:0; max-width:420px; }
+        /* ── NIVEL REVENDEDOR (sección bajo banner) ── */
+        .level-block { display:flex; align-items:center; gap:14px; padding:12px 0 16px; border-bottom:1px solid var(--border); margin-bottom:24px; min-width:0; }
         .level-avatar { width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,#0a47de,#3968f6); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:14px; flex:none; box-shadow:0 2px 8px rgba(10,71,222,.4); }
         .level-info { display:flex; flex-direction:column; gap:3px; min-width:0; flex:1; }
-        .level-name { font-size:11px; font-weight:700; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:140px; }
+        .level-name { font-size:13px; font-weight:700; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:320px; }
         .level-row { display:flex; align-items:center; gap:8px; }
         .level-stars { display:flex; gap:2px; }
-        .level-star { width:13px; height:13px; color:#3a3f55; transition:color .3s, transform .3s, filter .3s; }
+        .level-star { width:16px; height:16px; color:#3a3f55; transition:color .3s, transform .3s, filter .3s; }
         .level-star.on { color:#f5b400; filter:drop-shadow(0 0 4px rgba(245,180,0,.6)); }
-        .level-bar-wrap { flex:1; min-width:80px; height:8px; background:rgba(255,255,255,.06); border-radius:4px; overflow:hidden; position:relative; }
+        .level-bar-wrap { flex:1; min-width:120px; max-width:260px; height:8px; background:rgba(255,255,255,.06); border-radius:4px; overflow:hidden; position:relative; }
         .level-bar-fill { height:100%; width:0%; border-radius:4px; background:linear-gradient(90deg,#f43f5e 0%,#f59e0b 50%,#2d924c 100%); transition:width 1.2s cubic-bezier(.4,0,.2,1); box-shadow:0 0 8px rgba(45,146,76,.4); }
-        .level-count { font-size:10px; color:var(--text2); white-space:nowrap; font-weight:600; }
-        @media (max-width:780px) { .level-block { padding:5px 9px; gap:7px; max-width:240px; } .level-name { max-width:90px; font-size:10px; } .level-avatar { width:30px; height:30px; font-size:12px; } }
+        .level-count { font-size:11px; color:var(--text2); white-space:nowrap; font-weight:600; }
+        @media (max-width:780px) { .level-block { gap:10px; } .level-name { max-width:160px; font-size:12px; } .level-avatar { width:30px; height:30px; font-size:12px; } .level-bar-wrap { min-width:80px; } }
 
         /* ── MODAL SUBIDA DE NIVEL ── */
         .level-up-overlay { position:fixed; inset:0; background:rgba(0,0,0,.78); backdrop-filter:blur(8px); display:none; align-items:center; justify-content:center; z-index:3000; padding:20px; animation:lvFade .3s ease; }
@@ -501,19 +503,6 @@
         <div class="brand-info">
             <span class="brand-title">Mi Panel</span>
             <span class="brand-code" id="badge-code"></span>
-        </div>
-    </div>
-    <div class="level-block" id="level-block" style="display:none">
-        <div class="level-avatar" id="level-avatar">R</div>
-        <div class="level-info">
-            <div class="level-name" id="level-name">Revendedor</div>
-            <div class="level-row">
-                <div class="level-stars" id="level-stars"></div>
-                <div class="level-bar-wrap" title="Progreso al siguiente nivel">
-                    <div class="level-bar-fill" id="level-bar-fill"></div>
-                </div>
-                <div class="level-count" id="level-count">0/100</div>
-            </div>
         </div>
     </div>
     <div class="topbar-right">
@@ -571,6 +560,21 @@
 
 <div class="main" id="main">
     <div class="wrap">
+
+        <!-- NIVEL REVENDEDOR (debajo del banner) -->
+        <div class="level-block" id="level-block" style="display:none">
+            <div class="level-avatar" id="level-avatar">R</div>
+            <div class="level-info">
+                <div class="level-name" id="level-name">Revendedor</div>
+                <div class="level-row">
+                    <div class="level-stars" id="level-stars"></div>
+                    <div class="level-bar-wrap" title="Progreso al siguiente nivel">
+                        <div class="level-bar-fill" id="level-bar-fill"></div>
+                    </div>
+                    <div class="level-count" id="level-count">0/100</div>
+                </div>
+            </div>
+        </div>
 
         <div class="page-head">
             <div style="display:flex;align-items:center;gap:12px">
@@ -1797,14 +1801,14 @@ function card(p) {
 
     const stop = 'event.stopPropagation();';
 
-    return `<div class="ribbon" id="oc-${p.id}">
+    return `<div class="ribbon" id="oc-${p.id}" style="position:relative">
+        <span class="status-chip s-${estado} ribbon-status-badge">${estado==='pagado'?'✓ Aprobado':'⏳ Pendiente'}</span>
         <div class="ribbon-head" onclick="toggleRibbon('${p.id}')">
             <div class="ribbon-main">
                 <span class="r-name">${esc(p._clienteName || envNombre || 'Cliente')}</span>
-                ${p._vCode ? `<span class="r-code">Cod: ${esc(p._vCode)}</span>` : ''}
+                <span class="r-code">Bill: #${p.id.slice(-8).toUpperCase()}</span>
             </div>
             <div class="ribbon-meta">
-                <span class="status-chip s-${estado}">${estado==='pagado'?'Aprobado':'Pendiente'}</span>
                 <span class="r-date">${fecha}</span>
                 <svg class="r-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
             </div>
@@ -2001,6 +2005,10 @@ async function confirmDelete() {
 
     closeModal();
     renderAll();
+    // Forzar actualización de estadísticas y ganancias tras eliminar
+    try { renderStatsView(); } catch(_) {}
+    try { renderGananciasView(); } catch(_) {}
+    try { renderRankingView(); } catch(_) {}
     btn.textContent = 'Eliminar'; btn.disabled = false;
     toast('Pedido eliminado', true);
 }
@@ -2462,9 +2470,9 @@ function renderRankingView() {
         return;
     }
 
-    // Agrupar por cliente (nombre + teléfono como clave)
+    // Agrupar por cliente (nombre + teléfono como clave) — solo pedidos aprobados
     const clienteMap = {};
-    pedidos.forEach(p => {
+    pedidos.filter(p => p.estado === 'pagado').forEach(p => {
         const env = p.envio || p.cliente || {};
         const nombre = fullName(env) || p._clienteName || 'Cliente anónimo';
         const tel = env.telefono || '';
@@ -2505,7 +2513,7 @@ function renderRankingView() {
     // ── Cliente del mes (top por frecuencia del mes actual) ──
     const now = new Date();
     const mesIni = new Date(now.getFullYear(), now.getMonth(), 1).getTime() / 1000;
-    const mesPedidos = pedidos.filter(p => (p.fechaCreacion?.seconds || 0) >= mesIni);
+    const mesPedidos = pedidos.filter(p => (p.fechaCreacion?.seconds || 0) >= mesIni && p.estado === 'pagado');
     const mesMap = {};
     mesPedidos.forEach(p => {
         const env = p.envio || p.cliente || {};
