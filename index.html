@@ -1417,12 +1417,37 @@ const CATALOGO_PRECIOS_REF = {
 };
 function _precioRefCatalogo(nombre) {
     if (!nombre) return null;
-    const n = String(nombre).trim().toUpperCase();
-    if (CATALOGO_PRECIOS_REF[n] != null) return CATALOGO_PRECIOS_REF[n];
-    // match flexible: por si el nombre guardado difiere levemente (espacios extra, etc.)
     const keys = Object.keys(CATALOGO_PRECIOS_REF);
-    const found = keys.find(k => k.toUpperCase() === n);
-    return found ? CATALOGO_PRECIOS_REF[found] : null;
+
+    // Limpia el nombre: quita talle "(T.43)", "(T43)", espacios extra
+    function limpiar(s) {
+        return String(s).trim().toUpperCase()
+            .replace(/\s*\(T\.?\s*\d+\)\s*/gi, '')  // quita (T.43) o (T43)
+            .replace(/\s+/g, ' ').trim();
+    }
+
+    const n = limpiar(nombre);
+
+    // 1. Match exacto con nombre limpio
+    if (CATALOGO_PRECIOS_REF[n] != null) return CATALOGO_PRECIOS_REF[n];
+    const exacto = keys.find(k => limpiar(k) === n);
+    if (exacto) return CATALOGO_PRECIOS_REF[exacto];
+
+    // 2. El nombre del catálogo está contenido en el nombre del ítem
+    //    Ej: "DUNK PANDA 3D (T.43)" contiene "DUNK PANDA 3D"
+    //    Ordenar por longitud desc para preferir el match más largo/específico
+    const porContenido = keys
+        .filter(k => n.includes(limpiar(k)) && limpiar(k).length > 3)
+        .sort((a, b) => limpiar(b).length - limpiar(a).length);
+    if (porContenido.length) return CATALOGO_PRECIOS_REF[porContenido[0]];
+
+    // 3. El nombre del ítem está contenido en el catálogo
+    const porContenido2 = keys
+        .filter(k => limpiar(k).includes(n) && n.length > 3)
+        .sort((a, b) => limpiar(a).length - limpiar(b).length);
+    if (porContenido2.length) return CATALOGO_PRECIOS_REF[porContenido2[0]];
+
+    return null;
 }
 // Precio mayorista efectivo de un ítem:
 // 1) si el pedido ya trae precioCosto (pedidos nuevos, enviados desde tienda.html
@@ -1432,29 +1457,21 @@ function _precioRefCatalogo(nombre) {
 // 3) si tampoco hay match en el catálogo → cae al precio del pedido (peor caso).
 function precioMayoristaItem(item) {
     if (!item) return 0;
-    const precioCliente = Number(item.precioFinal ?? item.precioCliente ?? item.precio ?? 0);
+    const pCli = Number(item.precioFinal ?? item.precioCliente ?? item.precio ?? 0);
 
-    // 1. precioCosto — campo explícito, siempre confiable
-    if (item.precioCosto != null && Number(item.precioCosto) > 0)
-        return Number(item.precioCosto);
+    // 1. precioCosto — campo explícito enviado por workerpagos/tienda.html
+    const pc = Number(item.precioCosto || 0);
+    if (pc > 0 && pc !== pCli) return pc;
 
-    // 2. Catálogo local por nombre — fuente de verdad para mayoristas
+    // 2. Catálogo por nombre — fuente de verdad (resuelve con talle incluido)
     const ref = _precioRefCatalogo(item.nombre);
     if (ref != null) return ref;
 
-    // 3. costoMayoristaUnitario — solo si es menor que precioCliente
-    //    (si son iguales, es bug de datos viejos donde se guardó el precio
-    //    cliente en ese campo — ignorar para no mostrar mayorista = cliente)
-    if (item.costoMayoristaUnitario != null && Number(item.costoMayoristaUnitario) > 0
-        && (precioCliente === 0 || Number(item.costoMayoristaUnitario) < precioCliente))
-        return Number(item.costoMayoristaUnitario);
+    // 3. costoMayoristaUnitario — solo si es distinto del precio cliente
+    //    (pedidos viejos tienen este campo igual al precio cliente = bug)
+    const cmu = Number(item.costoMayoristaUnitario || 0);
+    if (cmu > 0 && cmu !== pCli) return cmu;
 
-    // 4. precioMayorista — alias con la misma validación
-    if (item.precioMayorista != null && Number(item.precioMayorista) > 0
-        && (precioCliente === 0 || Number(item.precioMayorista) < precioCliente))
-        return Number(item.precioMayorista);
-
-    // Sin dato real → 0. NUNCA devolver el precio cliente como mayorista.
     return 0;
 }
 
@@ -2132,8 +2149,7 @@ function getConfigForCat(nichoKey) {
     return configTienda[nichoKey] || configTienda['general'] || null;
 }
 
-// Precio que paga el cliente final (ya incluye el margen del revendedor).
-// Prioridad: precioFinal > precioCliente > precio
+// Precio que paga el cliente final (ya incluye el margen del revendedor)
 function resellerPriceFinal(item, nichoKey) {
     if (!item) return 0;
     return Number(item.precioFinal ?? item.precioCliente ?? item.precio ?? 0);
@@ -2469,48 +2485,28 @@ function _norm(p, estadoForzado) {
         }));
     } else {
         items = rawItems.map(i => {
-            const nombreItem = i.nombre || i.name || '—';
+            // Costo mayorista: puede venir como precioCosto, precioMayorista,
+            // o costoMayoristaUnitario (este último es el nombre que usa
+            // específicamente el registro de /api/panel-gestion en workerpagos,
+            // que NO trae el campo "precio" — antes, al no contemplar este
+            // shape, ese ítem quedaba con precioCosto=null y el costo mayorista
+            // se perdía o terminaba leído desde el lugar equivocado).
+            const costoMayorista =
+                (i.precioCosto != null && Number(i.precioCosto) > 0) ? Number(i.precioCosto)
+              : (i.precioMayorista != null && Number(i.precioMayorista) > 0) ? Number(i.precioMayorista)
+              : (i.costoMayoristaUnitario != null && Number(i.costoMayoristaUnitario) > 0) ? Number(i.costoMayoristaUnitario)
+              : null;
 
-            // ── PRECIO CLIENTE ────────────────────────────────────────────────
-            // Lo que cobra el revendedor al cliente final (precio con margen).
-            // Viene en precioFinal, precioCliente, o precio — todos son lo mismo.
+            // Precio cliente: lo que paga el cliente final (con margen del revendedor).
             const precioCliente = Number(
                 i.precioFinal ?? i.precioCliente ?? i.precio ?? i.unit_price ?? 0
             );
 
-            // ── PRECIO MAYORISTA ──────────────────────────────────────────────
-            // Lo que le cuesta al revendedor. Fuentes en orden de confianza:
-            // 1. precioCosto  — campo explícito del worker (más confiable)
-            // 2. Catálogo local por nombre exacto del producto
-            // 3. costoMayoristaUnitario — SOLO si es MENOR que precioCliente
-            //    (si son iguales, es un bug de datos viejos donde se guardó el
-            //    precio cliente en ese campo — se ignora y se usa el catálogo)
-            // 4. precioMayorista — alias adicional con la misma validación
-            const catalogoRef = _precioRefCatalogo(nombreItem);
-
-            let costoMayorista = null;
-
-            if (i.precioCosto != null && Number(i.precioCosto) > 0) {
-                costoMayorista = Number(i.precioCosto);
-            } else if (catalogoRef != null) {
-                // El catálogo es siempre confiable — tiene el precio mayorista real
-                costoMayorista = catalogoRef;
-            } else if (i.costoMayoristaUnitario != null && Number(i.costoMayoristaUnitario) > 0
-                       && Number(i.costoMayoristaUnitario) < precioCliente) {
-                // Solo usar costoMayoristaUnitario si es estrictamente menor que
-                // precioCliente (si son iguales, es el bug de datos viejos)
-                costoMayorista = Number(i.costoMayoristaUnitario);
-            } else if (i.precioMayorista != null && Number(i.precioMayorista) > 0
-                       && Number(i.precioMayorista) < precioCliente) {
-                costoMayorista = Number(i.precioMayorista);
-            }
-
             return {
-                nombre:      nombreItem,
-                cantidad:    Number(i.cantidad || i.qty || 1),
-                precio:      precioCliente,   // precio CLIENTE (con margen del revendedor)
-                precioCosto: costoMayorista,  // precio MAYORISTA (costo real)
-                talle:       i.talle || null,
+                nombre:   i.nombre || i.name || '—',
+                cantidad: Number(i.cantidad || i.qty || 1),
+                precio:      precioCliente,
+                precioCosto: costoMayorista,
             };
         });
     }
