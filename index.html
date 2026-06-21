@@ -2636,6 +2636,9 @@ function _aplicarMayoristaDesdeWorkerpagos(pedido, registro) {
     const itemsWP = registro.items;
 
     (pedido.items || []).forEach((it, idx) => {
+        // Precio cliente ya resuelto por _norm() para este ítem.
+        const pCliente = Number(it.precio || 0);
+
         // 1) match preferente por posición (mismo orden en que se
         //    armó el registro en workerpagos)
         let match = itemsWP[idx];
@@ -2646,9 +2649,23 @@ function _aplicarMayoristaDesdeWorkerpagos(pedido, registro) {
             match = itemsWP.find(ic => (ic.nombre || '').trim().toUpperCase() === (it.nombre || '').trim().toUpperCase());
         }
 
-        if (match && match.costoMayoristaUnitario != null && Number(match.costoMayoristaUnitario) > 0) {
-            it.precioCosto = Number(match.costoMayoristaUnitario);
-            it._mayoristaFuente = 'workerpagos';
+        if (match && match.costoMayoristaUnitario != null) {
+            const cmu = Number(match.costoMayoristaUnitario);
+
+            // ⚠️ BLINDAJE: si lo que mandó workerpagos es 0, o es IGUAL al
+            // precio cliente, es un dato corrupto (el bug histórico donde el
+            // worker guardó el mismo valor en ambos campos). NO lo aplicamos:
+            // dejamos it.precioCosto = null para que precioMayoristaItem()
+            // resuelva el valor correcto por el catálogo de referencia.
+            // Esto evita que un dato malo del backend vuelva a pisar un
+            // precio que ya estaba bien calculado en el front-end.
+            if (cmu > 0 && cmu !== pCliente) {
+                it.precioCosto = cmu;
+                it._mayoristaFuente = 'workerpagos';
+            } else {
+                it.precioCosto = null;
+                it._mayoristaFuente = 'descartado-igual-a-cliente';
+            }
         }
     });
 }
