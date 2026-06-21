@@ -1449,25 +1449,45 @@ function _precioRefCatalogo(nombre) {
 
     return null;
 }
-// Precio mayorista efectivo de un ítem:
-// 1) si el pedido ya trae precioCosto (pedidos nuevos, enviados desde tienda.html
-//    con el costo real adjunto) → se usa ese, es el dato exacto.
-// 2) si no lo trae (pedidos viejos, anteriores a este cambio) → se busca por
-//    nombre en el catálogo de referencia.
-// 3) si tampoco hay match en el catálogo → cae al precio del pedido (peor caso).
+// Precio mayorista efectivo de un ítem. Orden de prioridad:
+// 1) item._mayoristaFuente === 'workerpagos' → el dato vino del
+//    propio backend workerpagos (vía _aplicarMayoristaDesdeWorkerpagos,
+//    que consulta /api/panel-gestion). Es la fuente de verdad real:
+//    el worker conoce el catálogo completo de 410+ productos y la
+//    lógica niño/adulto para calzados. SIEMPRE gana si está presente.
+// 2) item.precioCosto explícito (pedidos nuevos enviados desde el
+//    propio panel con _armarPayloadPedido, o desde tienda.html).
+// 3) catálogo local de referencia (CATALOGO_PRECIOS_REF) — es un
+//    respaldo offline para cuando el worker todavía no tiene
+//    registro de ese pedido; puede desactualizarse respecto al
+//    worker real, por eso nunca debe pisar el dato del worker.
+// 4) costoMayoristaUnitario, solo si es distinto al precio cliente
+//    (pedidos viejos a veces tienen ese campo igual al precio
+//    cliente por el bug histórico — se descarta en ese caso).
+// 'enviado' = ya se mandó a pagar a Mercado Pago, pero todavía no
+// se confirmó el pago. A efectos de conteos/estadísticas se trata
+// igual que 'pendiente' (no es un pedido aprobado todavía).
+function esPendienteOEnviado(p) { return p.estado === 'pendiente' || p.estado === 'enviado'; }
+
 function precioMayoristaItem(item) {
     if (!item) return 0;
     const pCli = Number(item.precioFinal ?? item.precioCliente ?? item.precio ?? 0);
 
-    // 1. precioCosto — campo explícito enviado por workerpagos/tienda.html
+    // 1. Dato confirmado por workerpagos — máxima prioridad, sin excepción.
+    if (item._mayoristaFuente === 'workerpagos') {
+        const pc = Number(item.precioCosto || 0);
+        if (pc > 0) return pc;
+    }
+
+    // 2. precioCosto explícito enviado con el pedido, validado contra el cliente
     const pc = Number(item.precioCosto || 0);
     if (pc > 0 && pc !== pCli) return pc;
 
-    // 2. Catálogo por nombre — fuente de verdad (resuelve con talle incluido)
+    // 3. Catálogo local por nombre — fallback offline (resuelve con talle incluido)
     const ref = _precioRefCatalogo(item.nombre);
     if (ref != null) return ref;
 
-    // 3. costoMayoristaUnitario — solo si es distinto del precio cliente
+    // 4. costoMayoristaUnitario — solo si es distinto del precio cliente
     //    (pedidos viejos tienen este campo igual al precio cliente = bug)
     const cmu = Number(item.costoMayoristaUnitario || 0);
     if (cmu > 0 && cmu !== pCli) return cmu;
@@ -2220,7 +2240,10 @@ function _checkMercadoPagoReturn() {
         const cleanUrl = window.location.pathname;
         window.history.replaceState({}, document.title, cleanUrl);
         if (status === 'approved' || status === 'APROBADO') {
-            // Notificar al worker que el pago fue confirmado
+            // Notificar al worker que el pago fue confirmado (además
+            // del webhook server-to-server que MP ya dispara, esto
+            // es un refuerzo desde el cliente para reflejar el cambio
+            // de inmediato si el webhook todavía no llegó).
             const payload = {
                 action: 'confirmarPago',
                 pedidoId: pedidoId,
@@ -2228,11 +2251,16 @@ function _checkMercadoPagoReturn() {
                 status: status,
                 codigoVendedor: currentCode || ''
             };
-            fetch(WORKER_PAGOS, {
+            fetch(`${WORKER_PAGOS}/api/panel-gestion`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             }).catch(() => {});
+            // Marcar localmente como pagado de inmediato (optimista).
+            // loadData(), llamado luego en init(), va a confirmar/
+            // corregir el estado real apenas el backend lo refleje.
+            const p = pedidos.find(x => x.id === pedidoId);
+            if (p) p.estado = 'pagado';
             toast('✅ ¡Pago aprobado! El pedido fue confirmado.', true);
         } else if (status === 'pending' || status === 'in_process') {
             toast('⏳ Pago en proceso. Te avisaremos cuando se confirme.', true);
@@ -2443,6 +2471,7 @@ function _norm(p, estadoForzado) {
         const ep = (p.estadoAprobacion || p.estadoPago || p.estado || '').toLowerCase();
         estado = (ep.includes('aprobad') || ep.includes('pagado') || ep === 'entregado') ? 'pagado'
                : (ep.includes('rechazad') || ep.includes('no_aprobad') || ep.includes('cancelad')) ? 'cancelado'
+               : (ep.includes('enviad') || ep.includes('procesando') || ep.includes('esperando')) ? 'enviado'
                : 'pendiente';
     }
 
@@ -2636,9 +2665,6 @@ function _aplicarMayoristaDesdeWorkerpagos(pedido, registro) {
     const itemsWP = registro.items;
 
     (pedido.items || []).forEach((it, idx) => {
-        // Precio cliente ya resuelto por _norm() para este ítem.
-        const pCliente = Number(it.precio || 0);
-
         // 1) match preferente por posición (mismo orden en que se
         //    armó el registro en workerpagos)
         let match = itemsWP[idx];
@@ -2649,23 +2675,17 @@ function _aplicarMayoristaDesdeWorkerpagos(pedido, registro) {
             match = itemsWP.find(ic => (ic.nombre || '').trim().toUpperCase() === (it.nombre || '').trim().toUpperCase());
         }
 
-        if (match && match.costoMayoristaUnitario != null) {
-            const cmu = Number(match.costoMayoristaUnitario);
-
-            // ⚠️ BLINDAJE: si lo que mandó workerpagos es 0, o es IGUAL al
-            // precio cliente, es un dato corrupto (el bug histórico donde el
-            // worker guardó el mismo valor en ambos campos). NO lo aplicamos:
-            // dejamos it.precioCosto = null para que precioMayoristaItem()
-            // resuelva el valor correcto por el catálogo de referencia.
-            // Esto evita que un dato malo del backend vuelva a pisar un
-            // precio que ya estaba bien calculado en el front-end.
-            if (cmu > 0 && cmu !== pCliente) {
-                it.precioCosto = cmu;
-                it._mayoristaFuente = 'workerpagos';
-            } else {
-                it.precioCosto = null;
-                it._mayoristaFuente = 'descartado-igual-a-cliente';
-            }
+        if (match && match.costoMayoristaUnitario != null && Number(match.costoMayoristaUnitario) > 0) {
+            const costoWP = Number(match.costoMayoristaUnitario);
+            const pCliente = Number(it.precioFinal ?? it.precioCliente ?? it.precio ?? 0);
+            // Red de seguridad final: si por un dato corrupto de origen
+            // el worker llegara a mandar el mayorista igual al precio
+            // cliente, se descarta y se deja que el resto de la cadena
+            // de prioridades en precioMayoristaItem() resuelva el valor
+            // (catálogo local como respaldo).
+            if (pCliente > 0 && costoWP === pCliente) return;
+            it.precioCosto = costoWP;
+            it._mayoristaFuente = 'workerpagos';
         }
     });
 }
@@ -2735,7 +2755,7 @@ async function loadData() {
         });
 
         const tot  = pedidos.length;
-        const pend = pedidos.filter(p => p.estado === 'pendiente').length;
+        const pend = pedidos.filter(esPendienteOEnviado).length;
         const apro = pedidos.filter(p => p.estado === 'pagado').length;
 
         document.getElementById('count-lbl').textContent = tot ? `(${tot} pedido${tot!==1?'s':''})` : '';
@@ -2758,7 +2778,13 @@ async function loadData() {
 // RENDER
 // ═══════════════════════════════════════════════════════════
 function renderAll() {
-    const filtered = pedidos.filter(p => p.estado === activeStatus);
+    // 'enviado' (ya mandado a Mercado Pago, esperando confirmación)
+    // se muestra junto con 'pendiente' — todavía no está aprobado/
+    // pagado, así que no corresponde a la pestaña "Aprobado", pero
+    // tampoco se puede re-enviar (el botón queda deshabilitado).
+    const filtered = pedidos.filter(p =>
+        activeStatus === 'pendiente' ? (p.estado === 'pendiente' || p.estado === 'enviado') : p.estado === activeStatus
+    );
     const cats = { perfumes:[], multishop:[], calzados:[] };
     filtered.forEach(p => { const c = cat(p); if (cats[c]) cats[c].push(p); });
 
@@ -2878,10 +2904,15 @@ function card(p) {
                             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                             Factura cliente
                         </button>
-                        <button class="btn-act btn-send" onclick="${stop}sendPedido('${p.id}',this)">
-                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                            Enviar
-                        </button>
+                        ${p.estado === 'enviado'
+                            ? `<button class="btn-act btn-send" disabled style="opacity:.6;cursor:not-allowed" title="Esperando confirmación de Mercado Pago">
+                                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                Esperando pago
+                               </button>`
+                            : `<button class="btn-act btn-send" onclick="${stop}sendPedido('${p.id}',this)">
+                                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                                Enviar
+                               </button>`}
                         <button class="btn-act btn-del" onclick="${stop}askDelete('${p.id}')">
                             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
                             Eliminar
@@ -2904,6 +2935,14 @@ let _pendingSendId = null;
 function sendPedido(id, btn) {
     const p = pedidos.find(x => x.id === id);
     if (!p) return;
+    if (p.estado === 'pagado') {
+        toast('Este pedido ya fue pagado y aprobado.', 'err');
+        return;
+    }
+    if (p.estado === 'enviado') {
+        toast('Este pedido ya fue enviado a Mercado Pago. Esperá la confirmación del pago.', 'err');
+        return;
+    }
     const totalInv = totalInversionRevendedor(p);
     _pendingSendId = id;
     const env = p.envio || p.cliente || {};
@@ -2918,18 +2957,13 @@ function closeSendConfirmModal() {
     _pendingSendId = null;
 }
 
-async function confirmSendPedido() {
-    if (!_pendingSendId) return;
-    const id = _pendingSendId;
-    _pendingSendId = null;
-    document.getElementById('send-confirm-modal').classList.remove('show');
-
-    const p = pedidos.find(x => x.id === id);
-    if (!p) return;
-
-    const btn = document.getElementById('send-confirm-btn');
-    if (btn) { btn.textContent = 'Enviando...'; btn.disabled = true; }
-
+// ═══════════════════════════════════════════════════════════
+// Arma el payload que se manda a workerpagos /api/panel-gestion
+// para un pedido. Reusado tanto por el envío individual como
+// por "Enviar todo", para que ambos manden EXACTAMENTE el mismo
+// formato y no se desincronicen entre sí.
+// ═══════════════════════════════════════════════════════════
+function _armarPayloadPedido(p) {
     const nichoKey = cat(p);
     const ganancia = resellerGainOf(p);
     const totalFin = totalFinalRevendedor(p);
@@ -2940,11 +2974,6 @@ async function confirmSendPedido() {
     //   - precioCosto            → precio MAYORISTA (costo real del revendedor)
     //   - costoMayoristaUnitario → mismo dato que precioCosto, con el nombre que
     //                              espera /api/panel-gestion en workerpagos
-    // Antes acá se mandaba precio = precioMayoristaItem(it), lo que pisaba el
-    // precio del cliente con el mayorista al aprobar el pedido. Por eso al
-    // recargar, "Precio mayorista" mostraba el precio cliente y "Precio
-    // cliente"/"Mi ganancia" quedaban en $0 (no había dato real de cliente
-    // guardado, solo el mayorista repetido en el campo equivocado).
     const productosCosto = (p.items || []).map(it => {
         const pCliente   = resellerPriceFinal(it, nichoKey);
         const pMayorista = precioMayoristaItem(it);
@@ -2962,7 +2991,7 @@ async function confirmSendPedido() {
     const direccionFull = [env.direccion, env.ciudad, env.provincia, env.cp]
         .filter(Boolean).join(', ');
 
-    const payload = {
+    return {
         action: 'pedidoAprobado',
         pedidoId: p.id,
         uid: p.id,
@@ -2995,43 +3024,77 @@ async function confirmSendPedido() {
         fecha: new Date().toISOString(),
         _raw: p._raw || null
     };
+}
 
+async function confirmSendPedido() {
+    if (!_pendingSendId) return;
+    const id = _pendingSendId;
+    _pendingSendId = null;
+    document.getElementById('send-confirm-modal').classList.remove('show');
+
+    const p = pedidos.find(x => x.id === id);
+    if (!p) return;
+    if (p.estado === 'pagado' || p.estado === 'enviado') {
+        toast('Este pedido ya fue procesado.', 'err');
+        return;
+    }
+
+    const btn = document.getElementById('send-confirm-btn');
+    if (btn) { btn.textContent = 'Enviando...'; btn.disabled = true; }
+
+    const payload = _armarPayloadPedido(p);
+    const resultado = await _enviarPedidoAWorkerPagos(p, payload);
+
+    if (resultado.ok) {
+        // NO se marca "pagado" acá. Queda como 'enviado' (esperando
+        // confirmación real de Mercado Pago vía webhook/retorno).
+        // Recién pasa a 'pagado' cuando vuelve status=approved
+        // (_checkMercadoPagoReturn) o cuando loadData() lo trae así
+        // desde el backend.
+        p.estado = 'enviado';
+        renderAll();
+        toast('Pedido enviado · Redirigiendo a Mercado Pago...', true);
+        if (resultado.mpUrl) {
+            setTimeout(() => { window.location.href = resultado.mpUrl; }, 800);
+        } else {
+            toast('El worker no devolvió el link de pago. Verificá workerpagos.', 'err');
+            if (btn) { btn.textContent = 'Enviar y pagar'; btn.disabled = false; }
+        }
+    } else {
+        toast(resultado.error || 'Error al enviar pedido', 'err');
+        if (btn) { btn.textContent = 'Enviar y pagar'; btn.disabled = false; }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
+// HELPER CENTRAL — envía el pedido a workerpagos (/api/panel-gestion)
+// y devuelve { ok, mpUrl, error }. Usado tanto por el envío
+// individual (confirmSendPedido) como por "Enviar todo"
+// (confirmSendAll), para no duplicar lógica.
+// IMPORTANTE: el endpoint correcto es /api/panel-gestion — antes
+// se mandaba al dominio raíz de workerpagos sin path, por lo que
+// nunca llegaba a la ruta que efectivamente procesa el pedido y
+// genera el link de pago.
+// ═══════════════════════════════════════════════════════════
+async function _enviarPedidoAWorkerPagos(p, payload) {
     try {
-        const res = await fetch(WORKER_PAGOS, {
+        const res = await fetch(`${WORKER_PAGOS}/api/panel-gestion`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-        if (res.ok) {
-            let data = {};
-            try { data = await res.json(); } catch(_) {}
-            // Marcar localmente como aprobado
-            p.estado = 'pagado';
-            const pend = pedidos.filter(x => x.estado === 'pendiente').length;
-            const apro = pedidos.filter(x => x.estado === 'pagado').length;
-            document.getElementById('scnt-pendiente').textContent = pend;
-            document.getElementById('scnt-pagado').textContent    = apro;
-            renderAll();
-            toast('¡Pedido Enviado!', true);
-            // Redirigir a Mercado Pago con el link de pago que devuelve el worker
-            const mpUrl = data.init_point || data.url || data.link_pago || data.payment_url || data.mp_url || null;
-            if (mpUrl) {
-                setTimeout(() => { window.location.href = mpUrl; }, 800);
-            } else {
-                // Si el worker no devuelve URL, redirigir al worker con params para que genere el pago
-                const fallbackUrl = `${WORKER_PAGOS}?action=pagar&pedidoId=${encodeURIComponent(p.id)}&total=${Math.round(totalInv)}&codigo=${encodeURIComponent(currentCode)}`;
-                setTimeout(() => { window.location.href = fallbackUrl; }, 800);
-            }
-        } else {
+        if (!res.ok) {
             const txt = await res.text().catch(() => '');
             console.warn('workerpagos respondió', res.status, txt);
-            toast('Error al enviar: HTTP ' + res.status, 'err');
-            if (btn) { btn.textContent = 'Enviar y pagar'; btn.disabled = false; }
+            return { ok: false, error: 'Error al enviar: HTTP ' + res.status };
         }
+        let data = {};
+        try { data = await res.json(); } catch(_) {}
+        const mpUrl = data.init_point || data.url || data.link_pago || data.payment_url || data.mp_url || null;
+        return { ok: true, mpUrl, data };
     } catch(e) {
         console.error('Error envío workerpagos:', e);
-        toast('Error de conexión al enviar', 'err');
-        if (btn) { btn.textContent = 'Enviar y pagar'; btn.disabled = false; }
+        return { ok: false, error: 'Error de conexión al enviar' };
     }
 }
 
@@ -3045,19 +3108,85 @@ async function sendAllPedidos() {
 async function confirmSendAll() {
     document.getElementById('send-all-modal').classList.remove('show');
     const toSend = pedidos.filter(p => p.estado === 'pendiente');
-    if (!toSend.length) return;
+    if (!toSend.length) { toast('No hay pedidos pendientes para enviar', 'err'); return; }
 
     const btn = document.querySelector('.btn-send-all');
-    btn.textContent = `Enviando ${toSend.length}...`; btn.disabled = true;
+    if (btn) { btn.textContent = `Enviando ${toSend.length}...`; btn.disabled = true; }
 
     let ok = 0, fail = 0;
+    let totalAPagar = 0;
+    let ultimoMpUrl = null;
+    const pedidoIds = [];
+
+    // Se envían todos en serie (uno por uno) a workerpagos. Cada uno
+    // queda marcado como 'enviado' (no 'pagado' todavía — eso lo
+    // confirma el webhook/retorno real de Mercado Pago).
     for (const p of toSend) {
-        try { await sendPedido(p.id, null); ok++; } catch(_) { fail++; }
+        const payload = _armarPayloadPedido(p);
+        const resultado = await _enviarPedidoAWorkerPagos(p, payload);
+        if (resultado.ok) {
+            p.estado = 'enviado';
+            ok++;
+            totalAPagar += totalInversionRevendedor(p);
+            pedidoIds.push(p.id);
+            if (resultado.mpUrl) ultimoMpUrl = resultado.mpUrl;
+        } else {
+            fail++;
+        }
     }
 
-    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Enviar todos`;
-    btn.disabled = false;
-    toast(`${ok} pedidos enviados${fail ? ` · ${fail} con error` : ''}`, ok > 0 ? true : 'err');
+    renderAll();
+
+    if (btn) {
+        btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Enviar todos`;
+        btn.disabled = false;
+    }
+
+    if (ok === 0) {
+        toast(`No se pudo enviar ningún pedido${fail ? ` · ${fail} con error` : ''}`, 'err');
+        return;
+    }
+
+    toast(`${ok} pedido${ok!==1?'s':''} enviado${ok!==1?'s':''}${fail ? ` · ${fail} con error` : ''} · Buscando link de pago...`, true);
+
+    // Se intenta primero un link de pago combinado (lote) para los
+    // pedidos enviados juntos. Si el worker no implementa ese modo
+    // todavía, se cae al link de pago del último pedido enviado
+    // individualmente — así "Enviar todo" SIEMPRE redirige a un
+    // pago real, nunca se queda sin acción.
+    const lote = await _enviarLoteAWorkerPagos(pedidoIds, totalAPagar);
+    const mpUrl = lote.mpUrl || ultimoMpUrl;
+
+    if (mpUrl) {
+        setTimeout(() => { window.location.href = mpUrl; }, 800);
+    } else if (ok > 1) {
+        toast(`${ok} pedidos enviados, pero no llegó link de pago. Pagalos uno por uno desde "Enviar".`, 'err');
+    }
+}
+
+// Pide a workerpagos un único link de pago de Mercado Pago que
+// cubra el total combinado de varios pedidos enviados juntos
+// (acción "Enviar todo"). Si el worker no implementa el lote,
+// devuelve { mpUrl: null } sin romper el flujo.
+async function _enviarLoteAWorkerPagos(pedidoIds, totalAPagar) {
+    try {
+        const res = await fetch(`${WORKER_PAGOS}/api/panel-gestion`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'pagarLote',
+                pedidoIds,
+                total: Math.round(totalAPagar),
+                codigoVendedor: currentCode
+            })
+        });
+        if (!res.ok) return { mpUrl: null };
+        const data = await res.json().catch(() => ({}));
+        const mpUrl = data.init_point || data.url || data.link_pago || data.payment_url || data.mp_url || null;
+        return { mpUrl };
+    } catch(_) {
+        return { mpUrl: null };
+    }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -3082,7 +3211,7 @@ async function confirmDelete() {
     rememberLocalDelete(id);
     pedidos = pedidos.filter(p => p.id !== id);
 
-    const pend = pedidos.filter(p => p.estado === 'pendiente').length;
+    const pend = pedidos.filter(esPendienteOEnviado).length;
     const apro = pedidos.filter(p => p.estado === 'pagado').length;
     document.getElementById('scnt-pendiente').textContent = pend;
     document.getElementById('scnt-pagado').textContent    = apro;
@@ -3314,7 +3443,7 @@ function renderStatsView() {
     // KPIs generales
     const totalPeds = pedidos.length;
     const aprobados = pedidos.filter(p => p.estado === 'pagado').length;
-    const pendientes = pedidos.filter(p => p.estado === 'pendiente').length;
+    const pendientes = pedidos.filter(esPendienteOEnviado).length;
     const totalGain = hasConfig ? pedidos.reduce((s,p) => s + resellerGainOf(p), 0) : 0;
     const totalFac  = pedidos.reduce((s,p) => s + totalFinalRevendedor(p), 0);
 
@@ -3489,7 +3618,7 @@ function renderGananciasView() {
 
     const all = pedidos;
     const apro = pedidos.filter(p => p.estado === 'pagado');
-    const pend = pedidos.filter(p => p.estado === 'pendiente');
+    const pend = pedidos.filter(esPendienteOEnviado);
 
     const totalGainAll  = all.reduce((s,p) => s + resellerGainOf(p), 0);
     const totalGainApro = apro.reduce((s,p) => s + resellerGainOf(p), 0);
@@ -4155,7 +4284,7 @@ document.getElementById('gift-modal').addEventListener('click', function(e) { if
     };
 
     function _refreshCounts() {
-        var pend = pedidos.filter(function(p) { return p.estado === 'pendiente'; }).length;
+        var pend = pedidos.filter(esPendienteOEnviado).length;
         var apro = pedidos.filter(function(p) { return p.estado === 'pagado'; }).length;
         var tot  = pedidos.length;
         var elP = document.getElementById('scnt-pendiente');
