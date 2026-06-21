@@ -1432,19 +1432,29 @@ function _precioRefCatalogo(nombre) {
 // 3) si tampoco hay match en el catálogo → cae al precio del pedido (peor caso).
 function precioMayoristaItem(item) {
     if (!item) return 0;
-    // 1. precioCosto — campo explícito enviado desde tienda.html / workerpagos
+    const precioCliente = Number(item.precioFinal ?? item.precioCliente ?? item.precio ?? 0);
+
+    // 1. precioCosto — campo explícito, siempre confiable
     if (item.precioCosto != null && Number(item.precioCosto) > 0)
         return Number(item.precioCosto);
-    // 2. costoMayoristaUnitario — campo del shape de /api/panel-gestion
-    if (item.costoMayoristaUnitario != null && Number(item.costoMayoristaUnitario) > 0)
-        return Number(item.costoMayoristaUnitario);
-    // 3. precioMayorista — alias adicional
-    if (item.precioMayorista != null && Number(item.precioMayorista) > 0)
-        return Number(item.precioMayorista);
-    // 4. Catálogo local por nombre exacto (para pedidos viejos sin campo mayorista)
+
+    // 2. Catálogo local por nombre — fuente de verdad para mayoristas
     const ref = _precioRefCatalogo(item.nombre);
     if (ref != null) return ref;
-    // Sin dato real → 0. NUNCA usar item.precio (ese es el precio CLIENTE).
+
+    // 3. costoMayoristaUnitario — solo si es menor que precioCliente
+    //    (si son iguales, es bug de datos viejos donde se guardó el precio
+    //    cliente en ese campo — ignorar para no mostrar mayorista = cliente)
+    if (item.costoMayoristaUnitario != null && Number(item.costoMayoristaUnitario) > 0
+        && (precioCliente === 0 || Number(item.costoMayoristaUnitario) < precioCliente))
+        return Number(item.costoMayoristaUnitario);
+
+    // 4. precioMayorista — alias con la misma validación
+    if (item.precioMayorista != null && Number(item.precioMayorista) > 0
+        && (precioCliente === 0 || Number(item.precioMayorista) < precioCliente))
+        return Number(item.precioMayorista);
+
+    // Sin dato real → 0. NUNCA devolver el precio cliente como mayorista.
     return 0;
 }
 
@@ -2123,7 +2133,7 @@ function getConfigForCat(nichoKey) {
 }
 
 // Precio que paga el cliente final (ya incluye el margen del revendedor).
-// Prioridad: precioFinal > precioCliente > precio (todos significan "precio cliente").
+// Prioridad: precioFinal > precioCliente > precio
 function resellerPriceFinal(item, nichoKey) {
     if (!item) return 0;
     return Number(item.precioFinal ?? item.precioCliente ?? item.precio ?? 0);
@@ -2459,30 +2469,48 @@ function _norm(p, estadoForzado) {
         }));
     } else {
         items = rawItems.map(i => {
-            // ── PRECIO MAYORISTA (costo real del revendedor) ─────────────────
-            // Prioridad: precioCosto > precioMayorista > costoMayoristaUnitario
-            // Todos estos campos llevan el precio que paga el revendedor al mayorista.
-            // Si no viene ninguno, se busca por nombre en el catálogo de referencia.
-            const costoMayorista =
-                (i.precioCosto != null && Number(i.precioCosto) > 0)             ? Number(i.precioCosto)
-              : (i.precioMayorista != null && Number(i.precioMayorista) > 0)     ? Number(i.precioMayorista)
-              : (i.costoMayoristaUnitario != null && Number(i.costoMayoristaUnitario) > 0) ? Number(i.costoMayoristaUnitario)
-              : _precioRefCatalogo(i.nombre)  // fallback catálogo local por nombre
-              ?? null;
+            const nombreItem = i.nombre || i.name || '—';
 
-            // ── PRECIO CLIENTE (lo que paga el cliente final) ────────────────
-            // Siempre viene en precioFinal, precioCliente o precio.
-            // NUNCA confundir con el costo mayorista, aunque costoMayoristaUnitario
-            // exista en el mismo item.
+            // ── PRECIO CLIENTE ────────────────────────────────────────────────
+            // Lo que cobra el revendedor al cliente final (precio con margen).
+            // Viene en precioFinal, precioCliente, o precio — todos son lo mismo.
             const precioCliente = Number(
-                i.precioFinal    ?? i.precioCliente ?? i.precio ?? i.unit_price ?? 0
+                i.precioFinal ?? i.precioCliente ?? i.precio ?? i.unit_price ?? 0
             );
 
+            // ── PRECIO MAYORISTA ──────────────────────────────────────────────
+            // Lo que le cuesta al revendedor. Fuentes en orden de confianza:
+            // 1. precioCosto  — campo explícito del worker (más confiable)
+            // 2. Catálogo local por nombre exacto del producto
+            // 3. costoMayoristaUnitario — SOLO si es MENOR que precioCliente
+            //    (si son iguales, es un bug de datos viejos donde se guardó el
+            //    precio cliente en ese campo — se ignora y se usa el catálogo)
+            // 4. precioMayorista — alias adicional con la misma validación
+            const catalogoRef = _precioRefCatalogo(nombreItem);
+
+            let costoMayorista = null;
+
+            if (i.precioCosto != null && Number(i.precioCosto) > 0) {
+                costoMayorista = Number(i.precioCosto);
+            } else if (catalogoRef != null) {
+                // El catálogo es siempre confiable — tiene el precio mayorista real
+                costoMayorista = catalogoRef;
+            } else if (i.costoMayoristaUnitario != null && Number(i.costoMayoristaUnitario) > 0
+                       && Number(i.costoMayoristaUnitario) < precioCliente) {
+                // Solo usar costoMayoristaUnitario si es estrictamente menor que
+                // precioCliente (si son iguales, es el bug de datos viejos)
+                costoMayorista = Number(i.costoMayoristaUnitario);
+            } else if (i.precioMayorista != null && Number(i.precioMayorista) > 0
+                       && Number(i.precioMayorista) < precioCliente) {
+                costoMayorista = Number(i.precioMayorista);
+            }
+
             return {
-                nombre:   i.nombre || i.name || '—',
-                cantidad: Number(i.cantidad || i.qty || 1),
+                nombre:      nombreItem,
+                cantidad:    Number(i.cantidad || i.qty || 1),
                 precio:      precioCliente,   // precio CLIENTE (con margen del revendedor)
                 precioCosto: costoMayorista,  // precio MAYORISTA (costo real)
+                talle:       i.talle || null,
             };
         });
     }
