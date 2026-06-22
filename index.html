@@ -997,7 +997,6 @@
 const WORKER_PENDIENTES     = 'https://workerwebcliente.tuweb.workers.dev';   // pedidos pendientes
 const WORKER_APROBADOS      = 'https://datosderevendedor.tuweb.workers.dev';  // pedidos aprobados
 const WORKER_PAGOS          = 'https://workerpagos.tuweb.workers.dev';         // envío de pedidos
-const WORKER_ESTADISTICAS   = 'https://panelestadisticas.tuweb.workers.dev';   // ganancias/estadísticas (cruce cliente x mayorista)
 const S_KEY                 = 'rw_reseller_v1';
 const D_KEY                 = 'rw_reseller_del_v1';
 
@@ -1460,27 +1459,26 @@ function precioMayoristaItem(item) {
     if (!item) return 0;
     const pCli = Number(item.precioFinal ?? item.precioCliente ?? item.precio ?? 0);
 
-    // 1. precioCosto marcado explícitamente como proveniente de
-    //    workerpagos (vía _aplicarMayoristaDesdeWorkerpagos) — ESTA es
-    //    la fuente de verdad real y conectada al worker. Gana siempre,
-    //    incluso por encima del catálogo local hardcodeado de abajo.
-    if (item._mayoristaFuente === 'workerpagos') {
-        const pcWp = Number(item.precioCosto || 0);
-        if (pcWp > 0) return pcWp;
+    // 0. BASE DE DATOS REAL por ID (workerpagos /api/precios-mayoristas).
+    //    Máxima prioridad: es un lookup exacto por clave, no depende de
+    //    que el nombre del producto matchee contra nada.
+    if (item.productoId != null && item.productoId !== '') {
+        const catRaw = String(item.categoria || '').toLowerCase();
+        const catKey = catRaw.includes('calzad') ? 'calzado' : 'perfume';
+        const real = _mayoristaPorId[catKey + '_' + item.productoId];
+        if (real != null && real > 0) return real;
     }
 
-    // 2. precioCosto — campo explícito enviado por workerpagos/tienda.html
-    //    (pedido recién armado en esta misma sesión, antes de recargar)
+    // 1. precioCosto — campo explícito enviado por workerpagos/tienda.html
     const pc = Number(item.precioCosto || 0);
     if (pc > 0 && pc !== pCli) return pc;
 
-    // 3. Catálogo local — solo FALLBACK cuando workerpagos todavía no
-    //    tiene registro para este pedido (ej: pedido recién llegado,
-    //    todavía no aprobado/enviado). Nunca pisa un dato real.
+    // 2. Catálogo local por nombre — fallback para pedidos viejos sin
+    //    productoId (anteriores al agregado de productosIds en tienda.html)
     const ref = _precioRefCatalogo(item.nombre);
     if (ref != null) return ref;
 
-    // 4. costoMayoristaUnitario — solo si es distinto del precio cliente
+    // 3. costoMayoristaUnitario — solo si es distinto del precio cliente
     //    (pedidos viejos tienen este campo igual al precio cliente = bug)
     const cmu = Number(item.costoMayoristaUnitario || 0);
     if (cmu > 0 && cmu !== pCli) return cmu;
@@ -1498,6 +1496,41 @@ let currentVendorNombre   = '';
 let currentVendorApellido = '';
 let configTienda    = {};
 let chartModalInst  = null;
+
+// ═══════════════════════════════════════════════════════════
+// CATÁLOGO MAYORISTA REAL — desde la BASE DE DATOS (Firestore,
+// vía workerpagos /api/precios-mayoristas), indexado por ID.
+// Esta es la fuente de verdad definitiva: no depende de que el
+// nombre del producto matchee exacto contra ningún catálogo local.
+// Clave: "perfume_<productoId>" o "calzado_<productoId>" — el
+// mismo esquema de ID que ya usa workerpagos internamente.
+// ═══════════════════════════════════════════════════════════
+let _mayoristaPorId = {};
+let _mayoristaPorIdCargado = false;
+
+async function _cargarCatalogoMayoristaPorId() {
+    if (_mayoristaPorIdCargado) return; // ya está, no reconsultar cada loadData()
+    try {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 8000);
+        const res = await fetch(`${WORKER_PAGOS}/api/precios-mayoristas`, { signal: ctrl.signal });
+        clearTimeout(t);
+        if (!res.ok) return;
+        const data = await res.json().catch(() => null);
+        const lista = Array.isArray(data?.precios) ? data.precios : [];
+        if (!lista.length) {
+            console.warn('[Panel] /api/precios-mayoristas devolvió vacío — ¿corriste /api/importar-precios en workerpagos?');
+            return;
+        }
+        lista.forEach(p => {
+            if (p.productoId == null || !p.categoria) return;
+            const catKey = String(p.categoria).toLowerCase().includes('calzad') ? 'calzado' : 'perfume';
+            _mayoristaPorId[catKey + '_' + p.productoId] = Number(p.precioMayorista || 0);
+        });
+        _mayoristaPorIdCargado = true;
+        console.log('[Panel] Catálogo mayorista real cargado desde la base de datos:', Object.keys(_mayoristaPorId).length, 'productos');
+    } catch (_) { /* sin conexión: se sigue con los fallbacks por nombre */ }
+}
 
 // ═══════════════════════════════════════════════════════════
 // UTILIDADES
@@ -2233,10 +2266,7 @@ function _checkMercadoPagoReturn() {
         const cleanUrl = window.location.pathname;
         window.history.replaceState({}, document.title, cleanUrl);
         if (status === 'approved' || status === 'APROBADO') {
-            // Notificar al worker que el pago fue confirmado (best-effort;
-            // la confirmación real y autoritativa la hace el webhook de
-            // Mercado Pago directamente contra workerpagos del lado
-            // servidor, esto es solo para refrescar la UI más rápido).
+            // Notificar al worker que el pago fue confirmado
             const payload = {
                 action: 'confirmarPago',
                 pedidoId: pedidoId,
@@ -2244,14 +2274,12 @@ function _checkMercadoPagoReturn() {
                 status: status,
                 codigoVendedor: currentCode || ''
             };
-            fetch(WORKER_PAGOS + '/api/panel-gestion', {
+            fetch(WORKER_PAGOS, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             }).catch(() => {});
             toast('✅ ¡Pago aprobado! El pedido fue confirmado.', true);
-            // Refrescar con el estado real persistido en el backend.
-            setTimeout(() => { try { loadData(); } catch(_) {} }, 1200);
         } else if (status === 'pending' || status === 'in_process') {
             toast('⏳ Pago en proceso. Te avisaremos cuando se confirme.', true);
         } else if (status === 'failure' || status === 'rejected') {
@@ -2495,11 +2523,19 @@ function _norm(p, estadoForzado) {
         const cants  = p.cantidades || [];
         const prices = p.preciosIndividuales || p.precios || [];
         const costos = p.costoIndividuales || [];
+        // IDs reales del catálogo (1, 2, 3...) — agregado para no depender
+        // de adivinar el producto por nombre. Pedidos viejos (antes de este
+        // cambio en tienda.html) no van a tener este array: queda null y
+        // el resto del flujo cae al fallback por nombre como antes.
+        const ids    = p.productosIds || p.idsProductos || [];
+        const itemCategoria = p.nicho || p.categoria || null;
         items = rawItems.map((nombre, i) => ({
             nombre,
             cantidad:    Number(cants[i])  || 1,
             precio:      Number(prices[i]) || 0,
             precioCosto: (costos[i] != null && Number(costos[i]) > 0) ? Number(costos[i]) : null,
+            productoId:  (ids[i] != null && ids[i] !== '') ? Number(ids[i]) : null,
+            categoria:   itemCategoria,
         }));
     } else {
         items = rawItems.map(i => {
@@ -2525,6 +2561,10 @@ function _norm(p, estadoForzado) {
                 cantidad: Number(i.cantidad || i.qty || 1),
                 precio:      precioCliente,
                 precioCosto: costoMayorista,
+                productoId:  (i.productoId != null) ? Number(i.productoId)
+                           : (i.id != null && i.id !== '' && !isNaN(Number(i.id))) ? Number(i.id)
+                           : null,
+                categoria:   i.categoria || p.nicho || p.categoria || null,
             };
         });
     }
@@ -2665,17 +2705,8 @@ function _aplicarMayoristaDesdeWorkerpagos(pedido, registro) {
         }
 
         if (match && match.costoMayoristaUnitario != null && Number(match.costoMayoristaUnitario) > 0) {
-            const valorMayorista = Number(match.costoMayoristaUnitario);
-            const pCliente = Number(it.precioFinal ?? it.precioCliente ?? it.precio ?? 0);
-            // Blindaje: si el dato "mayorista" que llega coincide con el
-            // precio cliente, es el bug histórico de datos corruptos
-            // (se guardó el precio cliente en el campo mayorista). En ese
-            // caso NO lo marcamos como confiable — dejamos que el catálogo
-            // local (fallback) resuelva el precio real en su lugar.
-            if (valorMayorista !== pCliente) {
-                it.precioCosto = valorMayorista;
-                it._mayoristaFuente = 'workerpagos';
-            }
+            it.precioCosto = Number(match.costoMayoristaUnitario);
+            it._mayoristaFuente = 'workerpagos';
         }
     });
 }
@@ -2699,7 +2730,8 @@ async function loadData() {
         const [rawPend, rawApro, rawMayorista] = await Promise.all([
             _cargarPendientes(),
             _cargarAprobados(),
-            _cargarMayoristaWorkerPagos()
+            _cargarMayoristaWorkerPagos(),
+            _cargarCatalogoMayoristaPorId()
         ]);
         const mayoristaPorPedido = _mapaMayoristaPorPedido(rawMayorista);
 
@@ -2911,25 +2943,58 @@ function toggleRibbon(id) { document.getElementById('oc-'+id)?.classList.toggle(
 // ── Estado temporal para el modal de confirmación de envío individual ──
 let _pendingSendId = null;
 
-// ── Arma el payload y lo envía a workerpagos. No toca el DOM del modal
-//    (eso lo maneja quien llama) — así lo puede usar tanto el envío
-//    individual como el envío masivo sin abrir un modal por cada uno.
-//    Devuelve { ok, mpUrl } así el llamador decide qué hacer con el link.
-async function _enviarPedidoAWorkerPagos(p) {
+function sendPedido(id, btn) {
+    const p = pedidos.find(x => x.id === id);
+    if (!p) return;
+    const totalInv = totalInversionRevendedor(p);
+    _pendingSendId = id;
+    const env = p.envio || p.cliente || {};
+    const nombre = fullName(env) || p._clienteName || 'Cliente';
+    document.getElementById('send-confirm-desc').textContent =
+        `Pedido de ${nombre} · Total a pagar: $${Math.round(totalInv).toLocaleString('es-AR')}. Serás redirigido a Mercado Pago para completar el pago.`;
+    document.getElementById('send-confirm-modal').classList.add('show');
+}
+
+function closeSendConfirmModal() {
+    document.getElementById('send-confirm-modal').classList.remove('show');
+    _pendingSendId = null;
+}
+
+// _enviarPedidoReal: lógica real de envío a workerpagos, independiente del
+// modal de confirmación. La usan tanto el envío individual (confirmSendPedido)
+// como el envío masivo (confirmSendAll) — antes, "Enviar todos" llamaba a
+// sendPedido(), que SOLO abre el modal y nunca manda nada; con eso, el botón
+// "Enviar todos" no enviaba un solo pedido.
+// redirigirMP: si es false, no redirige a Mercado Pago al terminar (se usa
+// en el envío masivo, donde redirigir por cada pedido no tiene sentido).
+async function _enviarPedidoReal(id, { redirigirMP = true } = {}) {
+    const p = pedidos.find(x => x.id === id);
+    if (!p) return { ok: false, error: 'Pedido no encontrado' };
+
     const nichoKey = cat(p);
     const ganancia = resellerGainOf(p);
     const totalFin = totalFinalRevendedor(p);
     const totalInv = totalInversionRevendedor(p);
 
+    // IMPORTANTE: acá viajan los DOS precios de cada ítem, bien separados:
+    //   - precio                 → lo que paga el CLIENTE final (con margen del revendedor)
+    //   - precioCosto            → precio MAYORISTA (costo real del revendedor)
+    //   - costoMayoristaUnitario → mismo dato que precioCosto, con el nombre que
+    //                              espera /api/panel-gestion en workerpagos
+    //   - id / productoId        → clave real del catálogo (1, 2, 3...), para que
+    //                              workerpagos resuelva el mayorista por ID y no
+    //                              por nombre.
     const productosCosto = (p.items || []).map(it => {
         const pCliente   = resellerPriceFinal(it, nichoKey);
         const pMayorista = precioMayoristaItem(it);
         return {
+            id: it.productoId ?? null,
+            productoId: it.productoId ?? null,
             nombre: it.nombre,
             cantidad: Number(it.cantidad) || 1,
-            precio: pCliente,                       // precio CLIENTE (lo que cobra el revendedor)
-            precioCosto: pMayorista,                // precio MAYORISTA (costo real)
-            costoMayoristaUnitario: pMayorista       // alias para workerpagos /api/panel-gestion
+            precio: pCliente,
+            precioCosto: pMayorista,
+            costoMayoristaUnitario: pMayorista
         };
     });
 
@@ -2946,6 +3011,7 @@ async function _enviarPedidoAWorkerPagos(p) {
         estado: 'APROBADO',
         estadoPagoRevendedor: 'APROBADO',
         nicho: nichoKey,
+        categoria: nichoKey,
         productos: productosCosto,
         items: productosCosto,
         total: Math.round(totalInv),
@@ -2973,45 +3039,25 @@ async function _enviarPedidoAWorkerPagos(p) {
     };
 
     try {
-        const res = await fetch(WORKER_PAGOS + '/api/panel-gestion', {
+        const res = await fetch(WORKER_PAGOS, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-        if (!res.ok) {
-            const txt = await res.text().catch(() => '');
-            console.warn('workerpagos respondió', res.status, txt);
-            return { ok: false, mpUrl: null };
+        if (res.ok) {
+            let data = {};
+            try { data = await res.json(); } catch(_) {}
+            p.estado = 'pagado';
+            const mpUrl = data.init_point || data.url || data.link_pago || data.payment_url || data.mp_url || null;
+            return { ok: true, mpUrl, totalInv, pedidoId: p.id };
         }
-        let data = {};
-        try { data = await res.json(); } catch(_) {}
-
-        p.estado = 'pagado';
-
-        const mpUrl = data.init_point || data.url || data.link_pago || data.payment_url || data.mp_url || null;
-        const fallbackUrl = mpUrl || `${WORKER_PAGOS}?action=pagar&pedidoId=${encodeURIComponent(p.id)}&total=${Math.round(totalInv)}&codigo=${encodeURIComponent(currentCode)}`;
-        return { ok: true, mpUrl: fallbackUrl };
-    } catch(e) {
+        const txt = await res.text().catch(() => '');
+        console.warn('workerpagos respondió', res.status, txt);
+        return { ok: false, error: 'HTTP ' + res.status };
+    } catch (e) {
         console.error('Error envío workerpagos:', e);
-        return { ok: false, mpUrl: null };
+        return { ok: false, error: e.message || 'Error de conexión' };
     }
-}
-
-function sendPedido(id, btn) {
-    const p = pedidos.find(x => x.id === id);
-    if (!p) return;
-    const totalInv = totalInversionRevendedor(p);
-    _pendingSendId = id;
-    const env = p.envio || p.cliente || {};
-    const nombre = fullName(env) || p._clienteName || 'Cliente';
-    document.getElementById('send-confirm-desc').textContent =
-        `Pedido de ${nombre} · Total a pagar: $${Math.round(totalInv).toLocaleString('es-AR')}. Serás redirigido a Mercado Pago para completar el pago.`;
-    document.getElementById('send-confirm-modal').classList.add('show');
-}
-
-function closeSendConfirmModal() {
-    document.getElementById('send-confirm-modal').classList.remove('show');
-    _pendingSendId = null;
 }
 
 async function confirmSendPedido() {
@@ -3020,26 +3066,26 @@ async function confirmSendPedido() {
     _pendingSendId = null;
     document.getElementById('send-confirm-modal').classList.remove('show');
 
-    const p = pedidos.find(x => x.id === id);
-    if (!p) return;
-
     const btn = document.getElementById('send-confirm-btn');
     if (btn) { btn.textContent = 'Enviando...'; btn.disabled = true; }
 
-    const result = await _enviarPedidoAWorkerPagos(p);
+    const resultado = await _enviarPedidoReal(id, { redirigirMP: true });
 
-    if (result.ok) {
+    if (resultado.ok) {
         const pend = pedidos.filter(x => x.estado === 'pendiente').length;
         const apro = pedidos.filter(x => x.estado === 'pagado').length;
         document.getElementById('scnt-pendiente').textContent = pend;
         document.getElementById('scnt-pagado').textContent    = apro;
         renderAll();
         toast('¡Pedido Enviado!', true);
-        if (result.mpUrl) {
-            setTimeout(() => { window.location.href = result.mpUrl; }, 800);
+        if (resultado.mpUrl) {
+            setTimeout(() => { window.location.href = resultado.mpUrl; }, 800);
+        } else {
+            const fallbackUrl = `${WORKER_PAGOS}?action=pagar&pedidoId=${encodeURIComponent(id)}&total=${Math.round(resultado.totalInv)}&codigo=${encodeURIComponent(currentCode)}`;
+            setTimeout(() => { window.location.href = fallbackUrl; }, 800);
         }
     } else {
-        toast('Error al enviar el pedido', 'err');
+        toast('Error al enviar: ' + (resultado.error || ''), 'err');
         if (btn) { btn.textContent = 'Enviar y pagar'; btn.disabled = false; }
     }
 }
@@ -3060,11 +3106,12 @@ async function confirmSendAll() {
     btn.textContent = `Enviando ${toSend.length}...`; btn.disabled = true;
 
     let ok = 0, fail = 0;
-    let lastMpUrl = null;
     for (const p of toSend) {
-        const result = await _enviarPedidoAWorkerPagos(p);
-        if (result.ok) { ok++; if (result.mpUrl) lastMpUrl = result.mpUrl; }
-        else fail++;
+        // Antes: await sendPedido(p.id, null) — sendPedido SOLO abre el modal
+        // de confirmación, no manda nada. Por eso "Enviar todos" no enviaba
+        // ningún pedido de verdad. Ahora se llama directo a la función real.
+        const resultado = await _enviarPedidoReal(p.id, { redirigirMP: false });
+        if (resultado.ok) ok++; else fail++;
     }
 
     const pend = pedidos.filter(x => x.estado === 'pendiente').length;
@@ -3076,16 +3123,6 @@ async function confirmSendAll() {
     btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Enviar todos`;
     btn.disabled = false;
     toast(`${ok} pedidos enviados${fail ? ` · ${fail} con error` : ''}`, ok > 0 ? true : 'err');
-
-    // Mercado Pago no admite cobrar varias preferencias en un solo
-    // checkout desde el browser sin un endpoint de "lote" del lado del
-    // worker (que no está confirmado que exista). Para no dejar al
-    // revendedor sin cobrar nada, lo redirigimos al link de pago del
-    // último pedido enviado con éxito — el resto queda igual marcado
-    // como pagado/registrado en workerpagos, listo para cobrarse.
-    if (lastMpUrl) {
-        setTimeout(() => { window.location.href = lastMpUrl; }, 900);
-    }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -3532,8 +3569,7 @@ function renderGananciasView() {
             <div class="kpi"><div class="kpi-lbl">Ganancia pendiente</div><div class="kpi-val" style="color:var(--amber)">$${Math.round(totalGainPend).toLocaleString()}</div></div>
             <div class="kpi"><div class="kpi-lbl">Inversión total</div><div class="kpi-val">$${Math.round(totalInvAll).toLocaleString()}</div></div>
             <div class="kpi"><div class="kpi-lbl">Facturación a clientes</div><div class="kpi-val">$${Math.round(totalFacAll).toLocaleString()}</div></div>
-        </div>
-        <div id="ganancias-mes-block"></div>`;
+        </div>`;
 
     // Ganancia por nicho
     html += `<div class="section-block"><h2 class="section-title">Ganancia por categoría</h2><div class="mini-list">`;
@@ -3569,76 +3605,6 @@ function renderGananciasView() {
     html += `</div>`;
 
     el.innerHTML = html;
-
-    // Cargar el bloque "este mes" desde panelestadisticas, que cruza el
-    // precio CLIENTE (tienda.html) con el precio MAYORISTA (workerpagos)
-    // por pedidoId. Es la fuente de verdad de la ganancia real del mes
-    // -- los KPIs de arriba son una estimación calculada en el navegador
-    // con los márgenes configurados, esto es lo que efectivamente se
-    // cruzó del lado del servidor.
-    _cargarGananciaDelMes();
-}
-
-async function _cargarGananciaDelMes() {
-    const block = document.getElementById('ganancias-mes-block');
-    if (!block) return;
-    if (!currentCode) return;
-
-    block.innerHTML = `<div class="section-block"><h2 class="section-title">Este mes</h2>
-        <div class="kpi-grid"><div class="kpi"><div class="kpi-lbl">Cargando…</div><div class="kpi-val">—</div></div></div></div>`;
-
-    try {
-        const ctrl = new AbortController();
-        const t = setTimeout(() => ctrl.abort(), 8000);
-        const url = `${WORKER_ESTADISTICAS}/api/estadisticas?codigo=${encodeURIComponent(currentCode)}`;
-        const res = await fetch(url, { signal: ctrl.signal });
-        clearTimeout(t);
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const data = await res.json();
-        if (!data || !data.ok) throw new Error('Respuesta inválida');
-
-        const mes = data.kpis.mes;
-        const cm = data.clienteDelMes;
-        const pend = data.pendientesCruce || {};
-
-        let html = `<div class="section-block">
-            <h2 class="section-title">Este mes · ${esc(mes.label || '')}</h2>
-            <div class="kpi-grid">
-                <div class="kpi"><div class="kpi-lbl">Ganancia del mes</div><div class="kpi-val" style="color:var(--green)">$${Number(mes.ganancia||0).toLocaleString()}</div></div>
-                <div class="kpi"><div class="kpi-lbl">Facturado a clientes</div><div class="kpi-val">$${Number(mes.facturado||0).toLocaleString()}</div></div>
-                <div class="kpi"><div class="kpi-lbl">Invertido (mayorista)</div><div class="kpi-val">$${Number(mes.invertido||0).toLocaleString()}</div></div>
-                <div class="kpi"><div class="kpi-lbl">Pedidos cruzados</div><div class="kpi-val">${Number(mes.pedidos||0)}</div></div>
-            </div>`;
-
-        if (cm) {
-            html += `<div class="cliente-mes-card" style="margin-top:10px">
-                <div class="cliente-mes-medal">🏆</div>
-                <div class="cliente-mes-body">
-                    <div class="cliente-mes-title">Cliente del mes (datos cruzados)</div>
-                    <div class="cliente-mes-name">${esc(cm.nombre)}</div>
-                    <div class="cliente-mes-meta">
-                        ${cm.compras} compra${cm.compras!==1?'s':''} este mes
-                        ${cm.telefono ? ` · 📞 ${esc(cm.telefono)}` : ''}
-                        · $${Number(cm.totalGastado||0).toLocaleString()} gastado
-                    </div>
-                </div>
-            </div>`;
-        }
-
-        if ((pend.esperandoMayorista || 0) > 0 || (pend.esperandoCliente || 0) > 0) {
-            html += `<p style="font-size:12px;color:var(--text2);margin-top:8px">
-                ${pend.esperandoMayorista ? `${pend.esperandoMayorista} pedido(s) esperando que el revendedor pague el mayorista. ` : ''}
-                ${pend.esperandoCliente ? `${pend.esperandoCliente} pedido(s) esperando el precio cliente de tienda.html.` : ''}
-            </p>`;
-        }
-
-        html += `</div>`;
-        block.innerHTML = html;
-    } catch (e) {
-        console.warn('No se pudo cargar panelestadisticas:', e.message);
-        block.innerHTML = `<div class="section-block"><h2 class="section-title">Este mes</h2>
-            <p style="font-size:13px;color:var(--text2)">No se pudo conectar con panelestadisticas. Los KPIs de arriba (calculados localmente) siguen disponibles.</p></div>`;
-    }
 }
 
 // ═══════════════════════════════════════════════════════════
