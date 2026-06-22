@@ -2700,6 +2700,15 @@ async function loadData() {
         ]);
         const mayoristaPorPedido = _mapaMayoristaPorPedido(rawMayorista);
 
+        // DIAGNÓSTICO: confirmar si pendientes y aprobados realmente
+        // comparten el mismo identificador. Si las listas de abajo no
+        // tienen ningún valor en común, el merge por id nunca va a
+        // funcionar y el problema no es de cálculo sino de matching.
+        console.log('[DIAGNOSTICO] IDs crudos en PENDIENTES:',
+            rawPend.map(p => p.pedidoId || p.id || p._id));
+        console.log('[DIAGNOSTICO] IDs crudos en APROBADOS:',
+            rawApro.map(p => p.pedidoId || p.id || p._id));
+
         // Debug visible — aparece en consola Y en un toast para que puedas ver qué trajo
         console.log('[Panel] Pendientes del worker:', rawPend.length, rawPend);
         console.log('[Panel] Aprobados del worker:', rawApro.length, rawApro);
@@ -2711,6 +2720,20 @@ async function loadData() {
         }
 
         const seen = new Map();
+        // Índice secundario por "huella" del pedido (teléfono + total +
+        // cantidad de items) — fallback para cuando WORKER_PENDIENTES y
+        // WORKER_APROBADOS usan identificadores distintos para el mismo
+        // pedido real (causa más probable de por qué el merge por id
+        // nunca encontraba coincidencia).
+        const seenByFingerprint = new Map();
+        const fingerprintOf = (norm) => {
+            const tel = (norm.cliente?.telefono || '').replace(/\D/g, '');
+            const totalRedondeado = Math.round(Number(norm.total) || 0);
+            const cantItems = (norm.items || []).length;
+            if (!tel) return null; // sin teléfono no es confiable, no se usa
+            return `${tel}|${totalRedondeado}|${cantItems}`;
+        };
+
         // ECONOMÍA CONGELADA: todo pedido que entra como pendiente queda
         // marcado acá. Una vez marcado, NADA vuelve a tocar sus campos
         // económicos (precioCosto, costoTotal, gananciaTotal, etc.),
@@ -2722,30 +2745,41 @@ async function loadData() {
             const norm = _norm(p, 'pendiente');
             if (!norm) return;
             seen.set(norm.id, pedidos.length);
+            const fp = fingerprintOf(norm);
+            if (fp) seenByFingerprint.set(fp, pedidos.length);
             congelados.add(norm.id);
             pedidos.push(norm);
-            console.log('[PEDIDO][pendiente] id=%s costoTotal=%s gananciaTotal=%s total=%s',
-                norm.id, norm.costoTotal, norm.gananciaTotal, norm.total, norm);
+            console.log('[PEDIDO][pendiente] id=%s fp=%s costoTotal=%s gananciaTotal=%s total=%s',
+                norm.id, fp, norm.costoTotal, norm.gananciaTotal, norm.total, norm);
         });
 
         rawApro.forEach(p => {
             const norm = _norm(p, 'pagado');
             if (!norm) return;
-            if (seen.has(norm.id)) {
-                // Ya existía como pendiente: SOLO se actualiza el estado.
-                // El objeto económico (norm) recién normalizado del
-                // aprobado se descarta por completo, nunca se mezcla.
-                pedidos[seen.get(norm.id)].estado = 'pagado';
-                console.log('[PEDIDO][aprobado->merge] id=%s (se conserva economía de pendiente, solo cambia estado)',
-                    norm.id, pedidos[seen.get(norm.id)]);
+            const fp = fingerprintOf(norm);
+            let idx = seen.has(norm.id) ? seen.get(norm.id)
+                    : (fp && seenByFingerprint.has(fp)) ? seenByFingerprint.get(fp)
+                    : null;
+            if (idx != null) {
+                // Ya existía como pendiente (match por id exacto o por
+                // huella): SOLO se actualiza el estado. El objeto
+                // económico (norm) recién normalizado del aprobado se
+                // descarta por completo, nunca se mezcla.
+                pedidos[idx].estado = 'pagado';
+                congelados.add(pedidos[idx].id); // por si vino solo por fp
+                console.log('[PEDIDO][aprobado->merge] idAprobado=%s fp=%s matcheo_por=%s (se conserva economía de pendiente, solo cambia estado)',
+                    norm.id, fp, seen.has(norm.id) ? 'id' : 'fingerprint', pedidos[idx]);
             } else {
                 // Pedido aprobado "huérfano": nunca pasó por pendientes
-                // en esta carga. No hay economía congelada que conservar,
-                // así que se admite tal cual viene normalizado.
+                // en esta carga, ni por id ni por huella. No hay economía
+                // congelada que conservar, así que se admite tal cual
+                // viene normalizado (caso real: pedidos aprobados antes
+                // de que el revendedor abriera el panel como pendiente).
                 seen.set(norm.id, pedidos.length);
+                if (fp) seenByFingerprint.set(fp, pedidos.length);
                 pedidos.push(norm);
-                console.log('[PEDIDO][aprobado-huerfano] id=%s costoTotal=%s gananciaTotal=%s total=%s',
-                    norm.id, norm.costoTotal, norm.gananciaTotal, norm.total, norm);
+                console.log('[PEDIDO][aprobado-huerfano] id=%s fp=%s costoTotal=%s gananciaTotal=%s total=%s',
+                    norm.id, fp, norm.costoTotal, norm.gananciaTotal, norm.total, norm);
             }
         });
 
