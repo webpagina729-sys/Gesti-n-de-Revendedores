@@ -1457,19 +1457,20 @@ function _precioRefCatalogo(nombre) {
 // 3) si tampoco hay match en el catálogo → cae al precio del pedido (peor caso).
 function precioMayoristaItem(item) {
     if (!item) return 0;
+    const pCli = Number(item.precioFinal ?? item.precioCliente ?? item.precio ?? 0);
 
-    // FUENTE 1: precioCosto — puesto por workerpagos via _aplicarMayoristaDesdeWorkerpagos
-    // o enviado en el payload al aprobar. NUNCA es item.precio (eso es el precio cliente).
+    // 1. precioCosto — campo explícito enviado por workerpagos/tienda.html
     const pc = Number(item.precioCosto || 0);
-    if (pc > 0) return pc;
+    if (pc > 0 && pc !== pCli) return pc;
 
-    // FUENTE 2: costoMayoristaUnitario — alias de workerpagos en /api/panel-gestion
-    const cmu = Number(item.costoMayoristaUnitario || 0);
-    if (cmu > 0) return cmu;
-
-    // FUENTE 3: catálogo local por nombre (fallback para pedidos viejos sin los campos anteriores)
+    // 2. Catálogo por nombre — fuente de verdad (resuelve con talle incluido)
     const ref = _precioRefCatalogo(item.nombre);
     if (ref != null) return ref;
+
+    // 3. costoMayoristaUnitario — solo si es distinto del precio cliente
+    //    (pedidos viejos tienen este campo igual al precio cliente = bug)
+    const cmu = Number(item.costoMayoristaUnitario || 0);
+    if (cmu > 0 && cmu !== pCli) return cmu;
 
     return 0;
 }
@@ -2698,15 +2699,33 @@ async function loadData() {
             const norm = _norm(p, 'pagado');
             if (!norm) return;
             if (seen.has(norm.id)) {
-                // El pedido ya existe (también vino de pendientes).
-                // Actualizar estado Y los items — los items de la versión
-                // aprobada tienen precioCosto guardado por workerpagos,
-                // mientras que los de pendientes lo tienen en null.
                 const existing = pedidos[seen.get(norm.id)];
                 existing.estado = 'pagado';
-                // Solo pisamos los items si la versión aprobada trae precioCosto real
-                const tieneCoston = norm.items.some(i => Number(i.precioCosto || 0) > 0);
-                if (tieneCoston) existing.items = norm.items;
+                // Si la versión aprobada trae items con precioCosto real (mayorista),
+                // reemplazar los items para que los cálculos sean correctos.
+                // Sin esto, los items quedan de la versión pendiente donde precioCosto=null.
+                if (norm.items && norm.items.length > 0) {
+                    const tienePrecios = norm.items.some(it => it.precioCosto != null && it.precioCosto > 0);
+                    if (tienePrecios) {
+                        existing.items = norm.items;
+                    } else if (existing.items && existing.items.length > 0) {
+                        // La versión aprobada no tiene precioCosto pero sí puede tener
+                        // precio (cliente) que la pendiente no tiene — fusionar campo a campo
+                        norm.items.forEach((normIt, idx) => {
+                            if (existing.items[idx]) {
+                                // Conservar precioCosto de la versión pendiente si la aprobada no lo tiene
+                                if (normIt.precioCosto == null && existing.items[idx].precioCosto != null) {
+                                    normIt.precioCosto = existing.items[idx].precioCosto;
+                                }
+                                // Conservar precio cliente de la pendiente si es mejor dato
+                                if (!normIt.precio && existing.items[idx].precio) {
+                                    normIt.precio = existing.items[idx].precio;
+                                }
+                                existing.items[idx] = normIt;
+                            }
+                        });
+                    }
+                }
             } else {
                 seen.set(norm.id, pedidos.length);
                 pedidos.push(norm);
@@ -2809,24 +2828,17 @@ function card(p) {
         </div>` : '<span style="font-size:12px;color:var(--text3)">Sin datos de envío</span>';
 
     const rows = items.map(it => {
-        // pMay = costo mayorista (workerpagos), pCli = precio que paga el cliente (workerwebcliente)
         const pMay = precioMayoristaItem(it);
-        const pCli = resellerPriceFinal(it, nichoKey);
-        const gain = (pCli > 0 && pMay > 0) ? resellerGainForItem(it, nichoKey) : null;
-        const mayCell = pMay > 0
-            ? '$' + Math.round(pMay).toLocaleString()
-            : '<span style="color:var(--text3)" title="Pendiente de aprobación">—</span>';
-        const cliCell = pCli > 0
-            ? '$' + Math.round(pCli).toLocaleString()
-            : '<span style="color:var(--text3)">—</span>';
-        const gainCell = gain !== null && gain > 0
-            ? '+$' + Math.round(gain).toLocaleString()
-            : '<span style="color:var(--text3)">—</span>';
+        const pFin = resellerPriceFinal(it, nichoKey);
+        const gain = resellerGainForItem(it, nichoKey);
+        const mayCell = pMay > 0 ? '$' + Math.round(pMay).toLocaleString() : '<span style="color:var(--text3)" title="Pendiente de workerpagos">—</span>';
+        const finCell = pFin > 0 ? '$' + Math.round(pFin).toLocaleString() : '<span style="color:var(--text3)">—</span>';
+        const gainCell = (pFin > 0 && pMay > 0) ? `<span style="color:var(--green)">+$${Math.round(gain).toLocaleString()}</span>` : '<span style="color:var(--text3)">—</span>';
         return `<tr>
             <td><div class="prod-name">${esc(it.nombre||'—')}</div></td>
             <td class="qty-num">${it.cantidad||1}</td>
             <td class="price-cell">${mayCell}</td>
-            <td class="price-cell">${cliCell}</td>
+            <td class="price-cell">${finCell}</td>
             <td class="gain-cell">${gainCell}</td>
         </tr>`;
     }).join('');
@@ -2860,7 +2872,7 @@ function card(p) {
                         <th style="text-align:center">Cant.</th>
                         <th style="text-align:right">Precio mayorista</th>
                         <th style="text-align:right">Precio cliente</th>
-                        <th style="text-align:right">Ganancia</th>
+                        <th style="text-align:right">Mi ganancia</th>
                     </tr></thead>
                     <tbody>${rows}</tbody>
                 </table>
@@ -4094,17 +4106,10 @@ document.getElementById('gift-modal').addEventListener('click', function(e) { if
             if (!msg.pedidoId) return;
 
             if (msg.accion === 'aprobado') {
-                // Buscar si el pedido ya está en el panel
-                var existente = pedidos.find(function(p) { return p.id === msg.pedidoId; });
-                if (existente) {
-                    // Ya existe: actualizar su estado a pagado
-                    existente.estado = 'pagado';
-                    _refreshCounts();
-                    renderAll();
-                } else {
-                    // No existe aún: recargar del worker para traerlo
-                    loadData();
-                }
+                // Siempre recargar para obtener los items actualizados con precioCosto
+                // de workerpagos. Solo cambiar el estado localmente no es suficiente:
+                // los items de la versión pendiente no tienen precioCosto (mayorista).
+                loadData();
             } else if (msg.accion === 'eliminado' || msg.accion === 'no_aprobado') {
                 // Eliminar del panel local sin recargar
                 rememberLocalDelete(msg.pedidoId);
