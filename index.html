@@ -2699,15 +2699,13 @@ async function loadData() {
             const norm = _norm(p, 'pagado');
             if (!norm) return;
             if (seen.has(norm.id)) {
-                // Pedido existe en pendientes: actualizar estado Y reemplazar items
-                // con los de la versión aprobada (que traen precioCosto real de workerpagos)
-                const idx = seen.get(norm.id);
-                pedidos[idx].estado = 'pagado';
-                // Si la versión aprobada tiene items con precioCosto real, usarlos
-                const aproTieneCosto = (norm.items || []).some(i => Number(i.precioCosto) > 0);
-                if (aproTieneCosto) {
-                    pedidos[idx].items = norm.items;
-                }
+                // Reemplazar TODO el pedido (items, precioCosto, etc.) con la
+                // versión aprobada, no solo el estado. Antes acá se hacía
+                // pedidos[idx].estado = 'pagado' y se descartaba `norm`
+                // completo, perdiendo el precioCosto que manda tienda.html
+                // al aprobar — eso era lo que rompía las estadísticas
+                // (ganancia/inversión) justo al pasar de pendiente a aprobado.
+                pedidos[seen.get(norm.id)] = norm;
             } else {
                 seen.set(norm.id, pedidos.length);
                 pedidos.push(norm);
@@ -2811,17 +2809,14 @@ function card(p) {
 
     const rows = items.map(it => {
         const pMay = precioMayoristaItem(it);
-        const pFin = resellerPriceFinal(it, nichoKey);
-        const gain = resellerGainForItem(it, nichoKey);
+        const pFin = hasConfig ? resellerPriceFinal(it, nichoKey) : null;
+        const gain = hasConfig ? resellerGainForItem(it, nichoKey) : null;
         const mayCell = pMay > 0 ? '$' + Math.round(pMay).toLocaleString() : '<span style="color:var(--text3)" title="Pendiente de workerpagos">—</span>';
-        const finCell = pFin > 0 ? '$' + Math.round(pFin).toLocaleString() : '<span style="color:var(--text3)">—</span>';
-        const gainCell = (pFin > 0 && pMay > 0) ? '+$' + Math.round(gain).toLocaleString() : '<span style="color:var(--text3)">—</span>';
         return `<tr>
             <td><div class="prod-name">${esc(it.nombre||'—')}</div></td>
             <td class="qty-num">${it.cantidad||1}</td>
             <td class="price-cell">${mayCell}</td>
-            <td class="price-cell">${finCell}</td>
-            <td class="gain-cell">${gainCell}</td>
+            ${hasConfig ? `<td class="price-cell">$${(pFin||0).toLocaleString()}</td><td class="gain-cell">+$${Math.round(gain||0).toLocaleString()}</td>` : ''}
         </tr>`;
     }).join('');
 
@@ -2853,8 +2848,7 @@ function card(p) {
                         <th>Producto</th>
                         <th style="text-align:center">Cant.</th>
                         <th style="text-align:right">Precio mayorista</th>
-                        <th style="text-align:right">Precio cliente</th>
-                        <th style="text-align:right">Mi ganancia</th>
+                        ${hasConfig ? '<th style="text-align:right">Precio cliente</th><th style="text-align:right">Mi ganancia</th>' : ''}
                     </tr></thead>
                     <tbody>${rows}</tbody>
                 </table>
@@ -2862,7 +2856,7 @@ function card(p) {
                 <div class="order-foot">
                     <div>
                         <div class="foot-meta"><strong>${items.length}</strong> prod. · <strong>${totalU}</strong> unid. · Inversión: <strong>$${Math.round(totalInv).toLocaleString()}</strong></div>
-                        ${ganancia > 0 ? `<div class="foot-gain">+$${Math.round(ganancia).toLocaleString()} de ganancia</div>` : ''}
+                        ${hasConfig && ganancia > 0 ? `<div class="foot-gain">+$${Math.round(ganancia).toLocaleString()} de ganancia</div>` : ''}
                     </div>
                     <div class="actions">
                         <button class="btn-act btn-pdf" onclick="${stop}downloadInvoicePDF('${p.id}')">
@@ -4088,10 +4082,17 @@ document.getElementById('gift-modal').addEventListener('click', function(e) { if
             if (!msg.pedidoId) return;
 
             if (msg.accion === 'aprobado') {
-                // Siempre recargar al aprobar: necesitamos los items actualizados
-                // con precioCosto real desde workerpagos. Cambiar solo el estado
-                // local deja precioCosto=null y se pierden precio cliente y ganancia.
-                loadData();
+                // Buscar si el pedido ya está en el panel
+                var existente = pedidos.find(function(p) { return p.id === msg.pedidoId; });
+                if (existente) {
+                    // Ya existe: actualizar su estado a pagado
+                    existente.estado = 'pagado';
+                    _refreshCounts();
+                    renderAll();
+                } else {
+                    // No existe aún: recargar del worker para traerlo
+                    loadData();
+                }
             } else if (msg.accion === 'eliminado' || msg.accion === 'no_aprobado') {
                 // Eliminar del panel local sin recargar
                 rememberLocalDelete(msg.pedidoId);
