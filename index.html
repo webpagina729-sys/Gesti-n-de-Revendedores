@@ -2164,11 +2164,11 @@ function resellerGainForItem(item, nichoKey) {
 }
 
 function resellerGainOf(p) {
-    // Si el pedido ya trae gananciaTotal conservado (real, calculado al
-    // momento de la venta y nunca recalculado en ningún paso del flujo),
-    // se usa directo. Solo se recalcula por item como fallback para
-    // pedidos viejos que no tengan este campo.
-    if (p && Number(p.gananciaTotal) > 0) return Number(p.gananciaTotal);
+    // BLOQUEADO: si el pedido ya tiene gananciaTotal congelado (calculado
+    // una sola vez en _norm() cuando entró como pendiente), se usa tal
+    // cual. Nunca se recalcula por catálogo si ese dato existe — eso es
+    // justamente lo que pisaba las estadísticas al pasar a aprobado.
+    if (p.gananciaTotal != null) return p.gananciaTotal;
     const nichoKey = cat(p);
     return (p.items || []).reduce((s, i) => s + resellerGainForItem(i, nichoKey), 0);
 }
@@ -2182,10 +2182,11 @@ function totalFinalRevendedor(p) {
 }
 
 function totalInversionRevendedor(p) {
-    // Si el pedido ya trae costoTotal conservado (real, el mismo que tenía
-    // cuando estaba pendiente), se usa directo. El cálculo por item contra
-    // catálogo queda solo como fallback para pedidos viejos sin este campo.
-    if (p && Number(p.costoTotal) > 0) return Number(p.costoTotal);
+    // BLOQUEADO: idéntica regla que resellerGainOf — si el pedido ya
+    // trae costoTotal congelado desde que entró como pendiente, se usa
+    // directo. El catálogo (precioMayoristaItem) es solo fallback para
+    // pedidos viejos que nunca tuvieron este campo.
+    if (p.costoTotal != null) return p.costoTotal;
     return (p.items || []).reduce((s, i) => s + precioMayoristaItem(i) * Number(i.cantidad||1), 0);
 }
 
@@ -2485,13 +2486,11 @@ function _norm(p, estadoForzado) {
         const cants  = p.cantidades || [];
         const prices = p.preciosIndividuales || p.precios || [];
         const costos = p.costoIndividuales || [];
-        const gananciasArr = p.gananciaIndividual || [];
         items = rawItems.map((nombre, i) => ({
             nombre,
             cantidad:    Number(cants[i])  || 1,
             precio:      Number(prices[i]) || 0,
             precioCosto: (costos[i] != null && Number(costos[i]) > 0) ? Number(costos[i]) : null,
-            ganancia:    (gananciasArr[i] != null) ? Number(gananciasArr[i]) : null,
         }));
     } else {
         items = rawItems.map(i => {
@@ -2501,10 +2500,6 @@ function _norm(p, estadoForzado) {
             // que NO trae el campo "precio" — antes, al no contemplar este
             // shape, ese ítem quedaba con precioCosto=null y el costo mayorista
             // se perdía o terminaba leído desde el lugar equivocado).
-            // precioCosto es el dato real conservado desde el pedido pendiente
-            // (ver index.html → normalizarPedidoWorker / cambiarEstadoPedido);
-            // los otros dos nombres quedan SOLO como fallback de compatibilidad
-            // para pedidos viejos que no tengan precioCosto.
             const costoMayorista =
                 (i.precioCosto != null && Number(i.precioCosto) > 0) ? Number(i.precioCosto)
               : (i.precioMayorista != null && Number(i.precioMayorista) > 0) ? Number(i.precioMayorista)
@@ -2521,7 +2516,6 @@ function _norm(p, estadoForzado) {
                 cantidad: Number(i.cantidad || i.qty || 1),
                 precio:      precioCliente,
                 precioCosto: costoMayorista,
-                ganancia:    (i.ganancia != null) ? Number(i.ganancia) : null,
             };
         });
     }
@@ -2536,7 +2530,19 @@ function _norm(p, estadoForzado) {
     }
     if (!fechaSecs) fechaSecs = Math.floor(Date.now() / 1000);
 
-    const pedidoNorm = {
+    // Totales a nivel raíz — se calculan UNA SOLA VEZ acá, a partir de
+    // los items ya resueltos arriba. Estos campos quedan congelados en
+    // el objeto desde este momento: nada los vuelve a recalcular después
+    // (ver loadData(): merge de aprobados y pisado de workerpagos no
+    // tocan un pedido que ya pasó por _norm() como pendiente).
+    const totalCliente = items.reduce((s, it) => s + (Number(it.precio) || 0) * (Number(it.cantidad) || 1), 0);
+    const itemsConCosto = items.filter(it => it.precioCosto != null && Number(it.precioCosto) > 0);
+    const costoTotal = itemsConCosto.length
+        ? itemsConCosto.reduce((s, it) => s + Number(it.precioCosto) * (Number(it.cantidad) || 1), 0)
+        : null;
+    const gananciaTotal = costoTotal != null ? (totalCliente - costoTotal) : null;
+
+    return {
         id, estado, items,
         cliente: envObj,
         envio:   envObj,
@@ -2545,25 +2551,11 @@ function _norm(p, estadoForzado) {
         _vCode:  p.codigoVendedor || currentCode,
         _clienteName: clienteNombre,
         fechaCreacion: { seconds: fechaSecs },
-        // Totales reales del pedido, tal cual fueron guardados al crearse —
-        // se conservan sin recalcular sea cual sea el estado (pendiente o pagado).
-        costoTotal:    Number(p.costoTotal || 0),
-        gananciaTotal: Number(p.gananciaTotal || 0),
-        total:         Number(p.total || p.totalFinal || p.precio_venta || 0),
+        total: totalCliente,
+        costoTotal,
+        gananciaTotal,
         _raw: p,
     };
-
-    // Log de verificación: pedido tal cual se renderiza en el panel,
-    // sea que esté en pendientes o ya aprobado.
-    console.log('[PEDIDO][render-' + estado + ']', pedidoNorm.id, {
-        costoIndividuales:   items.map(it => it.precioCosto),
-        costoTotal:          pedidoNorm.costoTotal,
-        gananciaTotal:       pedidoNorm.gananciaTotal,
-        preciosIndividuales: items.map(it => it.precio),
-        total:               pedidoNorm.total
-    });
-
-    return pedidoNorm;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -2719,34 +2711,60 @@ async function loadData() {
         }
 
         const seen = new Map();
+        // ECONOMÍA CONGELADA: todo pedido que entra como pendiente queda
+        // marcado acá. Una vez marcado, NADA vuelve a tocar sus campos
+        // económicos (precioCosto, costoTotal, gananciaTotal, etc.),
+        // ni el merge con aprobados, ni el pisado de workerpagos.
+        // Solo el campo .estado puede cambiar.
+        const congelados = new Set();
 
         rawPend.forEach(p => {
             const norm = _norm(p, 'pendiente');
             if (!norm) return;
             seen.set(norm.id, pedidos.length);
+            congelados.add(norm.id);
             pedidos.push(norm);
+            console.log('[PEDIDO][pendiente] id=%s costoTotal=%s gananciaTotal=%s total=%s',
+                norm.id, norm.costoTotal, norm.gananciaTotal, norm.total, norm);
         });
 
         rawApro.forEach(p => {
             const norm = _norm(p, 'pagado');
             if (!norm) return;
             if (seen.has(norm.id)) {
+                // Ya existía como pendiente: SOLO se actualiza el estado.
+                // El objeto económico (norm) recién normalizado del
+                // aprobado se descarta por completo, nunca se mezcla.
                 pedidos[seen.get(norm.id)].estado = 'pagado';
+                console.log('[PEDIDO][aprobado->merge] id=%s (se conserva economía de pendiente, solo cambia estado)',
+                    norm.id, pedidos[seen.get(norm.id)]);
             } else {
+                // Pedido aprobado "huérfano": nunca pasó por pendientes
+                // en esta carga. No hay economía congelada que conservar,
+                // así que se admite tal cual viene normalizado.
                 seen.set(norm.id, pedidos.length);
                 pedidos.push(norm);
+                console.log('[PEDIDO][aprobado-huerfano] id=%s costoTotal=%s gananciaTotal=%s total=%s',
+                    norm.id, norm.costoTotal, norm.gananciaTotal, norm.total, norm);
             }
         });
 
         pedidos.sort((a,b) => (b.fechaCreacion?.seconds||0) - (a.fechaCreacion?.seconds||0));
 
-        // Pisar el precio mayorista de cada item con el dato real de
-        // workerpagos (cuando exista registro para ese pedido). Esto
-        // es lo único que cambia de fuente — el resto del pedido
-        // queda intacto, tal como vino de pendientes/aprobados.
+        // Pisar el precio mayorista con el dato de workerpagos SOLO en
+        // pedidos que NO estaban congelados (es decir, huérfanos que
+        // nunca tuvieron datos económicos de pendiente). Si el pedido
+        // ya entró como pendiente, su economía es intocable: jamás se
+        // vuelve a pisar con nada que venga de workerpagos.
         pedidos.forEach(p => {
+            if (congelados.has(p.id)) return; // bloqueado, no se toca
             const reg = mayoristaPorPedido.get(p.id);
             if (reg) _aplicarMayoristaDesdeWorkerpagos(p, reg);
+        });
+
+        pedidos.forEach(p => {
+            console.log('[PEDIDO][render-final] id=%s estado=%s costoTotal=%s gananciaTotal=%s total=%s',
+                p.id, p.estado, p.costoTotal, p.gananciaTotal, p.total, p);
         });
 
         const tot  = pedidos.length;
