@@ -2164,6 +2164,11 @@ function resellerGainForItem(item, nichoKey) {
 }
 
 function resellerGainOf(p) {
+    // Si el pedido ya trae gananciaTotal conservado (real, calculado al
+    // momento de la venta y nunca recalculado en ningún paso del flujo),
+    // se usa directo. Solo se recalcula por item como fallback para
+    // pedidos viejos que no tengan este campo.
+    if (p && Number(p.gananciaTotal) > 0) return Number(p.gananciaTotal);
     const nichoKey = cat(p);
     return (p.items || []).reduce((s, i) => s + resellerGainForItem(i, nichoKey), 0);
 }
@@ -2177,7 +2182,10 @@ function totalFinalRevendedor(p) {
 }
 
 function totalInversionRevendedor(p) {
-    // lo que le cuesta al revendedor (precio mayorista, verificado contra catálogo)
+    // Si el pedido ya trae costoTotal conservado (real, el mismo que tenía
+    // cuando estaba pendiente), se usa directo. El cálculo por item contra
+    // catálogo queda solo como fallback para pedidos viejos sin este campo.
+    if (p && Number(p.costoTotal) > 0) return Number(p.costoTotal);
     return (p.items || []).reduce((s, i) => s + precioMayoristaItem(i) * Number(i.cantidad||1), 0);
 }
 
@@ -2477,11 +2485,13 @@ function _norm(p, estadoForzado) {
         const cants  = p.cantidades || [];
         const prices = p.preciosIndividuales || p.precios || [];
         const costos = p.costoIndividuales || [];
+        const gananciasArr = p.gananciaIndividual || [];
         items = rawItems.map((nombre, i) => ({
             nombre,
             cantidad:    Number(cants[i])  || 1,
             precio:      Number(prices[i]) || 0,
             precioCosto: (costos[i] != null && Number(costos[i]) > 0) ? Number(costos[i]) : null,
+            ganancia:    (gananciasArr[i] != null) ? Number(gananciasArr[i]) : null,
         }));
     } else {
         items = rawItems.map(i => {
@@ -2491,6 +2501,10 @@ function _norm(p, estadoForzado) {
             // que NO trae el campo "precio" — antes, al no contemplar este
             // shape, ese ítem quedaba con precioCosto=null y el costo mayorista
             // se perdía o terminaba leído desde el lugar equivocado).
+            // precioCosto es el dato real conservado desde el pedido pendiente
+            // (ver index.html → normalizarPedidoWorker / cambiarEstadoPedido);
+            // los otros dos nombres quedan SOLO como fallback de compatibilidad
+            // para pedidos viejos que no tengan precioCosto.
             const costoMayorista =
                 (i.precioCosto != null && Number(i.precioCosto) > 0) ? Number(i.precioCosto)
               : (i.precioMayorista != null && Number(i.precioMayorista) > 0) ? Number(i.precioMayorista)
@@ -2507,6 +2521,7 @@ function _norm(p, estadoForzado) {
                 cantidad: Number(i.cantidad || i.qty || 1),
                 precio:      precioCliente,
                 precioCosto: costoMayorista,
+                ganancia:    (i.ganancia != null) ? Number(i.ganancia) : null,
             };
         });
     }
@@ -2521,7 +2536,7 @@ function _norm(p, estadoForzado) {
     }
     if (!fechaSecs) fechaSecs = Math.floor(Date.now() / 1000);
 
-    return {
+    const pedidoNorm = {
         id, estado, items,
         cliente: envObj,
         envio:   envObj,
@@ -2530,8 +2545,25 @@ function _norm(p, estadoForzado) {
         _vCode:  p.codigoVendedor || currentCode,
         _clienteName: clienteNombre,
         fechaCreacion: { seconds: fechaSecs },
+        // Totales reales del pedido, tal cual fueron guardados al crearse —
+        // se conservan sin recalcular sea cual sea el estado (pendiente o pagado).
+        costoTotal:    Number(p.costoTotal || 0),
+        gananciaTotal: Number(p.gananciaTotal || 0),
+        total:         Number(p.total || p.totalFinal || p.precio_venta || 0),
         _raw: p,
     };
+
+    // Log de verificación: pedido tal cual se renderiza en el panel,
+    // sea que esté en pendientes o ya aprobado.
+    console.log('[PEDIDO][render-' + estado + ']', pedidoNorm.id, {
+        costoIndividuales:   items.map(it => it.precioCosto),
+        costoTotal:          pedidoNorm.costoTotal,
+        gananciaTotal:       pedidoNorm.gananciaTotal,
+        preciosIndividuales: items.map(it => it.precio),
+        total:               pedidoNorm.total
+    });
+
+    return pedidoNorm;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -2699,28 +2731,7 @@ async function loadData() {
             const norm = _norm(p, 'pagado');
             if (!norm) return;
             if (seen.has(norm.id)) {
-                const idx = seen.get(norm.id);
-                const existing = pedidos[idx];
-                // Siempre usar los items del aprobado porque traen precioCosto.
-                // Solo conservar datos del pendiente que el aprobado no traiga.
-                pedidos[idx] = {
-                    ...existing,
-                    ...norm,
-                    estado: 'pagado',
-                    // Si el aprobado trae items con precioCosto, usarlos.
-                    // Si no, combinar: poner precioCosto del pendiente en items del aprobado,
-                    // o simplemente quedarse con los del aprobado (que vienen de index.html con fix).
-                    items: (norm.items && norm.items.length > 0) ? norm.items.map((normItem, i) => {
-                        const oldItem = (existing.items || [])[i] || {};
-                        // Preferir precioCosto del aprobado; si no tiene, del pendiente
-                        const pCosto = (normItem.precioCosto && normItem.precioCosto > 0)
-                            ? normItem.precioCosto
-                            : (oldItem.precioCosto && oldItem.precioCosto > 0)
-                                ? oldItem.precioCosto
-                                : null;
-                        return { ...oldItem, ...normItem, precioCosto: pCosto };
-                    }) : existing.items,
-                };
+                pedidos[seen.get(norm.id)].estado = 'pagado';
             } else {
                 seen.set(norm.id, pedidos.length);
                 pedidos.push(norm);
