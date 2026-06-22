@@ -1457,32 +1457,22 @@ function _precioRefCatalogo(nombre) {
 // 3) si tampoco hay match en el catálogo → cae al precio del pedido (peor caso).
 function precioMayoristaItem(item) {
     if (!item) return 0;
-    const pCli = Number(item.precioFinal ?? item.precioCliente ?? item.precio ?? 0);
 
-    // 0. BASE DE DATOS REAL por ID (workerpagos /api/precios-mayoristas).
-    //    Máxima prioridad: es un lookup exacto por clave, no depende de
-    //    que el nombre del producto matchee contra nada.
-    if (item.productoId != null && item.productoId !== '') {
-        const catRaw = String(item.categoria || '').toLowerCase();
-        const catKey = catRaw.includes('calzad') ? 'calzado' : 'perfume';
-        const real = _mayoristaPorId[catKey + '_' + item.productoId];
-        if (real != null && real > 0) return real;
-    }
-
-    // 1. precioCosto — campo explícito enviado por workerpagos/tienda.html
+    // FUENTE 1: precioCosto — puesto por workerpagos via _aplicarMayoristaDesdeWorkerpagos.
+    // NUNCA confundir con item.precio, que es el precio que paga el cliente.
     const pc = Number(item.precioCosto || 0);
-    if (pc > 0 && pc !== pCli) return pc;
+    if (pc > 0) return pc;
 
-    // 2. Catálogo local por nombre — fallback para pedidos viejos sin
-    //    productoId (anteriores al agregado de productosIds en tienda.html)
+    // FUENTE 2: costoMayoristaUnitario — alias de workerpagos en /api/panel-gestion
+    const cmu = Number(item.costoMayoristaUnitario || 0);
+    if (cmu > 0) return cmu;
+
+    // FUENTE 3: catálogo local por nombre (fallback para pedidos muy viejos
+    // que no tienen ninguno de los campos anteriores)
     const ref = _precioRefCatalogo(item.nombre);
     if (ref != null) return ref;
 
-    // 3. costoMayoristaUnitario — solo si es distinto del precio cliente
-    //    (pedidos viejos tienen este campo igual al precio cliente = bug)
-    const cmu = Number(item.costoMayoristaUnitario || 0);
-    if (cmu > 0 && cmu !== pCli) return cmu;
-
+    // Sin dato de costo mayorista — el panel mostrará "—" para este ítem
     return 0;
 }
 
@@ -1496,41 +1486,6 @@ let currentVendorNombre   = '';
 let currentVendorApellido = '';
 let configTienda    = {};
 let chartModalInst  = null;
-
-// ═══════════════════════════════════════════════════════════
-// CATÁLOGO MAYORISTA REAL — desde la BASE DE DATOS (Firestore,
-// vía workerpagos /api/precios-mayoristas), indexado por ID.
-// Esta es la fuente de verdad definitiva: no depende de que el
-// nombre del producto matchee exacto contra ningún catálogo local.
-// Clave: "perfume_<productoId>" o "calzado_<productoId>" — el
-// mismo esquema de ID que ya usa workerpagos internamente.
-// ═══════════════════════════════════════════════════════════
-let _mayoristaPorId = {};
-let _mayoristaPorIdCargado = false;
-
-async function _cargarCatalogoMayoristaPorId() {
-    if (_mayoristaPorIdCargado) return; // ya está, no reconsultar cada loadData()
-    try {
-        const ctrl = new AbortController();
-        const t = setTimeout(() => ctrl.abort(), 8000);
-        const res = await fetch(`${WORKER_PAGOS}/api/precios-mayoristas`, { signal: ctrl.signal });
-        clearTimeout(t);
-        if (!res.ok) return;
-        const data = await res.json().catch(() => null);
-        const lista = Array.isArray(data?.precios) ? data.precios : [];
-        if (!lista.length) {
-            console.warn('[Panel] /api/precios-mayoristas devolvió vacío — ¿corriste /api/importar-precios en workerpagos?');
-            return;
-        }
-        lista.forEach(p => {
-            if (p.productoId == null || !p.categoria) return;
-            const catKey = String(p.categoria).toLowerCase().includes('calzad') ? 'calzado' : 'perfume';
-            _mayoristaPorId[catKey + '_' + p.productoId] = Number(p.precioMayorista || 0);
-        });
-        _mayoristaPorIdCargado = true;
-        console.log('[Panel] Catálogo mayorista real cargado desde la base de datos:', Object.keys(_mayoristaPorId).length, 'productos');
-    } catch (_) { /* sin conexión: se sigue con los fallbacks por nombre */ }
-}
 
 // ═══════════════════════════════════════════════════════════
 // UTILIDADES
@@ -2523,19 +2478,11 @@ function _norm(p, estadoForzado) {
         const cants  = p.cantidades || [];
         const prices = p.preciosIndividuales || p.precios || [];
         const costos = p.costoIndividuales || [];
-        // IDs reales del catálogo (1, 2, 3...) — agregado para no depender
-        // de adivinar el producto por nombre. Pedidos viejos (antes de este
-        // cambio en tienda.html) no van a tener este array: queda null y
-        // el resto del flujo cae al fallback por nombre como antes.
-        const ids    = p.productosIds || p.idsProductos || [];
-        const itemCategoria = p.nicho || p.categoria || null;
         items = rawItems.map((nombre, i) => ({
             nombre,
             cantidad:    Number(cants[i])  || 1,
             precio:      Number(prices[i]) || 0,
             precioCosto: (costos[i] != null && Number(costos[i]) > 0) ? Number(costos[i]) : null,
-            productoId:  (ids[i] != null && ids[i] !== '') ? Number(ids[i]) : null,
-            categoria:   itemCategoria,
         }));
     } else {
         items = rawItems.map(i => {
@@ -2561,10 +2508,6 @@ function _norm(p, estadoForzado) {
                 cantidad: Number(i.cantidad || i.qty || 1),
                 precio:      precioCliente,
                 precioCosto: costoMayorista,
-                productoId:  (i.productoId != null) ? Number(i.productoId)
-                           : (i.id != null && i.id !== '' && !isNaN(Number(i.id))) ? Number(i.id)
-                           : null,
-                categoria:   i.categoria || p.nicho || p.categoria || null,
             };
         });
     }
@@ -2730,8 +2673,7 @@ async function loadData() {
         const [rawPend, rawApro, rawMayorista] = await Promise.all([
             _cargarPendientes(),
             _cargarAprobados(),
-            _cargarMayoristaWorkerPagos(),
-            _cargarCatalogoMayoristaPorId()
+            _cargarMayoristaWorkerPagos()
         ]);
         const mayoristaPorPedido = _mapaMayoristaPorPedido(rawMayorista);
 
@@ -2861,15 +2803,23 @@ function card(p) {
         </div>` : '<span style="font-size:12px;color:var(--text3)">Sin datos de envío</span>';
 
     const rows = items.map(it => {
+        // pMay = precio de COSTO mayorista (viene de workerpagos via precioCosto)
         const pMay = precioMayoristaItem(it);
-        const pFin = hasConfig ? resellerPriceFinal(it, nichoKey) : null;
-        const gain = hasConfig ? resellerGainForItem(it, nichoKey) : null;
-        const mayCell = pMay > 0 ? '$' + Math.round(pMay).toLocaleString() : '<span style="color:var(--text3)" title="Pendiente de workerpagos">—</span>';
+        // pCli = precio que PAGA EL CLIENTE (viene de workerwebcliente via item.precio)
+        const pCli = resellerPriceFinal(it, nichoKey);
+        const gain = (pCli > 0 && pMay > 0) ? resellerGainForItem(it, nichoKey) : null;
+        const mayCell = pMay > 0
+            ? '$' + Math.round(pMay).toLocaleString()
+            : '<span style="color:var(--text3)" title="Pendiente de workerpagos">—</span>';
+        const cliCell = pCli > 0
+            ? '$' + Math.round(pCli).toLocaleString()
+            : '<span style="color:var(--text3)">—</span>';
         return `<tr>
             <td><div class="prod-name">${esc(it.nombre||'—')}</div></td>
             <td class="qty-num">${it.cantidad||1}</td>
             <td class="price-cell">${mayCell}</td>
-            ${hasConfig ? `<td class="price-cell">$${(pFin||0).toLocaleString()}</td><td class="gain-cell">+$${Math.round(gain||0).toLocaleString()}</td>` : ''}
+            <td class="price-cell">${cliCell}</td>
+            <td class="gain-cell">${gain !== null && gain > 0 ? '+$' + Math.round(gain).toLocaleString() : '<span style="color:var(--text3)">—</span>'}</td>
         </tr>`;
     }).join('');
 
@@ -2901,7 +2851,8 @@ function card(p) {
                         <th>Producto</th>
                         <th style="text-align:center">Cant.</th>
                         <th style="text-align:right">Precio mayorista</th>
-                        ${hasConfig ? '<th style="text-align:right">Precio cliente</th><th style="text-align:right">Mi ganancia</th>' : ''}
+                        <th style="text-align:right">Precio cliente</th>
+                        <th style="text-align:right">Ganancia</th>
                     </tr></thead>
                     <tbody>${rows}</tbody>
                 </table>
@@ -2909,7 +2860,7 @@ function card(p) {
                 <div class="order-foot">
                     <div>
                         <div class="foot-meta"><strong>${items.length}</strong> prod. · <strong>${totalU}</strong> unid. · Inversión: <strong>$${Math.round(totalInv).toLocaleString()}</strong></div>
-                        ${hasConfig && ganancia > 0 ? `<div class="foot-gain">+$${Math.round(ganancia).toLocaleString()} de ganancia</div>` : ''}
+                        ${ganancia > 0 ? `<div class="foot-gain">+$${Math.round(ganancia).toLocaleString()} de ganancia</div>` : ''}
                     </div>
                     <div class="actions">
                         <button class="btn-act btn-pdf" onclick="${stop}downloadInvoicePDF('${p.id}')">
@@ -2960,16 +2911,17 @@ function closeSendConfirmModal() {
     _pendingSendId = null;
 }
 
-// _enviarPedidoReal: lógica real de envío a workerpagos, independiente del
-// modal de confirmación. La usan tanto el envío individual (confirmSendPedido)
-// como el envío masivo (confirmSendAll) — antes, "Enviar todos" llamaba a
-// sendPedido(), que SOLO abre el modal y nunca manda nada; con eso, el botón
-// "Enviar todos" no enviaba un solo pedido.
-// redirigirMP: si es false, no redirige a Mercado Pago al terminar (se usa
-// en el envío masivo, donde redirigir por cada pedido no tiene sentido).
-async function _enviarPedidoReal(id, { redirigirMP = true } = {}) {
+async function confirmSendPedido() {
+    if (!_pendingSendId) return;
+    const id = _pendingSendId;
+    _pendingSendId = null;
+    document.getElementById('send-confirm-modal').classList.remove('show');
+
     const p = pedidos.find(x => x.id === id);
-    if (!p) return { ok: false, error: 'Pedido no encontrado' };
+    if (!p) return;
+
+    const btn = document.getElementById('send-confirm-btn');
+    if (btn) { btn.textContent = 'Enviando...'; btn.disabled = true; }
 
     const nichoKey = cat(p);
     const ganancia = resellerGainOf(p);
@@ -2981,20 +2933,20 @@ async function _enviarPedidoReal(id, { redirigirMP = true } = {}) {
     //   - precioCosto            → precio MAYORISTA (costo real del revendedor)
     //   - costoMayoristaUnitario → mismo dato que precioCosto, con el nombre que
     //                              espera /api/panel-gestion en workerpagos
-    //   - id / productoId        → clave real del catálogo (1, 2, 3...), para que
-    //                              workerpagos resuelva el mayorista por ID y no
-    //                              por nombre.
+    // Antes acá se mandaba precio = precioMayoristaItem(it), lo que pisaba el
+    // precio del cliente con el mayorista al aprobar el pedido. Por eso al
+    // recargar, "Precio mayorista" mostraba el precio cliente y "Precio
+    // cliente"/"Mi ganancia" quedaban en $0 (no había dato real de cliente
+    // guardado, solo el mayorista repetido en el campo equivocado).
     const productosCosto = (p.items || []).map(it => {
         const pCliente   = resellerPriceFinal(it, nichoKey);
         const pMayorista = precioMayoristaItem(it);
         return {
-            id: it.productoId ?? null,
-            productoId: it.productoId ?? null,
             nombre: it.nombre,
             cantidad: Number(it.cantidad) || 1,
-            precio: pCliente,
-            precioCosto: pMayorista,
-            costoMayoristaUnitario: pMayorista
+            precio: pCliente,                       // precio CLIENTE (lo que cobra el revendedor)
+            precioCosto: pMayorista,                // precio MAYORISTA (costo real)
+            costoMayoristaUnitario: pMayorista       // alias para workerpagos /api/panel-gestion
         };
     });
 
@@ -3011,7 +2963,6 @@ async function _enviarPedidoReal(id, { redirigirMP = true } = {}) {
         estado: 'APROBADO',
         estadoPagoRevendedor: 'APROBADO',
         nicho: nichoKey,
-        categoria: nichoKey,
         productos: productosCosto,
         items: productosCosto,
         total: Math.round(totalInv),
@@ -3047,45 +2998,32 @@ async function _enviarPedidoReal(id, { redirigirMP = true } = {}) {
         if (res.ok) {
             let data = {};
             try { data = await res.json(); } catch(_) {}
+            // Marcar localmente como aprobado
             p.estado = 'pagado';
+            const pend = pedidos.filter(x => x.estado === 'pendiente').length;
+            const apro = pedidos.filter(x => x.estado === 'pagado').length;
+            document.getElementById('scnt-pendiente').textContent = pend;
+            document.getElementById('scnt-pagado').textContent    = apro;
+            renderAll();
+            toast('¡Pedido Enviado!', true);
+            // Redirigir a Mercado Pago con el link de pago que devuelve el worker
             const mpUrl = data.init_point || data.url || data.link_pago || data.payment_url || data.mp_url || null;
-            return { ok: true, mpUrl, totalInv, pedidoId: p.id };
-        }
-        const txt = await res.text().catch(() => '');
-        console.warn('workerpagos respondió', res.status, txt);
-        return { ok: false, error: 'HTTP ' + res.status };
-    } catch (e) {
-        console.error('Error envío workerpagos:', e);
-        return { ok: false, error: e.message || 'Error de conexión' };
-    }
-}
-
-async function confirmSendPedido() {
-    if (!_pendingSendId) return;
-    const id = _pendingSendId;
-    _pendingSendId = null;
-    document.getElementById('send-confirm-modal').classList.remove('show');
-
-    const btn = document.getElementById('send-confirm-btn');
-    if (btn) { btn.textContent = 'Enviando...'; btn.disabled = true; }
-
-    const resultado = await _enviarPedidoReal(id, { redirigirMP: true });
-
-    if (resultado.ok) {
-        const pend = pedidos.filter(x => x.estado === 'pendiente').length;
-        const apro = pedidos.filter(x => x.estado === 'pagado').length;
-        document.getElementById('scnt-pendiente').textContent = pend;
-        document.getElementById('scnt-pagado').textContent    = apro;
-        renderAll();
-        toast('¡Pedido Enviado!', true);
-        if (resultado.mpUrl) {
-            setTimeout(() => { window.location.href = resultado.mpUrl; }, 800);
+            if (mpUrl) {
+                setTimeout(() => { window.location.href = mpUrl; }, 800);
+            } else {
+                // Si el worker no devuelve URL, redirigir al worker con params para que genere el pago
+                const fallbackUrl = `${WORKER_PAGOS}?action=pagar&pedidoId=${encodeURIComponent(p.id)}&total=${Math.round(totalInv)}&codigo=${encodeURIComponent(currentCode)}`;
+                setTimeout(() => { window.location.href = fallbackUrl; }, 800);
+            }
         } else {
-            const fallbackUrl = `${WORKER_PAGOS}?action=pagar&pedidoId=${encodeURIComponent(id)}&total=${Math.round(resultado.totalInv)}&codigo=${encodeURIComponent(currentCode)}`;
-            setTimeout(() => { window.location.href = fallbackUrl; }, 800);
+            const txt = await res.text().catch(() => '');
+            console.warn('workerpagos respondió', res.status, txt);
+            toast('Error al enviar: HTTP ' + res.status, 'err');
+            if (btn) { btn.textContent = 'Enviar y pagar'; btn.disabled = false; }
         }
-    } else {
-        toast('Error al enviar: ' + (resultado.error || ''), 'err');
+    } catch(e) {
+        console.error('Error envío workerpagos:', e);
+        toast('Error de conexión al enviar', 'err');
         if (btn) { btn.textContent = 'Enviar y pagar'; btn.disabled = false; }
     }
 }
@@ -3107,18 +3045,8 @@ async function confirmSendAll() {
 
     let ok = 0, fail = 0;
     for (const p of toSend) {
-        // Antes: await sendPedido(p.id, null) — sendPedido SOLO abre el modal
-        // de confirmación, no manda nada. Por eso "Enviar todos" no enviaba
-        // ningún pedido de verdad. Ahora se llama directo a la función real.
-        const resultado = await _enviarPedidoReal(p.id, { redirigirMP: false });
-        if (resultado.ok) ok++; else fail++;
+        try { await sendPedido(p.id, null); ok++; } catch(_) { fail++; }
     }
-
-    const pend = pedidos.filter(x => x.estado === 'pendiente').length;
-    const apro = pedidos.filter(x => x.estado === 'pagado').length;
-    document.getElementById('scnt-pendiente').textContent = pend;
-    document.getElementById('scnt-pagado').textContent    = apro;
-    renderAll();
 
     btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Enviar todos`;
     btn.disabled = false;
