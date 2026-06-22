@@ -2699,13 +2699,28 @@ async function loadData() {
             const norm = _norm(p, 'pagado');
             if (!norm) return;
             if (seen.has(norm.id)) {
-                // Reemplazar TODO el pedido (items, precioCosto, etc.) con la
-                // versión aprobada, no solo el estado. Antes acá se hacía
-                // pedidos[idx].estado = 'pagado' y se descartaba `norm`
-                // completo, perdiendo el precioCosto que manda tienda.html
-                // al aprobar — eso era lo que rompía las estadísticas
-                // (ganancia/inversión) justo al pasar de pendiente a aprobado.
-                pedidos[seen.get(norm.id)] = norm;
+                const idx = seen.get(norm.id);
+                const existing = pedidos[idx];
+                // Siempre usar los items del aprobado porque traen precioCosto.
+                // Solo conservar datos del pendiente que el aprobado no traiga.
+                pedidos[idx] = {
+                    ...existing,
+                    ...norm,
+                    estado: 'pagado',
+                    // Si el aprobado trae items con precioCosto, usarlos.
+                    // Si no, combinar: poner precioCosto del pendiente en items del aprobado,
+                    // o simplemente quedarse con los del aprobado (que vienen de index.html con fix).
+                    items: (norm.items && norm.items.length > 0) ? norm.items.map((normItem, i) => {
+                        const oldItem = (existing.items || [])[i] || {};
+                        // Preferir precioCosto del aprobado; si no tiene, del pendiente
+                        const pCosto = (normItem.precioCosto && normItem.precioCosto > 0)
+                            ? normItem.precioCosto
+                            : (oldItem.precioCosto && oldItem.precioCosto > 0)
+                                ? oldItem.precioCosto
+                                : null;
+                        return { ...oldItem, ...normItem, precioCosto: pCosto };
+                    }) : existing.items,
+                };
             } else {
                 seen.set(norm.id, pedidos.length);
                 pedidos.push(norm);
