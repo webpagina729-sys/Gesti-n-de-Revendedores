@@ -1458,8 +1458,8 @@ function _precioRefCatalogo(nombre) {
 function precioMayoristaItem(item) {
     if (!item) return 0;
 
-    // FUENTE 1: precioCosto — puesto por workerpagos via _aplicarMayoristaDesdeWorkerpagos.
-    // NUNCA confundir con item.precio, que es el precio que paga el cliente.
+    // FUENTE 1: precioCosto — puesto por workerpagos via _aplicarMayoristaDesdeWorkerpagos
+    // o enviado en el payload al aprobar. NUNCA es item.precio (eso es el precio cliente).
     const pc = Number(item.precioCosto || 0);
     if (pc > 0) return pc;
 
@@ -1467,12 +1467,10 @@ function precioMayoristaItem(item) {
     const cmu = Number(item.costoMayoristaUnitario || 0);
     if (cmu > 0) return cmu;
 
-    // FUENTE 3: catálogo local por nombre (fallback para pedidos muy viejos
-    // que no tienen ninguno de los campos anteriores)
+    // FUENTE 3: catálogo local por nombre (fallback para pedidos viejos sin los campos anteriores)
     const ref = _precioRefCatalogo(item.nombre);
     if (ref != null) return ref;
 
-    // Sin dato de costo mayorista — el panel mostrará "—" para este ítem
     return 0;
 }
 
@@ -2700,7 +2698,15 @@ async function loadData() {
             const norm = _norm(p, 'pagado');
             if (!norm) return;
             if (seen.has(norm.id)) {
-                pedidos[seen.get(norm.id)].estado = 'pagado';
+                // El pedido ya existe (también vino de pendientes).
+                // Actualizar estado Y los items — los items de la versión
+                // aprobada tienen precioCosto guardado por workerpagos,
+                // mientras que los de pendientes lo tienen en null.
+                const existing = pedidos[seen.get(norm.id)];
+                existing.estado = 'pagado';
+                // Solo pisamos los items si la versión aprobada trae precioCosto real
+                const tieneCoston = norm.items.some(i => Number(i.precioCosto || 0) > 0);
+                if (tieneCoston) existing.items = norm.items;
             } else {
                 seen.set(norm.id, pedidos.length);
                 pedidos.push(norm);
@@ -2803,23 +2809,25 @@ function card(p) {
         </div>` : '<span style="font-size:12px;color:var(--text3)">Sin datos de envío</span>';
 
     const rows = items.map(it => {
-        // pMay = precio de COSTO mayorista (viene de workerpagos via precioCosto)
+        // pMay = costo mayorista (workerpagos), pCli = precio que paga el cliente (workerwebcliente)
         const pMay = precioMayoristaItem(it);
-        // pCli = precio que PAGA EL CLIENTE (viene de workerwebcliente via item.precio)
         const pCli = resellerPriceFinal(it, nichoKey);
         const gain = (pCli > 0 && pMay > 0) ? resellerGainForItem(it, nichoKey) : null;
         const mayCell = pMay > 0
             ? '$' + Math.round(pMay).toLocaleString()
-            : '<span style="color:var(--text3)" title="Pendiente de workerpagos">—</span>';
+            : '<span style="color:var(--text3)" title="Pendiente de aprobación">—</span>';
         const cliCell = pCli > 0
             ? '$' + Math.round(pCli).toLocaleString()
+            : '<span style="color:var(--text3)">—</span>';
+        const gainCell = gain !== null && gain > 0
+            ? '+$' + Math.round(gain).toLocaleString()
             : '<span style="color:var(--text3)">—</span>';
         return `<tr>
             <td><div class="prod-name">${esc(it.nombre||'—')}</div></td>
             <td class="qty-num">${it.cantidad||1}</td>
             <td class="price-cell">${mayCell}</td>
             <td class="price-cell">${cliCell}</td>
-            <td class="gain-cell">${gain !== null && gain > 0 ? '+$' + Math.round(gain).toLocaleString() : '<span style="color:var(--text3)">—</span>'}</td>
+            <td class="gain-cell">${gainCell}</td>
         </tr>`;
     }).join('');
 
