@@ -2699,32 +2699,14 @@ async function loadData() {
             const norm = _norm(p, 'pagado');
             if (!norm) return;
             if (seen.has(norm.id)) {
-                const existing = pedidos[seen.get(norm.id)];
-                existing.estado = 'pagado';
-                // Si la versión aprobada trae items con precioCosto real (mayorista),
-                // reemplazar los items para que los cálculos sean correctos.
-                // Sin esto, los items quedan de la versión pendiente donde precioCosto=null.
-                if (norm.items && norm.items.length > 0) {
-                    const tienePrecios = norm.items.some(it => it.precioCosto != null && it.precioCosto > 0);
-                    if (tienePrecios) {
-                        existing.items = norm.items;
-                    } else if (existing.items && existing.items.length > 0) {
-                        // La versión aprobada no tiene precioCosto pero sí puede tener
-                        // precio (cliente) que la pendiente no tiene — fusionar campo a campo
-                        norm.items.forEach((normIt, idx) => {
-                            if (existing.items[idx]) {
-                                // Conservar precioCosto de la versión pendiente si la aprobada no lo tiene
-                                if (normIt.precioCosto == null && existing.items[idx].precioCosto != null) {
-                                    normIt.precioCosto = existing.items[idx].precioCosto;
-                                }
-                                // Conservar precio cliente de la pendiente si es mejor dato
-                                if (!normIt.precio && existing.items[idx].precio) {
-                                    normIt.precio = existing.items[idx].precio;
-                                }
-                                existing.items[idx] = normIt;
-                            }
-                        });
-                    }
+                // Pedido existe en pendientes: actualizar estado Y reemplazar items
+                // con los de la versión aprobada (que traen precioCosto real de workerpagos)
+                const idx = seen.get(norm.id);
+                pedidos[idx].estado = 'pagado';
+                // Si la versión aprobada tiene items con precioCosto real, usarlos
+                const aproTieneCosto = (norm.items || []).some(i => Number(i.precioCosto) > 0);
+                if (aproTieneCosto) {
+                    pedidos[idx].items = norm.items;
                 }
             } else {
                 seen.set(norm.id, pedidos.length);
@@ -2833,7 +2815,7 @@ function card(p) {
         const gain = resellerGainForItem(it, nichoKey);
         const mayCell = pMay > 0 ? '$' + Math.round(pMay).toLocaleString() : '<span style="color:var(--text3)" title="Pendiente de workerpagos">—</span>';
         const finCell = pFin > 0 ? '$' + Math.round(pFin).toLocaleString() : '<span style="color:var(--text3)">—</span>';
-        const gainCell = (pFin > 0 && pMay > 0) ? `<span style="color:var(--green)">+$${Math.round(gain).toLocaleString()}</span>` : '<span style="color:var(--text3)">—</span>';
+        const gainCell = (pFin > 0 && pMay > 0) ? '+$' + Math.round(gain).toLocaleString() : '<span style="color:var(--text3)">—</span>';
         return `<tr>
             <td><div class="prod-name">${esc(it.nombre||'—')}</div></td>
             <td class="qty-num">${it.cantidad||1}</td>
@@ -4106,9 +4088,9 @@ document.getElementById('gift-modal').addEventListener('click', function(e) { if
             if (!msg.pedidoId) return;
 
             if (msg.accion === 'aprobado') {
-                // Siempre recargar para obtener los items actualizados con precioCosto
-                // de workerpagos. Solo cambiar el estado localmente no es suficiente:
-                // los items de la versión pendiente no tienen precioCosto (mayorista).
+                // Siempre recargar al aprobar: necesitamos los items actualizados
+                // con precioCosto real desde workerpagos. Cambiar solo el estado
+                // local deja precioCosto=null y se pierden precio cliente y ganancia.
                 loadData();
             } else if (msg.accion === 'eliminado' || msg.accion === 'no_aprobado') {
                 // Eliminar del panel local sin recargar
