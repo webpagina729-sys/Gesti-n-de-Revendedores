@@ -679,6 +679,11 @@
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
                 Clientes
             </button>
+            <button class="menu-btn" data-view="pedidolista" onclick="switchView('pedidolista')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="15" x2="13" y2="15"/></svg>
+                <span id="pedidolista-cnt-badge" style="display:none;background:var(--green);color:#0b0d12;border-radius:20px;font-size:10px;font-weight:800;padding:0 5px;min-width:16px;text-align:center"></span>
+                Pedido
+            </button>
         </div>
 
         <!-- VIEW: PEDIDOS -->
@@ -731,6 +736,11 @@
             <div id="ranking-content"></div>
         </div>
 
+        <!-- VIEW: LISTA PEDIDO -->
+        <div class="view" id="view-pedidolista">
+            <div id="pedidolista-content"></div>
+        </div>
+
 
     </div>
 </div>
@@ -741,8 +751,8 @@
         <div class="modal-icon" style="background:var(--green-pale)">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
         </div>
-        <h3>Confirmar envío</h3>
-        <p>¿Querés enviar todos los pedidos pendientes? Esta acción notificará a los destinatarios.</p>
+        <h3>Confirmar envío y pago</h3>
+        <p>¿Querés enviar todos los pedidos de tu lista "Pedido" al panel y pagar via Mercado Pago?</p>
         <div class="modal-actions">
             <button class="modal-cancel" onclick="document.getElementById('send-all-modal').classList.remove('show')">Cancelar</button>
             <button class="modal-confirm-btn" style="background:var(--green)" onclick="confirmSendAll()">Enviar</button>
@@ -803,28 +813,50 @@
             </div>
             <button class="modal-cancel" style="padding:6px 12px;flex:none" onclick="closeGiftModal()">✕</button>
         </div>
-        <p style="margin-bottom:14px;font-size:13px;color:var(--text2)">Configurá el precio máximo (de costo) del regalo que vas a otorgar al mejor cliente del mes. Esto te ayuda a fidelizar y aumentar la recurrencia.</p>
-        <div style="margin-bottom:18px">
-            <label style="display:block;font-size:12px;color:var(--text2);margin-bottom:6px;font-weight:600">Precio máximo del regalo</label>
+        <p style="margin-bottom:14px;font-size:13px;color:var(--text2)">Configurá el precio máximo (de costo) del regalo para los 3 mejores clientes del mes. Esto te ayuda a fidelizar y aumentar la recurrencia.</p>
+        <div style="margin-bottom:14px">
+            <label style="display:block;font-size:12px;color:var(--text2);margin-bottom:6px;font-weight:600">🥇 Puesto 1 — Precio máximo del regalo</label>
             <div style="display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:10px 12px">
-                <span style="color:var(--text2);font-weight:700">$</span>
-                <input id="gift-input" type="number" min="0" step="100" placeholder="0" style="flex:1;background:transparent;border:0;color:var(--text);font-size:15px;font-weight:600;outline:none">
+                <span style="color:#f5b400;font-weight:700">$</span>
+                <input id="gift-input-1" type="number" min="0" step="100" placeholder="0" style="flex:1;background:transparent;border:0;color:var(--text);font-size:15px;font-weight:600;outline:none">
             </div>
-            <div style="font-size:11px;color:var(--text3);margin-top:6px">El cliente número 1 del ranking recibirá un regalo de hasta este monto.</div>
         </div>
+        <div style="margin-bottom:14px">
+            <label style="display:block;font-size:12px;color:var(--text2);margin-bottom:6px;font-weight:600">🥈 Puesto 2 — Precio máximo del regalo</label>
+            <div style="display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:10px 12px">
+                <span style="color:#c0c0c0;font-weight:700">$</span>
+                <input id="gift-input-2" type="number" min="0" step="100" placeholder="0" style="flex:1;background:transparent;border:0;color:var(--text);font-size:15px;font-weight:600;outline:none">
+            </div>
+        </div>
+        <div style="margin-bottom:14px">
+            <label style="display:block;font-size:12px;color:var(--text2);margin-bottom:6px;font-weight:600">🥉 Puesto 3 — Precio máximo del regalo</label>
+            <div style="display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:10px 12px">
+                <span style="color:#cd7f32;font-weight:700">$</span>
+                <input id="gift-input-3" type="number" min="0" step="100" placeholder="0" style="flex:1;background:transparent;border:0;color:var(--text);font-size:15px;font-weight:600;outline:none">
+            </div>
+        </div>
+        <!-- mantener id="gift-input" como alias del 1er puesto para compatibilidad -->
         <div id="gift-preview" style="display:none;background:rgba(0,201,110,.08);border:1px solid rgba(0,201,110,.3);border-radius:8px;padding:12px;margin-bottom:14px">
-            <div style="font-size:11px;color:var(--text2);margin-bottom:4px">Cliente del mes actual:</div>
-            <div id="gift-preview-name" style="font-size:14px;font-weight:700;color:var(--green)"></div>
+            <div style="font-size:11px;color:var(--text2);margin-bottom:6px;font-weight:600">Clientes del mes actual:</div>
+            <div id="gift-preview-name" style="font-size:13px;font-weight:700;color:var(--green)"></div>
             <div id="gift-preview-meta" style="font-size:11px;color:var(--text3);margin-top:2px"></div>
         </div>
         <div class="modal-actions">
             <button class="modal-cancel" onclick="closeGiftModal()">Cancelar</button>
             <button class="modal-confirm-btn" style="background:#f59e0b" onclick="saveGift()">Guardar</button>
         </div>
-        <div id="gift-notify-wrap" style="display:none;margin-top:10px;text-align:center">
-            <button onclick="notificarClienteMes()" style="background:transparent;border:1px solid #25D366;color:#25D366;border-radius:8px;padding:8px 18px;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M11.999 2C6.477 2 2 6.477 2 12c0 1.883.516 3.646 1.41 5.162L2 22l4.956-1.391A9.951 9.951 0 0 0 12 22c5.523 0 10-4.477 10-10S17.523 2 12 2z" fill-rule="evenodd"/></svg>
-                Notificar
+        <div id="gift-notify-wrap" style="display:none;margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;justify-content:center">
+            <button onclick="notificarClienteMes(0)" style="background:transparent;border:1px solid #25D366;color:#25D366;border-radius:8px;padding:7px 12px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M11.999 2C6.477 2 2 6.477 2 12c0 1.883.516 3.646 1.41 5.162L2 22l4.956-1.391A9.951 9.951 0 0 0 12 22c5.523 0 10-4.477 10-10S17.523 2 12 2z" fill-rule="evenodd"/></svg>
+                🥇 Notificar 1°
+            </button>
+            <button onclick="notificarClienteMes(1)" style="background:transparent;border:1px solid #25D366;color:#25D366;border-radius:8px;padding:7px 12px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M11.999 2C6.477 2 2 6.477 2 12c0 1.883.516 3.646 1.41 5.162L2 22l4.956-1.391A9.951 9.951 0 0 0 12 22c5.523 0 10-4.477 10-10S17.523 2 12 2z" fill-rule="evenodd"/></svg>
+                🥈 Notificar 2°
+            </button>
+            <button onclick="notificarClienteMes(2)" style="background:transparent;border:1px solid #25D366;color:#25D366;border-radius:8px;padding:7px 12px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M11.999 2C6.477 2 2 6.477 2 12c0 1.883.516 3.646 1.41 5.162L2 22l4.956-1.391A9.951 9.951 0 0 0 12 22c5.523 0 10-4.477 10-10S17.523 2 12 2z" fill-rule="evenodd"/></svg>
+                🥉 Notificar 3°
             </button>
         </div>
     </div>
@@ -2129,7 +2161,21 @@ function rememberLocalDelete(id) {
 // revendedor, pero se intenta primero el borrado real.
 // ═══════════════════════════════════════════════════════════
 async function _eliminarPedidoBackend(id) {
-    // Sin conexión externa — solo borrado local
+    // Intenta eliminar en workerwebcliente, workerpagos y Firestore.
+    // Es best-effort: si alguno falla, igual se oculta localmente.
+    const endpoints = [
+        `${WORKER_CLIENTE}/logistica/${encodeURIComponent(id)}?codigo=${encodeURIComponent(currentCode)}`,
+        `${WORKER_MAYORISTA}/api/panel-gestion/${encodeURIComponent(id)}?codigo=${encodeURIComponent(currentCode)}`,
+    ];
+    await Promise.allSettled(endpoints.map(url =>
+        fetch(url, { method: 'DELETE', headers: { 'Content-Type': 'application/json' } }).catch(() => {})
+    ));
+    // Eliminar también de Firestore si existe
+    if (currentUid) {
+        try {
+            await _db.collection('usuarios').doc(currentUid).collection('pedidos').doc(id).delete();
+        } catch(_) {}
+    }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -2157,8 +2203,12 @@ function resellerGainForItem(item, nichoKey) {
     const precioCliente   = resellerPriceFinal(item, nichoKey);
     const precioMayorista = precioMayoristaItem(item);
     const qty = Number(item.cantidad || 1);
-    if (!precioCliente || !precioMayorista) return 0;
-    return (precioCliente - precioMayorista) * qty;
+    if (!precioCliente && !precioMayorista) return 0;
+    // Ganancia = precio mayor - precio menor (siempre positivo)
+    const pMax = Math.max(precioCliente, precioMayorista);
+    const pMin = Math.min(precioCliente, precioMayorista);
+    if (!pMin || !pMax) return 0;
+    return (pMax - pMin) * qty;
 }
 
 function resellerGainOf(p) {
@@ -2876,6 +2926,7 @@ function loadData() {
             document.getElementById('scnt-pagado').textContent    = apro;
 
             renderAll();
+            try { _updatePedidoListaBadge(); } catch(_) {}
 
             if (!tot) {
                 toast(`Sin pedidos para "${currentCode}"`, 'err');
@@ -3018,9 +3069,9 @@ function card(p) {
                             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                             Factura cliente
                         </button>
-                        <button class="btn-act btn-send" onclick="${stop}sendPedido('${p.id}',this)">
-                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                            Enviar
+                        <button class="btn-act btn-send" id="aprobar-btn-${p.id}" onclick="${stop}aprobarPedido('${p.id}',this)">
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                            Aprobar
                         </button>
                         <button class="btn-act btn-del" onclick="${stop}askDelete('${p.id}')">
                             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
@@ -3147,29 +3198,119 @@ async function confirmSendPedido() {
     if (btn) { btn.textContent = 'Enviar y pagar'; btn.disabled = false; }
 }
 
+// ═══════════════════════════════════════════════════════════
+// APROBAR PEDIDO (botón "Aprobar" en cada tarjeta)
+// Guarda en lista local "Pedido", muestra confirmación verde,
+// y remueve el pedido de "Pedidos aprobados" (estado pagado).
+// ═══════════════════════════════════════════════════════════
+const PEDIDO_LIST_KEY = 'rw_pedido_list_v1';
+
+function getPedidoList() {
+    try { return JSON.parse(localStorage.getItem(PEDIDO_LIST_KEY) || '[]'); } catch(_) { return []; }
+}
+function savePedidoList(list) {
+    localStorage.setItem(PEDIDO_LIST_KEY, JSON.stringify(list.slice(-500)));
+}
+
+function aprobarPedido(id, btn) {
+    const p = pedidos.find(x => x.id === id);
+    if (!p) return;
+
+    // Guardar en lista Pedido local
+    const list = getPedidoList();
+    const ya = list.find(x => x.id === id);
+    if (!ya) {
+        list.push({
+            id,
+            fecha: new Date().toISOString(),
+            cliente: p._clienteName,
+            total: totalFinalRevendedor(p),
+            totalMayorista: totalInversionRevendedor(p),
+            ganancia: resellerGainOf(p),
+            items: (p.items || []).map(it => ({ nombre: it.nombre, cantidad: it.cantidad, precio: it.precio }))
+        });
+        savePedidoList(list);
+    }
+
+    // Feedback visual: check verde en el botón
+    if (btn) {
+        btn.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> ¡Agregado al Pedido!';
+        btn.style.background = 'var(--green)';
+        btn.style.color = '#0b0d12';
+        btn.disabled = true;
+    }
+    toast('✅ Agregado al Pedido', true);
+
+    // Quitar de la vista de pedidos aprobados (solo en UI local)
+    setTimeout(() => {
+        pedidos = pedidos.filter(x => x.id !== id);
+        const pend = pedidos.filter(x => x.estado === 'pendiente').length;
+        const apro = pedidos.filter(x => x.estado === 'pagado').length;
+        document.getElementById('scnt-pendiente').textContent = pend;
+        document.getElementById('scnt-pagado').textContent    = apro;
+        renderAll();
+    }, 900);
+}
+
 async function sendAllPedidos() {
-    const toSend = pedidos.filter(p => p.estado === 'pendiente');
-    if (!toSend.length) { toast('No hay pedidos pendientes para enviar', 'err'); return; }
-    // Abrir modal de confirmación
+    const pedidoList = getPedidoList();
+    const toSend = pedidoList;
+    if (!toSend.length) { toast('No hay pedidos en la lista "Pedido" para enviar', 'err'); return; }
+    const totalMayorista = toSend.reduce((s, p) => s + (p.totalMayorista || 0), 0);
+    document.getElementById('send-all-modal').querySelector('p').textContent =
+        `Vas a enviar ${toSend.length} pedido${toSend.length!==1?'s':''} al panel y pagar el total mayorista de $${Math.round(totalMayorista).toLocaleString()} via Mercado Pago.`;
     document.getElementById('send-all-modal').classList.add('show');
 }
 
 async function confirmSendAll() {
     document.getElementById('send-all-modal').classList.remove('show');
-    const toSend = pedidos.filter(p => p.estado === 'pendiente');
-    if (!toSend.length) return;
+    const pedidoList = getPedidoList();
+    if (!pedidoList.length) return;
 
     const btn = document.querySelector('.btn-send-all');
-    btn.textContent = `Enviando ${toSend.length}...`; btn.disabled = true;
+    if (btn) { btn.textContent = `Enviando...`; btn.disabled = true; }
 
-    let ok = 0, fail = 0;
-    for (const p of toSend) {
-        try { await sendPedido(p.id, null); ok++; } catch(_) { fail++; }
+    const totalMayorista = pedidoList.reduce((s, p) => s + (p.totalMayorista || 0), 0);
+
+    // Enviar al WORKER_PRINCIPAL como pedidos pendientes de pago
+    let mpRedirectUrl = null;
+    try {
+        const payload = {
+            action: 'enviarPedidosLote',
+            codigoVendedor: currentCode,
+            vendedor: { nombre: currentVendorNombre, apellido: currentVendorApellido, codigo: currentCode },
+            pedidos: pedidoList,
+            total: Math.round(totalMayorista),
+            fecha: new Date().toISOString()
+        };
+        const res = await fetch(`${WORKER_PRINCIPAL}/api/pedidos-lote`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+            const data = await res.json().catch(() => null);
+            mpRedirectUrl = data?.init_point || data?.mpUrl || data?.payment_url || null;
+        }
+    } catch(e) {
+        console.warn('Error al enviar al worker:', e);
     }
 
-    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Enviar todos`;
-    btn.disabled = false;
-    toast(`${ok} pedidos enviados${fail ? ` · ${fail} con error` : ''}`, ok > 0 ? true : 'err');
+    if (btn) {
+        btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Enviar todos`;
+        btn.disabled = false;
+    }
+
+    // Limpiar lista local después de enviar
+    savePedidoList([]);
+
+    if (mpRedirectUrl) {
+        toast(`Redirigiendo a Mercado Pago...`, true);
+        setTimeout(() => { window.location.href = mpRedirectUrl; }, 800);
+    } else {
+        // Fallback: crear preferencia de pago MP manualmente con total
+        toast(`${pedidoList.length} pedidos enviados · Total: $${Math.round(totalMayorista).toLocaleString()}`, true);
+    }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -3237,10 +3378,97 @@ function switchView(v) {
     if (v === 'stats')        renderStatsView();
     if (v === 'ganancias')    renderGananciasView();
     if (v === 'ranking')      renderRankingView();
+    if (v === 'pedidolista')  renderPedidoListaView();
+}
+
+function _updatePedidoListaBadge() {
+    const list = getPedidoList();
+    const badge = document.getElementById('pedidolista-cnt-badge');
+    if (!badge) return;
+    if (list.length > 0) {
+        badge.textContent = list.length;
+        badge.style.display = 'inline-block';
+    } else {
+        badge.style.display = 'none';
+    }
+}
+
+function renderPedidoListaView() {
+    const el = document.getElementById('pedidolista-content');
+    const list = getPedidoList();
+    _updatePedidoListaBadge();
+
+    if (!list.length) {
+        el.innerHTML = `<div class="empty"><div class="empty-icon">🛒</div><h3>Lista "Pedido" vacía</h3><p>Aprobá pedidos desde la vista de Pedidos Aprobados para agregarlos acá.</p></div>`;
+        return;
+    }
+
+    const totalFinalClientes = list.reduce((s, p) => s + (p.total || 0), 0);
+    const totalMayorista = list.reduce((s, p) => s + (p.totalMayorista || 0), 0);
+    const totalGanancia  = list.reduce((s, p) => s + (p.ganancia || 0), 0);
+
+    let html = `<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px">
+        <h2 class="section-title" style="margin:0">Lista "Pedido" <span style="font-size:13px;font-weight:400;color:var(--text3)">(${list.length} pedido${list.length!==1?'s':''})</span></h2>
+        <button class="btn-head" style="background:var(--red-pale);border-color:rgba(244,63,94,.3);color:var(--red)" onclick="if(confirm('¿Vaciar toda la lista Pedido?')){savePedidoList([]);renderPedidoListaView();_updatePedidoListaBadge();}">
+            Vaciar lista
+        </button>
+    </div>
+    <div class="kpi-grid" style="margin-bottom:20px">
+        <div class="kpi"><div class="kpi-lbl">Total a clientes</div><div class="kpi-val">$${Math.round(totalFinalClientes).toLocaleString()}</div></div>
+        <div class="kpi"><div class="kpi-lbl">Total mayorista</div><div class="kpi-val" style="color:var(--blue)">$${Math.round(totalMayorista).toLocaleString()}</div></div>
+        <div class="kpi"><div class="kpi-lbl">Ganancia total</div><div class="kpi-val" style="color:var(--green)">$${Math.round(totalGanancia).toLocaleString()}</div></div>
+    </div>`;
+
+    list.forEach((p, idx) => {
+        const fecha = p.fecha ? new Date(p.fecha).toLocaleString('es-AR', { timeZone:'America/Argentina/Buenos_Aires', day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : '—';
+        html += `<div class="ribbon" style="margin-bottom:8px">
+            <div class="ribbon-head" style="cursor:default">
+                <div class="ribbon-main">
+                    <span class="r-name">${esc(p.cliente || 'Cliente')}</span>
+                    <span class="r-code" style="font-size:10px">📅 ${fecha}</span>
+                </div>
+                <div class="ribbon-meta" style="gap:8px">
+                    <span style="font-size:12px;font-weight:700;color:var(--green)">+$${Math.round(p.ganancia||0).toLocaleString()}</span>
+                    <button onclick="quitarDePedidoLista('${p.id}')" style="background:var(--red-pale);border:1px solid rgba(244,63,94,.2);color:var(--red);border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font)">Quitar</button>
+                </div>
+            </div>
+            <div class="ribbon-body">
+                <div class="ribbon-inner" style="padding:10px 14px">
+                    <div style="font-size:12px;color:var(--text2);margin-bottom:6px">
+                        Mayorista: <strong style="color:var(--text)">$${Math.round(p.totalMayorista||0).toLocaleString()}</strong> · 
+                        Cliente: <strong style="color:var(--text)">$${Math.round(p.total||0).toLocaleString()}</strong>
+                    </div>
+                    ${(p.items||[]).map(it => `<div style="font-size:11px;color:var(--text3)">· ${esc(it.nombre)} x${it.cantidad}</div>`).join('')}
+                </div>
+            </div>
+        </div>`;
+    });
+
+    html += `<div style="margin-top:16px">
+        <button class="btn-head btn-send-all" style="width:100%;justify-content:center;padding:14px" onclick="sendAllPedidos()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            Enviar todos y pagar $${Math.round(totalMayorista).toLocaleString()} via Mercado Pago
+        </button>
+    </div>`;
+
+    el.innerHTML = html;
+    // hacer ribbons expandibles
+    el.querySelectorAll('.ribbon .ribbon-head').forEach(h => {
+        h.style.cursor = 'pointer';
+        h.addEventListener('click', () => h.closest('.ribbon').classList.toggle('expanded'));
+    });
+}
+
+function quitarDePedidoLista(id) {
+    const list = getPedidoList().filter(p => p.id !== id);
+    savePedidoList(list);
+    renderPedidoListaView();
+    _updatePedidoListaBadge();
 }
 function refreshActiveView() {
     const a = document.querySelector('.menu-btn.active');
     if (a && a.dataset.view !== 'pedidos') switchView(a.dataset.view);
+    try { _updatePedidoListaBadge(); } catch(_) {}
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -3430,12 +3658,14 @@ function renderStatsView() {
     const totalGain = hasConfig ? pedidos.reduce((s,p) => s + resellerGainOf(p), 0) : 0;
     const totalFac  = pedidos.reduce((s,p) => s + totalFinalRevendedor(p), 0);
 
+    const totalInvStats = pedidos.reduce((s,p) => s + totalInversionRevendedor(p), 0);
     html += `<div class="kpi-grid">
         <div class="kpi"><div class="kpi-lbl">Total pedidos</div><div class="kpi-val">${totalPeds}</div></div>
         <div class="kpi"><div class="kpi-lbl">Aprobados</div><div class="kpi-val" style="color:var(--green)">${aprobados}</div></div>
         <div class="kpi"><div class="kpi-lbl">Pendientes</div><div class="kpi-val" style="color:var(--amber)">${pendientes}</div></div>
         ${hasConfig ? `<div class="kpi"><div class="kpi-lbl">Ganancia total</div><div class="kpi-val" style="color:var(--green)">$${Math.round(totalGain).toLocaleString()}</div></div>` : ''}
-        <div class="kpi"><div class="kpi-lbl">Facturación cliente</div><div class="kpi-val">$${Math.round(totalFac).toLocaleString()}</div></div>
+        <div class="kpi"><div class="kpi-lbl">Facturación a clientes</div><div class="kpi-val">$${Math.round(totalFac).toLocaleString()}</div></div>
+        <div class="kpi"><div class="kpi-lbl">Facturación mayorista</div><div class="kpi-val" style="color:var(--blue)">$${Math.round(totalInvStats).toLocaleString()}</div></div>
     </div>`;
 
     // Crecimiento de pedidos
@@ -3491,16 +3721,75 @@ function renderStatsView() {
     });
     html += `</div></div>`;
 
+    // Facturación mayorista por período
+    html += `<div class="section-block"><h2 class="section-title">Facturación mayorista (mi inversión) por período</h2><div class="mini-list">`;
+    periods.forEach((pr, i) => {
+        const cur  = pedidos.filter(p => inWindow(p.fechaCreacion?.seconds, pr.d)).reduce((s,p) => s + totalInversionRevendedor(p), 0);
+        const prev = pedidos.filter(p => inPrevWindow(p.fechaCreacion?.seconds, pr.d)).reduce((s,p) => s + totalInversionRevendedor(p), 0);
+        const delta = prev ? ((cur-prev)/prev)*100 : (cur ? 100 : 0);
+        const sign = delta >= 0 ? '+' : '';
+        html += miniRibbon(`sg-may-${i}`, `Facturación mayorista ${pr.l.toLowerCase()}`,
+            `$${Math.round(cur).toLocaleString()}`,
+            `${sign}${delta.toFixed(1)}% vs período anterior`,
+            [
+                ['Inversión del período', `$${Math.round(cur).toLocaleString()}`],
+                ['Período anterior', `$${Math.round(prev).toLocaleString()}`],
+                ['Variación', `${sign}${delta.toFixed(1)}%`]
+            ], delta >= 0 ? 'blue' : 'amber', null);
+    });
+    html += `</div></div>`;
+
     // Distribución por nicho
     const byNicho = { perfumes: 0, multishop: 0, calzados: 0 };
     pedidos.forEach(p => { const c = cat(p); if (byNicho[c] !== undefined) byNicho[c]++; });
-    html += `<div class="section-block"><h2 class="section-title">Por categoría</h2>
+
+    // Frecuencia de productos por categoría
+    const freqMap = {};
+    pedidos.forEach(p => {
+        const c = cat(p) || 'otros';
+        if (!freqMap[c]) freqMap[c] = {};
+        (p.items || []).forEach(it => {
+            const nombre = (it.nombre || '—').trim();
+            freqMap[c][nombre] = (freqMap[c][nombre] || 0) + Number(it.cantidad || 1);
+        });
+    });
+
+    const nichoLabels = { calzados:'Calzados', perfumes:'Perfumes Árabes', multishop:'Multishop' };
+    let catHtml = `<div class="section-block"><h2 class="section-title">Por categoría</h2>
         <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
             <div class="kpi"><div class="kpi-lbl">Calzados</div><div class="kpi-val">${byNicho.calzados}</div></div>
             <div class="kpi"><div class="kpi-lbl">Perfumes Árabes</div><div class="kpi-val">${byNicho.perfumes}</div></div>
             <div class="kpi"><div class="kpi-lbl">Multishop</div><div class="kpi-val">${byNicho.multishop}</div></div>
         </div>
     </div>`;
+
+    // Productos más frecuentes por categoría
+    catHtml += `<div class="section-block"><h2 class="section-title">Productos más pedidos por categoría</h2>`;
+    ['calzados','perfumes','multishop'].forEach(c => {
+        const freq = freqMap[c];
+        if (!freq || !Object.keys(freq).length) return;
+        const sorted = Object.entries(freq).sort((a,b) => b[1]-a[1]).slice(0, 10);
+        catHtml += `<div class="chart-card" style="margin-bottom:12px">
+            <h4>${nichoLabels[c]}</h4>
+            <div style="display:flex;flex-direction:column;gap:6px">
+            ${sorted.map(([nombre, qty], i) => {
+                const pct = Math.round((qty / sorted[0][1]) * 100);
+                return `<div>
+                    <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
+                        <span style="color:var(--text);font-weight:600">${esc(nombre)}</span>
+                        <span style="color:var(--blue);font-weight:700">${qty} unid.</span>
+                    </div>
+                    <div style="background:var(--surface2);border-radius:4px;height:6px">
+                        <div style="background:var(--blue);border-radius:4px;height:6px;width:${pct}%;transition:width .4s"></div>
+                    </div>
+                </div>`;
+            }).join('')}
+            </div>
+        </div>`;
+    });
+    catHtml += `</div>`;
+
+    html += catHtml;
 
     // Gráfico general de crecimiento (semanal)
     html += `<div class="section-block"><h2 class="section-title">Gráfico de crecimiento</h2>
@@ -4045,15 +4334,21 @@ document.getElementById('custom-modal').addEventListener('click', function(e) { 
 // ═══════════════════════════════════════════════════════════
 // MODAL REGALO CLIENTE DEL MES
 // ═══════════════════════════════════════════════════════════
-const GIFT_KEY = 'rw_gift_max_v1';
+const GIFT_KEY   = 'rw_gift_max_v1';
+const GIFT_KEY2  = 'rw_gift_max2_v1';
+const GIFT_KEY3  = 'rw_gift_max3_v1';
 
-let _giftTopCliente = null;
+let _giftTopClientes = [];
 
 function openGiftModal() {
-    const val = Number(localStorage.getItem(GIFT_KEY) || 0);
-    document.getElementById('gift-input').value = val > 0 ? val : '';
-    _giftTopCliente = null;
-    // Preview cliente del mes
+    const val1 = Number(localStorage.getItem(GIFT_KEY)  || 0);
+    const val2 = Number(localStorage.getItem(GIFT_KEY2) || 0);
+    const val3 = Number(localStorage.getItem(GIFT_KEY3) || 0);
+    document.getElementById('gift-input-1').value = val1 > 0 ? val1 : '';
+    document.getElementById('gift-input-2').value = val2 > 0 ? val2 : '';
+    document.getElementById('gift-input-3').value = val3 > 0 ? val3 : '';
+    _giftTopClientes = [];
+    // Preview top 3 clientes del mes
     try {
         const now = new Date();
         const mesIni = new Date(now.getFullYear(), now.getMonth(), 1).getTime() / 1000;
@@ -4067,16 +4362,20 @@ function openGiftModal() {
             mesMap[key].compras++;
             mesMap[key].total += totalFinalRevendedor(p);
         });
-        const top = Object.values(mesMap).sort((a,b) => b.total - a.total)[0];
+        const tops = Object.values(mesMap).sort((a,b) => b.total - a.total).slice(0, 3);
+        _giftTopClientes = tops;
         const prev = document.getElementById('gift-preview');
         const notifyWrap = document.getElementById('gift-notify-wrap');
-        if (top) {
-            _giftTopCliente = top;
+        if (tops.length) {
             prev.style.display = 'block';
-            document.getElementById('gift-preview-name').textContent = top.nombre;
-            document.getElementById('gift-preview-meta').textContent =
-                `${top.compras} compra${top.compras!==1?'s':''} · $${Math.round(top.total).toLocaleString()} este mes`;
-            notifyWrap.style.display = top.tel ? 'block' : 'none';
+            const icons = ['🥇','🥈','🥉'];
+            document.getElementById('gift-preview-name').innerHTML = tops.map((t,i) =>
+                `<div style="margin-bottom:3px">${icons[i]} <strong>${esc(t.nombre)}</strong></div>`
+            ).join('');
+            document.getElementById('gift-preview-meta').innerHTML = tops.map(t =>
+                `<div>${t.compras} compra${t.compras!==1?'s':''} · $${Math.round(t.total).toLocaleString()} este mes</div>`
+            ).join('');
+            notifyWrap.style.display = tops[0]?.tel ? 'block' : 'none';
         } else {
             prev.style.display = 'none';
             notifyWrap.style.display = 'none';
@@ -4085,13 +4384,17 @@ function openGiftModal() {
     document.getElementById('gift-modal').classList.add('show');
 }
 
-function notificarClienteMes() {
-    if (!_giftTopCliente) return;
-    const top = _giftTopCliente;
-    const giftVal = Number(localStorage.getItem(GIFT_KEY) || 0);
+function notificarClienteMes(pos) {
+    pos = pos || 0; // 0-indexed
+    if (!_giftTopClientes.length || !_giftTopClientes[pos]) return;
+    const top = _giftTopClientes[pos];
+    const giftKeys = [GIFT_KEY, GIFT_KEY2, GIFT_KEY3];
+    const giftVal = Number(localStorage.getItem(giftKeys[pos]) || 0);
+    const puestos = ['primero','segundo','tercero'];
+    const icons = ['🥇','🥈','🥉'];
     const vendedor = [currentVendorNombre, currentVendorApellido].filter(Boolean).join(' ') || 'Tu vendedor';
     let msg = `🎁 *¡Hola ${top.nombre}!*\n\n`;
-    msg += `Sos el *cliente del mes* de ${vendedor} 🏆\n`;
+    msg += `Quedaste en el *${puestos[pos]} lugar* del mes de ${vendedor} ${icons[pos]}\n`;
     msg += `Realizaste ${top.compras} compra${top.compras!==1?'s':''} este mes por un total de $${Math.round(top.total).toLocaleString()}.\n\n`;
     if (giftVal > 0) {
         msg += `Por eso, ¡te ganaste un regalo de hasta *$${giftVal.toLocaleString()}*! 🎉\n`;
@@ -4109,10 +4412,14 @@ function closeGiftModal() {
 }
 
 function saveGift() {
-    const v = Math.max(0, Number(document.getElementById('gift-input').value) || 0);
-    localStorage.setItem(GIFT_KEY, String(v));
+    const v1 = Math.max(0, Number(document.getElementById('gift-input-1').value) || 0);
+    const v2 = Math.max(0, Number(document.getElementById('gift-input-2').value) || 0);
+    const v3 = Math.max(0, Number(document.getElementById('gift-input-3').value) || 0);
+    localStorage.setItem(GIFT_KEY,  String(v1));
+    localStorage.setItem(GIFT_KEY2, String(v2));
+    localStorage.setItem(GIFT_KEY3, String(v3));
     closeGiftModal();
-    toast(v > 0 ? `Regalo configurado: $${v.toLocaleString()}` : 'Regalo desactivado', true);
+    toast(`Regalos guardados: 🥇$${v1.toLocaleString()} · 🥈$${v2.toLocaleString()} · 🥉$${v3.toLocaleString()}`, true);
     // Refrescar ranking si está visible
     const active = document.querySelector('.menu-btn.active');
     if (active && active.dataset.view === 'ranking') renderRankingView();
