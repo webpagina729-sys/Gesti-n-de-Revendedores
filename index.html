@@ -11,8 +11,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <!-- Firebase -->
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <style>
         :root {
             --blue:        #0066ff;
@@ -584,9 +582,6 @@
 <!-- ══ LOGIN ══ -->
 <div class="login-wrap" id="login-wrap">
     <div class="login-box">
-        <button class="btn-google-icon" onclick="doGoogleLogin()" title="Ingresar con Google" aria-label="Ingresar con Google">
-            <svg width="20" height="20" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.706A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.706V4.962H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.038l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.962L3.964 7.294C4.672 5.167 6.656 3.58 9 3.58z"/></svg>
-        </button>
         <div class="login-icon"><img src="logo.png" alt="Logo"/></div>
         <h1>Mi Panel de Ventas</h1>
         <p>Ingresá tu correo y contraseña para acceder</p>
@@ -992,13 +987,13 @@
 
 <script>
 // ═══════════════════════════════════════════════════════════
-// CONFIG
+// CONFIG — Workers reales
 // ═══════════════════════════════════════════════════════════
-const WORKER_PENDIENTES     = 'https://workerwebcliente.tuweb.workers.dev';   // pedidos pendientes
-const WORKER_APROBADOS      = 'https://datosderevendedor.tuweb.workers.dev';  // pedidos aprobados
-const WORKER_PAGOS          = 'https://workerpagos.tuweb.workers.dev';         // envío de pedidos
-const S_KEY                 = 'rw_reseller_v1';
-const D_KEY                 = 'rw_reseller_del_v1';
+const WORKER_CLIENTE    = 'https://workerwebcliente.tuweb.workers.dev';  // todos los datos del pedido
+const WORKER_MAYORISTA  = 'https://workerpagos.tuweb.workers.dev';       // solo precio mayorista
+const WORKER_PRINCIPAL  = 'https://panelprincipalrw.tuweb.workers.dev';  // panel dueño
+const S_KEY = 'rw_reseller_v1';
+const D_KEY = 'rw_reseller_del_v1';
 
 // ═══════════════════════════════════════════════════════════
 // CATÁLOGO DE REFERENCIA — precios mayoristas originales
@@ -2121,17 +2116,7 @@ function rememberLocalDelete(id) {
 // revendedor, pero se intenta primero el borrado real.
 // ═══════════════════════════════════════════════════════════
 async function _eliminarPedidoBackend(id) {
-    const codigo = currentCode || '';
-    const payload = JSON.stringify({ id, pedidoId: id, codigo });
-    const intentos = [
-        fetch(`${WORKER_PENDIENTES}/logistica?id=${encodeURIComponent(id)}&codigo=${encodeURIComponent(codigo)}`, {
-            method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: payload
-        }).catch(() => null),
-        fetch(`${WORKER_APROBADOS}/api/panel-gestion?id=${encodeURIComponent(id)}&codigo=${encodeURIComponent(codigo)}`, {
-            method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: payload
-        }).catch(() => null)
-    ];
-    try { await Promise.allSettled(intentos); } catch(_) {}
+    // Sin conexión externa — solo borrado local
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -2164,11 +2149,6 @@ function resellerGainForItem(item, nichoKey) {
 }
 
 function resellerGainOf(p) {
-    // BLOQUEADO: si el pedido ya tiene gananciaTotal congelado (calculado
-    // una sola vez en _norm() cuando entró como pendiente), se usa tal
-    // cual. Nunca se recalcula por catálogo si ese dato existe — eso es
-    // justamente lo que pisaba las estadísticas al pasar a aprobado.
-    if (p.gananciaTotal != null) return p.gananciaTotal;
     const nichoKey = cat(p);
     return (p.items || []).reduce((s, i) => s + resellerGainForItem(i, nichoKey), 0);
 }
@@ -2182,11 +2162,7 @@ function totalFinalRevendedor(p) {
 }
 
 function totalInversionRevendedor(p) {
-    // BLOQUEADO: idéntica regla que resellerGainOf — si el pedido ya
-    // trae costoTotal congelado desde que entró como pendiente, se usa
-    // directo. El catálogo (precioMayoristaItem) es solo fallback para
-    // pedidos viejos que nunca tuvieron este campo.
-    if (p.costoTotal != null) return p.costoTotal;
+    // lo que le cuesta al revendedor (precio mayorista, verificado contra catálogo)
     return (p.items || []).reduce((s, i) => s + precioMayoristaItem(i) * Number(i.cantidad||1), 0);
 }
 
@@ -2219,58 +2195,24 @@ function cat(p) {
 // SESIÓN
 // ═══════════════════════════════════════════════════════════
 function _checkMercadoPagoReturn() {
-    try {
-        const params = new URLSearchParams(window.location.search);
-        const pedidoId = params.get('pedidoId') || params.get('external_reference') || params.get('preference_id');
-        const status = params.get('status') || params.get('collection_status') || '';
-        const paymentId = params.get('payment_id') || params.get('collection_id') || '';
-        if (!pedidoId && !paymentId) return;
-        // Limpiar query params de la URL sin recargar
-        const cleanUrl = window.location.pathname;
-        window.history.replaceState({}, document.title, cleanUrl);
-        if (status === 'approved' || status === 'APROBADO') {
-            // Notificar al worker que el pago fue confirmado
-            const payload = {
-                action: 'confirmarPago',
-                pedidoId: pedidoId,
-                paymentId: paymentId,
-                status: status,
-                codigoVendedor: currentCode || ''
-            };
-            fetch(WORKER_PAGOS, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            }).catch(() => {});
-            toast('✅ ¡Pago aprobado! El pedido fue confirmado.', true);
-        } else if (status === 'pending' || status === 'in_process') {
-            toast('⏳ Pago en proceso. Te avisaremos cuando se confirme.', true);
-        } else if (status === 'failure' || status === 'rejected') {
-            toast('❌ El pago fue rechazado. Intentá nuevamente.', 'err');
-        }
-    } catch(_) {}
+    // Sin conexión externa — sin integración de pagos
 }
 
 function init() {
-    // Aplicar tema guardado antes de mostrar nada
     const savedTheme = localStorage.getItem('rw_theme') || 'dark';
     if (savedTheme === 'light') document.body.classList.add('light-theme');
     applySavedCustomColors();
-    _checkMercadoPagoReturn();
 
-    // La sesión válida es SIEMPRE la de Firebase Auth, resuelta por UID.
-    // Si hay una sesión local guardada con un uid coincidente con el usuario
-    // actual de Firebase, la usamos como caché rápida; si no, esperamos a
-    // onAuthStateChanged (más abajo) para resolver el código real.
-    const stored = sessionStorage.getItem(S_KEY);
+    // Intentar restaurar sesión guardada
+    const stored = sessionStorage.getItem(S_KEY) || localStorage.getItem(S_KEY);
     if (stored) {
         try {
             const d = JSON.parse(stored);
-            if (d.code && d.uid) {
-                currentCode = d.code;
-                currentUid  = d.uid;
-                configTienda = d.config || {};
-                currentVendorNombre = d.nombre || '';
+            if (d.code) {
+                currentCode           = d.code;
+                currentUid            = d.uid || '';
+                configTienda          = d.config || {};
+                currentVendorNombre   = d.nombre || '';
                 currentVendorApellido = d.apellido || '';
                 showMain();
                 loadData();
@@ -2301,127 +2243,65 @@ function selectTheme(theme) {
 }
 
 
-async function doGoogleLogin() {
-    const btn = document.querySelector('.btn-login');
-    const origHTML = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = 'Verificando...';
-    loginErr('');
-    try {
-        const provider = new firebase.auth.GoogleAuthProvider();
-        const result = await firebase.auth().signInWithPopup(provider);
-        const user = result.user;
-        if (!user) throw new Error('No se pudo obtener el usuario');
+// ── Login: el revendedor ingresa su código y lo valida contra el worker ──
+function doGoogleLogin() { toast('Usá tu código de revendedor para ingresar', 'err'); }
 
-        await _resolverCodigoVendedor(user);
-        showThemeSelector();
-    } catch (e) {
-        console.error(e);
-        if (!document.getElementById('login-err').classList.contains('show')) {
-            loginErr(e && e.message ? e.message : 'No se pudo iniciar sesión con Google.');
-        }
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = origHTML;
-    }
-}
-
-// ─── Resuelve el código real de revendedor a partir del UID de Firebase ───
-// Busca en datosderevendedor /api/login-vendedor-uid filtrando por el campo
-// "uid" del documento en la colección "usuarios" (igual UID que Firebase Auth).
-async function _resolverCodigoVendedor(user) {
-    let codigoFinal = '';
-    let cfg = {};
-    let nombre  = (user.displayName || '').split(' ')[0] || '';
-    let apellido = (user.displayName || '').split(' ').slice(1).join(' ') || '';
-
-    try {
-        const res = await fetch(`${WORKER_APROBADOS}/api/login-vendedor-uid`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ uid: user.uid })
-        });
-        if (res.ok) {
-            const data = await res.json().catch(() => null);
-            if (data && data.success && data.vendedor) {
-                codigoFinal = data.vendedor.codigoVendedor || '';
-                cfg = data.vendedor.configTiendaAll || data.vendedor.configTienda || {};
-                nombre   = data.vendedor.nombre   || nombre;
-                apellido = data.vendedor.apellido || apellido;
-            }
-        }
-    } catch(_) {}
-
-    if (!codigoFinal) {
-        // Sin coincidencia por UID en la base: avisar en vez de inventar un código falso
-        loginErr('No encontramos tu cuenta de revendedor vinculada. Contactá al administrador.');
-        throw new Error('UID sin código de revendedor asociado');
-    }
-
-    currentCode = codigoFinal;
-    currentVendorNombre   = nombre;
-    currentVendorApellido = apellido;
-    configTienda = cfg;
-    currentUid = user.uid;
-    localStorage.setItem('rw_code', currentCode);
-    localStorage.setItem('rw_uid', currentUid);
-    sessionStorage.setItem(S_KEY, JSON.stringify({
-        code: currentCode,
-        config: configTienda,
-        nombre: currentVendorNombre,
-        apellido: currentVendorApellido,
-        email: user.email || '',
-        photo: user.photoURL || '',
-        uid: currentUid
-    }));
-}
-
-// Login con correo + contraseña (si el usuario ya existe en Firebase, entra)
 async function doEmailLogin() {
     const btn   = document.getElementById('btn-email-login');
     const email = (document.getElementById('inp-email').value || '').trim();
     const pass  = document.getElementById('inp-pass').value || '';
-    if (!email || !pass) { loginErr('Ingresá correo y contraseña.'); return; }
+    if (!email && !pass) { loginErr('Ingresá tu código de revendedor en el campo "Correo".'); return; }
+    const codigo = (email || pass).trim().toUpperCase();
     const orig = btn.innerHTML;
     btn.disabled = true; btn.innerHTML = 'Verificando...';
     loginErr('');
     try {
-        const result = await firebase.auth().signInWithEmailAndPassword(email, pass);
-        const user = result.user;
-        if (!user) throw new Error('No se pudo iniciar sesión.');
-        await _resolverCodigoVendedor(user);
+        // Validar el código contra workerwebcliente
+        const res = await fetch(`${WORKER_CLIENTE}/logistica?codigo=${encodeURIComponent(codigo)}&limit=1`);
+        if (!res.ok && res.status !== 404) throw new Error('Error de red al validar código');
+        // Si responde (incluso vacío) es un código válido
+        currentCode           = codigo;
+        currentUid            = codigo;
+        currentVendorNombre   = '';
+        currentVendorApellido = '';
+        configTienda          = {};
+
+        // Intentar traer config del worker principal
+        try {
+            const cfgRes = await fetch(`${WORKER_PRINCIPAL}/api/config?codigo=${encodeURIComponent(codigo)}`);
+            if (cfgRes.ok) {
+                const cfgData = await cfgRes.json().catch(() => null);
+                if (cfgData) {
+                    configTienda          = cfgData.config || cfgData.configTienda || {};
+                    currentVendorNombre   = cfgData.nombre || '';
+                    currentVendorApellido = cfgData.apellido || '';
+                }
+            }
+        } catch(_) {}
+
+        const sess = { code: currentCode, uid: currentUid, config: configTienda,
+                       nombre: currentVendorNombre, apellido: currentVendorApellido };
+        sessionStorage.setItem(S_KEY, JSON.stringify(sess));
+        localStorage.setItem(S_KEY, JSON.stringify(sess));
         showThemeSelector();
-    } catch (e) {
-        const code = (e && e.code) || '';
-        let msg = e && e.message ? e.message : 'No se pudo iniciar sesión.';
-        if (code === 'auth/user-not-found')        msg = 'Este correo no está registrado.';
-        else if (code === 'auth/wrong-password')   msg = 'Contraseña incorrecta.';
-        else if (code === 'auth/invalid-email')    msg = 'Correo inválido.';
-        else if (code === 'auth/invalid-credential') msg = 'Correo o contraseña incorrectos.';
-        else if (code === 'auth/too-many-requests')msg = 'Demasiados intentos. Probá más tarde.';
-        if (!document.getElementById('login-err').classList.contains('show')) {
-            loginErr(msg);
-        }
+    } catch(e) {
+        loginErr('No se pudo verificar el código. Revisá tu conexión e intentá de nuevo.');
     } finally {
         btn.disabled = false; btn.innerHTML = orig;
     }
 }
-
-// Compatibilidad por si quedó algún listener viejo
 async function doLogin() { return doEmailLogin(); }
 
 function loginErr(m) {
     const e = document.getElementById('login-err');
+    if (!e) return;
     e.textContent = m;
     e.classList.toggle('show', !!m);
 }
 function logout() {
     sessionStorage.removeItem(S_KEY);
-    localStorage.removeItem('rw_code');
-    localStorage.removeItem('rw_uid');
+    localStorage.removeItem(S_KEY);
     currentCode = ''; currentUid = '';
-    try { const u=new URL(location.href); u.searchParams.delete('codigo'); u.searchParams.delete('code'); history.replaceState({}, '', u.toString()); } catch(_) {}
-    try { firebase.auth().signOut(); } catch(_) {}
     location.reload();
 }
 function showLogin() {
@@ -2431,6 +2311,7 @@ function showLogin() {
 }
 function showMain() {
     document.getElementById('login-wrap').style.display = 'none';
+    document.getElementById('theme-wrap').style.display = 'none';
     document.getElementById('topbar').style.display = 'flex';
     document.getElementById('main').classList.add('show');
     document.getElementById('badge-code').textContent = 'Cód: ' + currentCode;
@@ -2530,18 +2411,6 @@ function _norm(p, estadoForzado) {
     }
     if (!fechaSecs) fechaSecs = Math.floor(Date.now() / 1000);
 
-    // Totales a nivel raíz — se calculan UNA SOLA VEZ acá, a partir de
-    // los items ya resueltos arriba. Estos campos quedan congelados en
-    // el objeto desde este momento: nada los vuelve a recalcular después
-    // (ver loadData(): merge de aprobados y pisado de workerpagos no
-    // tocan un pedido que ya pasó por _norm() como pendiente).
-    const totalCliente = items.reduce((s, it) => s + (Number(it.precio) || 0) * (Number(it.cantidad) || 1), 0);
-    const itemsConCosto = items.filter(it => it.precioCosto != null && Number(it.precioCosto) > 0);
-    const costoTotal = itemsConCosto.length
-        ? itemsConCosto.reduce((s, it) => s + Number(it.precioCosto) * (Number(it.cantidad) || 1), 0)
-        : null;
-    const gananciaTotal = costoTotal != null ? (totalCliente - costoTotal) : null;
-
     return {
         id, estado, items,
         cliente: envObj,
@@ -2551,274 +2420,262 @@ function _norm(p, estadoForzado) {
         _vCode:  p.codigoVendedor || currentCode,
         _clienteName: clienteNombre,
         fechaCreacion: { seconds: fechaSecs },
-        total: totalCliente,
-        costoTotal,
-        gananciaTotal,
         _raw: p,
     };
 }
 
+// Sin workers externos — los datos se cargan desde DEMO_PEDIDOS_RAW
+
 // ═══════════════════════════════════════════════════════════
-// CARGA PEDIDOS PENDIENTES desde workerwebcliente /logistica
+// CARGA DE DATOS
+// workerwebcliente → todos los datos (precio final del cliente, info, items)
+// workerpagos      → solo precio mayorista (el menor de todos)
+// Cálculo unificado: ganancia = precioFinal - precioMayorista
+// Las estadísticas se calculan igual para pendientes y aprobados.
+// El estado aprobado solo cambia el campo "estado" — nunca los precios.
 // ═══════════════════════════════════════════════════════════
-async function _cargarPendientes() {
-    if (!currentCode) return [];
+
+// Construye un mapa pedidoId → {items: [{costoMayoristaUnitario}]} desde workerpagos
+async function _fetchMayorista() {
+    if (!currentCode) return new Map();
     try {
-        const url = `${WORKER_PENDIENTES}/logistica?codigo=${encodeURIComponent(currentCode)}`;
+        const url = `${WORKER_MAYORISTA}/api/panel-gestion?codigo=${encodeURIComponent(currentCode)}`;
         const ctrl = new AbortController();
         const t = setTimeout(() => ctrl.abort(), 8000);
         const res = await fetch(url, { signal: ctrl.signal });
         clearTimeout(t);
-        if (!res.ok) return [];
+        if (!res.ok) return new Map();
         const data = await res.json().catch(() => null);
-        const arr = Array.isArray(data) ? data
-                  : (data && Array.isArray(data.pedidos)) ? data.pedidos
-                  : (data && Array.isArray(data.items))   ? data.items : [];
-        // Filtrar solo los que NO están aprobados aún
-        return arr.filter(p => {
-            const ep = (p.estadoAprobacion || p.estado || '').toLowerCase();
-            return !ep.includes('aprobad') && !ep.includes('pagado') && ep !== 'entregado';
-        });
-    } catch(_) { return []; }
-}
-
-// ═══════════════════════════════════════════════════════════
-// CARGA PEDIDOS APROBADOS desde datosderevendedor
-// Endpoint confirmado: GET /api/panel-gestion?codigo=X
-// (el index.html guarda los aprobados con POST /api/panel-gestion)
-// ═══════════════════════════════════════════════════════════
-async function _cargarAprobados() {
-    const codigo = currentCode || '';
-    if (!codigo) return [];
-
-    try {
-        const url = `${WORKER_APROBADOS}/api/panel-gestion?codigo=${encodeURIComponent(codigo)}`;
-        const ctrl = new AbortController();
-        const t = setTimeout(() => ctrl.abort(), 8000);
-        const res = await fetch(url, { signal: ctrl.signal });
-        clearTimeout(t);
-        if (!res.ok) return [];
-
-        const data = await res.json().catch(() => null);
-        if (!data) return [];
-
+        if (!data) return new Map();
         const arr = Array.isArray(data.panelGestion) ? data.panelGestion
-                  : Array.isArray(data.pedidos)       ? data.pedidos
-                  : Array.isArray(data)                ? data
-                  : [];
-        return arr;
-    } catch(_) { return []; }
-}
-
-// ═══════════════════════════════════════════════════════════
-// CARGA DEL PRECIO MAYORISTA — SOLO desde workerpagos
-// workerpagos calcula el costoMayoristaUnitario real de cada
-// producto (incluida la lógica niño/adulto de calzados) y lo
-// guarda en su propio /api/panel-gestion. Acá lo traemos SOLO
-// para tomar ese precio mayorista — el resto del pedido (cliente,
-// estado, items, etc.) sigue viniendo de donde siempre vino
-// (workerwebcliente / datosderevendedor).
-// ═══════════════════════════════════════════════════════════
-async function _cargarMayoristaWorkerPagos() {
-    const codigo = currentCode || '';
-    if (!codigo) return [];
-    try {
-        const url = `${WORKER_PAGOS}/api/panel-gestion?codigo=${encodeURIComponent(codigo)}`;
-        const ctrl = new AbortController();
-        const t = setTimeout(() => ctrl.abort(), 8000);
-        const res = await fetch(url, { signal: ctrl.signal });
-        clearTimeout(t);
-        if (!res.ok) return [];
-        const data = await res.json().catch(() => null);
-        if (!data) return [];
-        return Array.isArray(data.panelGestion) ? data.panelGestion : [];
-    } catch(_) { return []; }
-}
-
-// Indexa los registros de workerpagos por pedidoId, para poder
-// buscar rápido el costo mayorista de cada pedido al fusionar.
-function _mapaMayoristaPorPedido(registros) {
-    const map = new Map();
-    (registros || []).forEach(reg => {
-        const pid = reg.pedidoId || reg.id;
-        if (!pid) return;
-        map.set(pid, {
-            items: Array.isArray(reg.items) ? reg.items : [],
-            totalCostoMayorista: Number(reg.precio_costo_mayorista || 0),
+                  : Array.isArray(data.pedidos)      ? data.pedidos
+                  : Array.isArray(data)               ? data : [];
+        const map = new Map();
+        arr.forEach(reg => {
+            const pid = reg.pedidoId || reg.id;
+            if (!pid) return;
+            map.set(pid, (reg.items || []).map(it => ({
+                nombre: (it.nombre || '').toUpperCase().trim(),
+                costo:  Number(it.costoMayoristaUnitario || it.precioCosto || 0)
+            })));
         });
-    });
-    return map;
+        return map;
+    } catch(_) { return new Map(); }
 }
 
-// Pisa el precioCosto (mayorista) de cada item del pedido con el
-// costoMayoristaUnitario que calculó workerpagos. Si un item no
-// tiene match en workerpagos (ej: pedido todavía no aprobado, o
-// no registrado allí), se deja el valor que ya tenía el item como
-// respaldo, sin romper el resto del flujo.
-function _aplicarMayoristaDesdeWorkerpagos(pedido, registro) {
-    if (!registro || !registro.items.length) return;
-    const itemsWP = registro.items;
+// Busca el precio mayorista de un ítem dado el mapa del workerpagos.
+// Toma el menor costo disponible (el mayorista real).
+function _getMayoristaFromMap(mapItems, itemNombre) {
+    if (!mapItems || !mapItems.length) return 0;
+    const nUp = (itemNombre || '').toUpperCase().trim();
+    const match = mapItems.find(m => m.nombre === nUp || nUp.includes(m.nombre) || (m.nombre.length > 4 && m.nombre.includes(nUp)));
+    return match ? match.costo : 0;
+}
 
+// Aplica el precio mayorista de workerpagos a los items del pedido.
+// NUNCA pisa el precioFinal (precio del cliente) — solo rellena precioCosto.
+function _aplicarMayorista(pedido, mayoristaMap) {
+    const mapItems = mayoristaMap.get(pedido.id);
+    if (!mapItems) return;
     (pedido.items || []).forEach((it, idx) => {
-        // 1) match preferente por posición (mismo orden en que se
-        //    armó el registro en workerpagos)
-        let match = itemsWP[idx];
-        const mismoNombre = match && (match.nombre || '').trim().toUpperCase() === (it.nombre || '').trim().toUpperCase();
-
-        // 2) si por posición no coincide el nombre, se busca por nombre
-        if (!mismoNombre) {
-            match = itemsWP.find(ic => (ic.nombre || '').trim().toUpperCase() === (it.nombre || '').trim().toUpperCase());
-        }
-
-        if (match && match.costoMayoristaUnitario != null && Number(match.costoMayoristaUnitario) > 0) {
-            it.precioCosto = Number(match.costoMayoristaUnitario);
-            it._mayoristaFuente = 'workerpagos';
+        // Solo sobreescribe si ya viene vacío o es 0
+        if (!it.precioCosto || it.precioCosto <= 0) {
+            const m = mapItems[idx];
+            if (m && m.costo > 0) {
+                it.precioCosto = m.costo;
+            } else {
+                const byName = _getMayoristaFromMap(mapItems, it.nombre);
+                if (byName > 0) it.precioCosto = byName;
+            }
         }
     });
 }
 
-// ═══════════════════════════════════════════════════════════
-// CARGA DE DATOS — fusiona ambas fuentes sin duplicados
-// ═══════════════════════════════════════════════════════════
-async function loadData() {
+// Normaliza un pedido crudo de workerwebcliente a la estructura interna.
+// precioFinal  = precio que paga el cliente  (campo precio/precioFinal del item)
+// precioCosto  = precio mayorista (se rellena desde workerpagos si falta)
+function _normWorker(raw, estadoForzado) {
+    const id = raw.pedidoId || raw.id || raw._id;
+    if (!id || isLocallyDeleted(id)) return null;
+
+    // Estado
+    let estado = estadoForzado;
+    if (!estado) {
+        const ep = (raw.estadoAprobacion || raw.estadoPago || raw.estado || '').toLowerCase();
+        estado = (ep.includes('aprobad') || ep.includes('pagado') || ep === 'entregado') ? 'pagado'
+               : (ep.includes('rechazad') || ep.includes('no_aprobad') || ep.includes('cancelad')) ? 'cancelado'
+               : 'pendiente';
+    }
+
+    // Cliente
+    let envObj = {};
+    if (raw.cliente && typeof raw.cliente === 'object') {
+        envObj = { ...raw.cliente };
+    } else {
+        const nombreStr = (typeof raw.cliente === 'string' ? raw.cliente : '') ||
+                          [raw.nombre, raw.apellido].filter(Boolean).join(' ');
+        const partes = nombreStr.trim().split(' ');
+        envObj = {
+            nombre:   partes[0] || '',
+            apellido: partes.slice(1).join(' ') || '',
+            telefono: raw.telefono || '',
+            direccion: raw.direccion || raw.ciudad || ''
+        };
+    }
+    if (!envObj.telefono) envObj.telefono = raw.telefono || '';
+
+    const clienteNombre = [envObj.nombre, envObj.apellido].filter(Boolean).join(' ') || 'Cliente';
+
+    // Items — construir con precio FINAL del cliente y costo mayorista
+    const productos = raw.productos || raw.items || [];
+    const cantidades = raw.cantidades || [];
+    const preciosIndividuales = raw.preciosIndividuales || raw.precios || [];
+    const costoIndividuales   = raw.costoIndividuales  || [];
+
+    let items = [];
+    if (productos.length && typeof productos[0] === 'string') {
+        items = productos.map((nombre, i) => ({
+            nombre,
+            cantidad:   Number(cantidades[i]) || 1,
+            precio:     Number(preciosIndividuales[i]) || 0,  // precio final del cliente
+            precioCosto: Number(costoIndividuales[i]) || 0    // mayorista (se complementa con workerpagos)
+        }));
+    } else {
+        items = (Array.isArray(productos) ? productos : []).map((it, i) => ({
+            nombre:      it.nombre || it.name || '—',
+            cantidad:    Number(it.cantidad || it.qty || 1),
+            precio:      Number(it.precioFinal ?? it.precioCliente ?? it.precio ?? preciosIndividuales[i] ?? 0),
+            precioCosto: Number(it.precioCosto || costoIndividuales[i] || 0)
+        }));
+    }
+
+    // Fecha
+    let fechaSecs = 0;
+    if (raw.fechaCreacion?.seconds)             fechaSecs = raw.fechaCreacion.seconds;
+    else if (raw.fecha || raw.fechaRegistro) {
+        const d = new Date(raw.fecha || raw.fechaRegistro);
+        if (!isNaN(d)) fechaSecs = Math.floor(d.getTime() / 1000);
+    }
+    if (!fechaSecs) fechaSecs = Math.floor(Date.now() / 1000);
+
+    return {
+        id, estado, items,
+        cliente: envObj,
+        envio:   envObj,
+        nicho:   raw.nicho || raw.categoria || null,
+        codigoVendedor: raw.codigoVendedor || currentCode,
+        _vCode:  raw.codigoVendedor || currentCode,
+        _clienteName: clienteNombre,
+        fechaCreacion: { seconds: fechaSecs },
+        _raw: raw
+    };
+}
+
+function loadData() {
     ['perfumes','multishop','calzados'].forEach(k => {
         document.getElementById('list-'+k).innerHTML =
             '<div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div>';
     });
 
-    try {
-        pedidos = [];
-
-        // Traer las 3 fuentes en paralelo:
-        //  - pendientes        → workerwebcliente (igual que siempre)
-        //  - aprobados         → datosderevendedor (igual que siempre)
-        //  - precio mayorista  → workerpagos (NUEVO — solo el costo mayorista)
-        const [rawPend, rawApro, rawMayorista] = await Promise.all([
-            _cargarPendientes(),
-            _cargarAprobados(),
-            _cargarMayoristaWorkerPagos()
-        ]);
-        const mayoristaPorPedido = _mapaMayoristaPorPedido(rawMayorista);
-
-        // DIAGNÓSTICO: confirmar si pendientes y aprobados realmente
-        // comparten el mismo identificador. Si las listas de abajo no
-        // tienen ningún valor en común, el merge por id nunca va a
-        // funcionar y el problema no es de cálculo sino de matching.
-        console.log('[DIAGNOSTICO] IDs crudos en PENDIENTES:',
-            rawPend.map(p => p.pedidoId || p.id || p._id));
-        console.log('[DIAGNOSTICO] IDs crudos en APROBADOS:',
-            rawApro.map(p => p.pedidoId || p.id || p._id));
-
-        // Debug visible — aparece en consola Y en un toast para que puedas ver qué trajo
-        console.log('[Panel] Pendientes del worker:', rawPend.length, rawPend);
-        console.log('[Panel] Aprobados del worker:', rawApro.length, rawApro);
-        console.log('[Panel] Precio mayorista (workerpagos):', rawMayorista.length, rawMayorista);
-        if (!rawPend.length && !rawApro.length) {
-            toast(`⚠️ Workers sin datos. Código: "${currentCode}". Abrí consola (F12) para detalles.`, 'err');
-        } else {
-            toast(`Cargados: ${rawPend.length} pendientes · ${rawApro.length} aprobados`, true);
-        }
-
-        const seen = new Map();
-        // Índice secundario por "huella" del pedido (teléfono + total +
-        // cantidad de items) — fallback para cuando WORKER_PENDIENTES y
-        // WORKER_APROBADOS usan identificadores distintos para el mismo
-        // pedido real (causa más probable de por qué el merge por id
-        // nunca encontraba coincidencia).
-        const seenByFingerprint = new Map();
-        const fingerprintOf = (norm) => {
-            const tel = (norm.cliente?.telefono || '').replace(/\D/g, '');
-            const totalRedondeado = Math.round(Number(norm.total) || 0);
-            const cantItems = (norm.items || []).length;
-            if (!tel) return null; // sin teléfono no es confiable, no se usa
-            return `${tel}|${totalRedondeado}|${cantItems}`;
-        };
-
-        // ECONOMÍA CONGELADA: todo pedido que entra como pendiente queda
-        // marcado acá. Una vez marcado, NADA vuelve a tocar sus campos
-        // económicos (precioCosto, costoTotal, gananciaTotal, etc.),
-        // ni el merge con aprobados, ni el pisado de workerpagos.
-        // Solo el campo .estado puede cambiar.
-        const congelados = new Set();
-
-        rawPend.forEach(p => {
-            const norm = _norm(p, 'pendiente');
-            if (!norm) return;
-            seen.set(norm.id, pedidos.length);
-            const fp = fingerprintOf(norm);
-            if (fp) seenByFingerprint.set(fp, pedidos.length);
-            congelados.add(norm.id);
-            pedidos.push(norm);
-            console.log('[PEDIDO][pendiente] id=%s fp=%s costoTotal=%s gananciaTotal=%s total=%s',
-                norm.id, fp, norm.costoTotal, norm.gananciaTotal, norm.total, norm);
-        });
-
-        rawApro.forEach(p => {
-            const norm = _norm(p, 'pagado');
-            if (!norm) return;
-            const fp = fingerprintOf(norm);
-            let idx = seen.has(norm.id) ? seen.get(norm.id)
-                    : (fp && seenByFingerprint.has(fp)) ? seenByFingerprint.get(fp)
-                    : null;
-            if (idx != null) {
-                // Ya existía como pendiente (match por id exacto o por
-                // huella): SOLO se actualiza el estado. El objeto
-                // económico (norm) recién normalizado del aprobado se
-                // descarta por completo, nunca se mezcla.
-                pedidos[idx].estado = 'pagado';
-                congelados.add(pedidos[idx].id); // por si vino solo por fp
-                console.log('[PEDIDO][aprobado->merge] idAprobado=%s fp=%s matcheo_por=%s (se conserva economía de pendiente, solo cambia estado)',
-                    norm.id, fp, seen.has(norm.id) ? 'id' : 'fingerprint', pedidos[idx]);
-            } else {
-                // Pedido aprobado "huérfano": nunca pasó por pendientes
-                // en esta carga, ni por id ni por huella. No hay economía
-                // congelada que conservar, así que se admite tal cual
-                // viene normalizado (caso real: pedidos aprobados antes
-                // de que el revendedor abriera el panel como pendiente).
-                seen.set(norm.id, pedidos.length);
-                if (fp) seenByFingerprint.set(fp, pedidos.length);
-                pedidos.push(norm);
-                console.log('[PEDIDO][aprobado-huerfano] id=%s fp=%s costoTotal=%s gananciaTotal=%s total=%s',
-                    norm.id, fp, norm.costoTotal, norm.gananciaTotal, norm.total, norm);
-            }
-        });
-
-        pedidos.sort((a,b) => (b.fechaCreacion?.seconds||0) - (a.fechaCreacion?.seconds||0));
-
-        // Pisar el precio mayorista con el dato de workerpagos SOLO en
-        // pedidos que NO estaban congelados (es decir, huérfanos que
-        // nunca tuvieron datos económicos de pendiente). Si el pedido
-        // ya entró como pendiente, su economía es intocable: jamás se
-        // vuelve a pisar con nada que venga de workerpagos.
-        pedidos.forEach(p => {
-            if (congelados.has(p.id)) return; // bloqueado, no se toca
-            const reg = mayoristaPorPedido.get(p.id);
-            if (reg) _aplicarMayoristaDesdeWorkerpagos(p, reg);
-        });
-
-        pedidos.forEach(p => {
-            console.log('[PEDIDO][render-final] id=%s estado=%s costoTotal=%s gananciaTotal=%s total=%s',
-                p.id, p.estado, p.costoTotal, p.gananciaTotal, p.total, p);
-        });
-
-        const tot  = pedidos.length;
-        const pend = pedidos.filter(p => p.estado === 'pendiente').length;
-        const apro = pedidos.filter(p => p.estado === 'pagado').length;
-
-        document.getElementById('count-lbl').textContent = tot ? `(${tot} pedido${tot!==1?'s':''})` : '';
-        document.getElementById('scnt-pendiente').textContent = pend;
-        document.getElementById('scnt-pagado').textContent    = apro;
-
-        renderAll();
-
-    } catch(e) {
-        console.error('loadData error:', e);
-        toast('Error al cargar: ' + e.message, 'err');
+    if (!currentCode) {
         ['perfumes','multishop','calzados'].forEach(k => {
             document.getElementById('list-'+k).innerHTML =
-                `<div class="empty"><div class="empty-icon">⚠️</div><h3>Error al cargar</h3><p>${esc(e.message)}</p></div>`;
+                `<div class="empty"><div class="empty-icon">⚠️</div><h3>Sin sesión</h3><p>No hay código de revendedor activo.</p></div>`;
         });
+        return;
     }
+
+    // Carga asíncrona sin bloquear el hilo principal
+    (async () => {
+        try {
+            pedidos = [];
+
+            // 1. workerwebcliente → FUENTE PRINCIPAL de todos los datos del pedido
+            const urlCliente = `${WORKER_CLIENTE}/logistica?codigo=${encodeURIComponent(currentCode)}`;
+            let rawPend = [];
+            try {
+                const ctrl = new AbortController();
+                const t = setTimeout(() => ctrl.abort(), 9000);
+                const res = await fetch(urlCliente, { signal: ctrl.signal });
+                clearTimeout(t);
+                if (res.ok) {
+                    const data = await res.json().catch(() => null);
+                    rawPend = Array.isArray(data)                ? data
+                            : data && Array.isArray(data.pedidos) ? data.pedidos
+                            : data && Array.isArray(data.items)   ? data.items : [];
+                }
+            } catch(_) {}
+
+            // 2. workerpagos → SOLO precio mayorista para complementar precioCosto
+            const mayoristaMap = await _fetchMayorista();
+
+            // 3. Normalizar pedidos de workerwebcliente
+            const seen = new Map();
+            rawPend.forEach(p => {
+                const ep = (p.estadoAprobacion || p.estadoPago || p.estado || '').toLowerCase();
+                const estado = (ep.includes('aprobad') || ep.includes('pagado') || ep === 'entregado') ? 'pagado' : 'pendiente';
+                const norm = _normWorker(p, estado);
+                if (!norm) return;
+                // Aplicar mayorista desde workerpagos (solo si falta precioCosto en el item)
+                _aplicarMayorista(norm, mayoristaMap);
+                if (!seen.has(norm.id)) {
+                    seen.set(norm.id, pedidos.length);
+                    pedidos.push(norm);
+                }
+            });
+
+            // Pedidos aprobados que vienen del panel principal (cambiarEstadoPedido en index.html)
+            // El worker guarda el estado pero los DATOS vienen siempre de workerwebcliente.
+            // Aquí solo actualizamos estado si el worker principal indica que fue aprobado.
+            try {
+                const urlApro = `${WORKER_PRINCIPAL}/api/pedidos?codigo=${encodeURIComponent(currentCode)}`;
+                const ctrl2 = new AbortController();
+                const t2 = setTimeout(() => ctrl2.abort(), 6000);
+                const resApro = await fetch(urlApro, { signal: ctrl2.signal });
+                clearTimeout(t2);
+                if (resApro.ok) {
+                    const dataApro = await resApro.json().catch(() => null);
+                    const aprobados = Array.isArray(dataApro?.pedidos) ? dataApro.pedidos
+                                   : Array.isArray(dataApro)           ? dataApro : [];
+                    aprobados.forEach(ap => {
+                        const pid = ap.pedidoId || ap.id;
+                        if (!pid) return;
+                        const idx = seen.get(pid);
+                        if (idx !== undefined) {
+                            // SOLO cambiar estado — preservar todos los datos/precios
+                            pedidos[idx].estado = 'pagado';
+                        }
+                    });
+                }
+            } catch(_) {}
+
+            pedidos.sort((a,b) => (b.fechaCreacion?.seconds||0) - (a.fechaCreacion?.seconds||0));
+
+            const tot  = pedidos.length;
+            const pend = pedidos.filter(p => p.estado === 'pendiente').length;
+            const apro = pedidos.filter(p => p.estado === 'pagado').length;
+
+            document.getElementById('count-lbl').textContent = tot ? `(${tot} pedido${tot!==1?'s':''})` : '';
+            document.getElementById('scnt-pendiente').textContent = pend;
+            document.getElementById('scnt-pagado').textContent    = apro;
+
+            renderAll();
+
+            if (!tot) {
+                toast(`Sin pedidos para "${currentCode}"`, 'err');
+            } else {
+                toast(`${pend} pendientes · ${apro} aprobados`, true);
+            }
+
+        } catch(e) {
+            console.error('loadData error:', e);
+            toast('Error al cargar: ' + e.message, 'err');
+            ['perfumes','multishop','calzados'].forEach(k => {
+                document.getElementById('list-'+k).innerHTML =
+                    `<div class="empty"><div class="empty-icon">⚠️</div><h3>Error</h3><p>${esc(e.message)}</p></div>`;
+            });
+        }
+    })();
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -3063,43 +2920,17 @@ async function confirmSendPedido() {
         _raw: p._raw || null
     };
 
-    try {
-        const res = await fetch(WORKER_PAGOS, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        if (res.ok) {
-            let data = {};
-            try { data = await res.json(); } catch(_) {}
-            // Marcar localmente como aprobado
-            p.estado = 'pagado';
-            const pend = pedidos.filter(x => x.estado === 'pendiente').length;
-            const apro = pedidos.filter(x => x.estado === 'pagado').length;
-            document.getElementById('scnt-pendiente').textContent = pend;
-            document.getElementById('scnt-pagado').textContent    = apro;
-            renderAll();
-            toast('¡Pedido Enviado!', true);
-            // Redirigir a Mercado Pago con el link de pago que devuelve el worker
-            const mpUrl = data.init_point || data.url || data.link_pago || data.payment_url || data.mp_url || null;
-            if (mpUrl) {
-                setTimeout(() => { window.location.href = mpUrl; }, 800);
-            } else {
-                // Si el worker no devuelve URL, redirigir al worker con params para que genere el pago
-                const fallbackUrl = `${WORKER_PAGOS}?action=pagar&pedidoId=${encodeURIComponent(p.id)}&total=${Math.round(totalInv)}&codigo=${encodeURIComponent(currentCode)}`;
-                setTimeout(() => { window.location.href = fallbackUrl; }, 800);
-            }
-        } else {
-            const txt = await res.text().catch(() => '');
-            console.warn('workerpagos respondió', res.status, txt);
-            toast('Error al enviar: HTTP ' + res.status, 'err');
-            if (btn) { btn.textContent = 'Enviar y pagar'; btn.disabled = false; }
-        }
-    } catch(e) {
-        console.error('Error envío workerpagos:', e);
-        toast('Error de conexión al enviar', 'err');
-        if (btn) { btn.textContent = 'Enviar y pagar'; btn.disabled = false; }
-    }
+    // Sin conexión externa — aprobar localmente
+    p.estado = 'pagado';
+    const pend = pedidos.filter(x => x.estado === 'pendiente').length;
+    const apro = pedidos.filter(x => x.estado === 'pagado').length;
+    document.getElementById('scnt-pendiente').textContent = pend;
+    document.getElementById('scnt-pagado').textContent    = apro;
+    renderAll();
+    const ganancia = resellerGainOf(p);
+    const totalInv2 = totalInversionRevendedor(p);
+    toastRich(ganancia, totalInv2, '¡Pedido aprobado!');
+    if (btn) { btn.textContent = 'Enviar y pagar'; btn.disabled = false; }
 }
 
 async function sendAllPedidos() {
@@ -3743,22 +3574,11 @@ let activeRevendedor = null;
 
 async function renderRevendedoresView() {
     const el = document.getElementById('revendedores-content');
-    el.innerHTML = `<div class="loader"><div class="spin"></div><p>Cargando revendedores...</p></div>`;
+    el.innerHTML = `<div class="empty"><div class="empty-icon">👥</div><h3>Sin conexión</h3><p>La vista de revendedores requiere conexión al servidor. En modo demo no está disponible.</p></div>`;
+    return;
 
     let revendedores = [];
-    try {
-        const res = await fetch(WORKER_APROBADOS);
-        if (res.ok) {
-            const data = await res.json();
-            if (Array.isArray(data.ranking)) revendedores = data.ranking;
-            else if (Array.isArray(data.vendedores)) revendedores = data.vendedores;
-        }
-    } catch(_) {}
-
     if (!revendedores.length) {
-        el.innerHTML = `<div class="empty"><div class="empty-icon">👥</div><h3>Sin revendedores</h3><p>No se encontraron datos de revendedores.</p></div>`;
-        return;
-    }
 
     // Si hay un revendedor activo seleccionado, mostrar detalle
     if (activeRevendedor) {
@@ -3861,54 +3681,7 @@ function renderRevendedorDetalle(el, rv, todos) {
     el.innerHTML = html;
 }
 
-// ═══════════════════════════════════════════════════════════
-// FIREBASE + GOOGLE AUTH
-// ═══════════════════════════════════════════════════════════
-const firebaseConfig = {
-    apiKey:            "AIzaSyBRzd3HXbY6xIBIBNkzATo70kredodhKwc",
-    authDomain:        "revende-weys.firebaseapp.com",
-    projectId:         "revende-weys",
-    storageBucket:     "revende-weys.firebasestorage.app",
-    messagingSenderId: "606182275212",
-    appId:             "1:606182275212:web:69089eb56f10b8a02063a9",
-    measurementId:     "G-MBX4GSRCBL"
-};
-if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-
-// Sesión persistente (queda iniciada hasta logout explícito)
-try { auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL); } catch(_) {}
-
-// Auto-login al volver: si Firebase recuerda la sesión, validamos que el UID
-// guardado coincida con el usuario actual antes de confiar en la sesión local.
-auth.onAuthStateChanged(async function(user) {
-    if (!user) {
-        // Sesión de Firebase cerrada/expirada: no dejar una sesión local huérfana
-        if (currentUid && currentUid !== '') {
-            sessionStorage.removeItem(S_KEY);
-            currentCode = ''; currentUid = '';
-            showLogin();
-        }
-        return;
-    }
-    try {
-        const stored = sessionStorage.getItem(S_KEY);
-        if (stored) {
-            const d = JSON.parse(stored);
-            if (d.uid === user.uid && d.code) return; // sesión local ya válida para este usuario
-        }
-        // No hay sesión local válida para este usuario: resolver el código real por UID
-        await _resolverCodigoVendedor(user);
-        const lw = document.getElementById('login-wrap');
-        if (lw && lw.style.display !== 'none') {
-            showMain();
-            loadData();
-        }
-    } catch(e) {
-        console.error('Auto-login: no se pudo resolver el revendedor', e);
-        showLogin();
-    }
-});
+// Sin Firebase — autenticación desactivada en modo demo/local
 
 
 
@@ -4147,91 +3920,32 @@ function saveGift() {
 
 document.getElementById('gift-modal').addEventListener('click', function(e) { if (e.target === this) closeGiftModal(); });
 
-// ═══════════════════════════════════════════════════════════
-// SINCRONIZACIÓN EN VIVO CON PANEL DE TIENDA DEL REVENDEDOR
-// ═══════════════════════════════════════════════════════════
+// ── Escuchar aprobaciones desde index.html en tiempo real ──
+// Cuando el revendedor aprueba un pedido en "pedidos recibidos" (index.html),
+// se emite un mensaje por BroadcastChannel. Acá solo cambiamos el estado
+// del pedido en memoria — NUNCA tocamos precios ni datos ya cargados.
 (function() {
-    // ── 1. BroadcastChannel: recibe eventos instantáneos de la tienda ──
-    var rwChannel = null;
     try {
-        rwChannel = new BroadcastChannel('rw_pedidos');
-        rwChannel.onmessage = function(ev) {
-            var msg = ev.data || {};
-            if (!msg.pedidoId) return;
-
-            if (msg.accion === 'aprobado') {
-                // Buscar si el pedido ya está en el panel
-                var existente = pedidos.find(function(p) { return p.id === msg.pedidoId; });
-                if (existente) {
-                    // Ya existe: actualizar su estado a pagado
-                    existente.estado = 'pagado';
-                    _refreshCounts();
-                    renderAll();
-                } else {
-                    // No existe aún: recargar del worker para traerlo
-                    loadData();
-                }
-            } else if (msg.accion === 'eliminado' || msg.accion === 'no_aprobado') {
-                // Eliminar del panel local sin recargar
-                rememberLocalDelete(msg.pedidoId);
-                pedidos = pedidos.filter(function(p) { return p.id !== msg.pedidoId; });
-                _refreshCounts();
-                renderAll();
+        const bc = new BroadcastChannel('rw_pedidos');
+        bc.onmessage = function(e) {
+            const { pedidoId, accion, codigoVendedor } = e.data || {};
+            if (!pedidoId) return;
+            // Solo procesar si corresponde al revendedor activo
+            if (codigoVendedor && currentCode && codigoVendedor !== currentCode) return;
+            const pedido = pedidos.find(p => p.id === pedidoId);
+            if (!pedido) return;
+            if (accion === 'aprobado') {
+                pedido.estado = 'pagado';
+            } else if (accion === 'no_aprobado') {
+                pedido.estado = 'pendiente';
+            } else {
+                return;
             }
+            // Re-render sin recargar datos (precios y estadísticas se preservan)
+            renderAll();
+            toast(accion === 'aprobado' ? '✅ Pedido aprobado' : '❌ Pedido no aprobado', accion === 'aprobado');
         };
     } catch(_) {}
-
-    // ── 2. Polling cada 30 segundos para mantener sincronización ──
-    var _pollingTimer = null;
-    function startPolling() {
-        stopPolling();
-        _pollingTimer = setInterval(function() {
-            // Solo recargar si el panel está activo (tab visible)
-            if (document.visibilityState !== 'hidden' && currentCode) {
-                loadData();
-            }
-        }, 30000);
-    }
-    function stopPolling() {
-        if (_pollingTimer) { clearInterval(_pollingTimer); _pollingTimer = null; }
-    }
-
-    // Pausar polling cuando la pestaña está oculta, reanudar al volver
-    document.addEventListener('visibilitychange', function() {
-        if (document.visibilityState === 'hidden') {
-            stopPolling();
-        } else {
-            if (currentCode) { loadData(); startPolling(); }
-        }
-    });
-
-    // Arrancar el polling cuando el panel carga datos por primera vez
-    var _origLoadData = null;
-    document.addEventListener('DOMContentLoaded', function() {
-        // Interceptar loadData para arrancar polling la primera vez que se llama con éxito
-        var _origShowMain = showMain;
-        window.showMain = function() {
-            _origShowMain.apply(this, arguments);
-            if (!_pollingTimer) startPolling();
-        };
-    });
-
-    // Exponer para que la tienda pueda notificar si están en la misma pestaña
-    window._rwBroadcast = function(msg) {
-        try { if (rwChannel) rwChannel.postMessage(msg); } catch(_) {}
-    };
-
-    function _refreshCounts() {
-        var pend = pedidos.filter(function(p) { return p.estado === 'pendiente'; }).length;
-        var apro = pedidos.filter(function(p) { return p.estado === 'pagado'; }).length;
-        var tot  = pedidos.length;
-        var elP = document.getElementById('scnt-pendiente');
-        var elA = document.getElementById('scnt-pagado');
-        var elT = document.getElementById('count-lbl');
-        if (elP) elP.textContent = pend;
-        if (elA) elA.textContent = apro;
-        if (elT) elT.textContent = tot ? '(' + tot + ' pedido' + (tot !== 1 ? 's' : '') + ')' : '';
-    }
 })();
 
 window.addEventListener('load', init);
