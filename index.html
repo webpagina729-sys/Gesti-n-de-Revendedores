@@ -181,23 +181,36 @@
         .tab-pane.active { display: block; }
 
         /* ── STATS ROW ── */
-        .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); grid-auto-flow: column; gap: 10px; margin-bottom: 24px; }
-        @media (max-width: 480px) {
-            .stats-row { gap: 6px; }
-            .stat-card { padding: 12px 8px !important; }
-            .stat-lbl { font-size: 9px !important; }
-            .stat-val { font-size: 18px !important; }
-        }
-        .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; min-width: 0; }
+        .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); grid-auto-flow: column; gap: 8px; margin-bottom: 24px; align-items: stretch; }
+        .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 12px; min-width: 0; overflow: hidden; }
         .stat-lbl { font-size: 10px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .stat-val { font-size: 24px; font-weight: 700; color: var(--blue); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        /* El monto NUNCA se corta con "...": si no entra en una línea, se
+           parte a una segunda línea (word-break) en vez de truncarse — así
+           un número largo siempre queda completo y legible. */
+        .stat-val { font-size: 24px; font-weight: 700; color: var(--blue); white-space: normal; overflow: visible; word-break: break-word; line-height: 1.15; }
         .stat-val.g { color: var(--green); }
         .stat-val.a { color: var(--amber); }
-        .stat-val.split { font-size: 15px; line-height: 1.5; }
+
+        /* Inv/Gan: dos líneas (Inversión / Ganancia), cada una con el mismo
+           criterio de no-corte que .stat-val. */
+        .stat-val.split { font-size: 13px; line-height: 1.3; display: flex; flex-direction: column; gap: 3px; white-space: normal; overflow: visible; word-break: normal; }
+        .stat-val.split .sv-inv,
+        .stat-val.split .sv-gan { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px; min-width: 0; word-break: break-word; }
+        .stat-val.split .sv-inv b, .stat-val.split .sv-gan b { font-weight: 700; word-break: break-all; }
         .stat-val.split .sv-inv { color: var(--text); }
         .stat-val.split .sv-gan { color: var(--green); }
+
         @media (max-width: 480px) {
-            .stat-val.split { font-size: 12px; }
+            .stats-row { gap: 5px; }
+            .stat-card { padding: 10px 6px; }
+            .stat-lbl { font-size: 8.5px; }
+            .stat-val { font-size: 15px; }
+            .stat-val.split { font-size: 10.5px; gap: 2px; }
+        }
+        @media (max-width: 360px) {
+            .stat-card { padding: 8px 4px; }
+            .stat-lbl { font-size: 8px; }
+            .stat-val.split { font-size: 9.5px; }
         }
 
         /* ── KPI ROW (3 en línea, achicable) ── */
@@ -3172,8 +3185,8 @@ function renderStats(ps, k) {
         <div class="stat-card">
             <div class="stat-lbl">Inv/gan</div>
             <div class="stat-val split">
-                <div class="sv-inv">Inv: $${Math.round(totalInv).toLocaleString()}</div>
-                <div class="sv-gan">Gan: $${Math.round(totalGain).toLocaleString()}</div>
+                <div class="sv-inv" title="Inversión: $${Math.round(totalInv).toLocaleString()}">I: <b>$${Math.round(totalInv).toLocaleString()}</b></div>
+                <div class="sv-gan" title="Ganancia: $${Math.round(totalGain).toLocaleString()}">G: <b>$${Math.round(totalGain).toLocaleString()}</b></div>
             </div>
         </div>
         ${hasConfig ? `<div class="stat-card"><div class="stat-lbl">Precio cliente</div><div class="stat-val">$${Math.round(totalCliente).toLocaleString()}</div></div>` : ''}
