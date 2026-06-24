@@ -181,18 +181,36 @@
         .tab-pane.active { display: block; }
 
         /* ── STATS ROW ── */
-        .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 24px; }
+        .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); grid-auto-flow: column; gap: 10px; margin-bottom: 24px; }
         @media (max-width: 480px) {
             .stats-row { gap: 6px; }
             .stat-card { padding: 12px 8px !important; }
             .stat-lbl { font-size: 9px !important; }
             .stat-val { font-size: 18px !important; }
         }
-        .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; }
-        .stat-lbl { font-size: 10px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 6px; }
-        .stat-val { font-size: 24px; font-weight: 700; color: var(--blue); }
+        .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; min-width: 0; }
+        .stat-lbl { font-size: 10px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .stat-val { font-size: 24px; font-weight: 700; color: var(--blue); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .stat-val.g { color: var(--green); }
         .stat-val.a { color: var(--amber); }
+        .stat-val.split { font-size: 15px; line-height: 1.5; }
+        .stat-val.split .sv-inv { color: var(--text); }
+        .stat-val.split .sv-gan { color: var(--green); }
+        @media (max-width: 480px) {
+            .stat-val.split { font-size: 12px; }
+        }
+
+        /* ── KPI ROW (3 en línea, achicable) ── */
+        .kpi-row-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .kpi-row-3 .kpi { padding: 10px 8px; min-width: 0; }
+        .kpi-row-3 .kpi-lbl { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .kpi-row-3 .kpi-val { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        @media (max-width: 480px) {
+            .kpi-row-3 { gap: 5px; }
+            .kpi-row-3 .kpi { padding: 8px 5px; }
+            .kpi-row-3 .kpi-lbl { font-size: 8.5px; }
+            .kpi-row-3 .kpi-val { font-size: 14px; }
+        }
 
         /* ── RIBBON (order card) ── */
         .ribbon { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 10px; overflow: hidden; animation: fadeIn .25s ease; position: relative; }
@@ -811,7 +829,12 @@
                 </div>
                 <h3 style="margin:0">Regalo del mes</h3>
             </div>
-            <button class="modal-cancel" style="padding:6px 12px;flex:none" onclick="closeGiftModal()">✕</button>
+            <div style="display:flex;align-items:center;gap:8px;flex:none">
+                <button class="modal-cancel" style="padding:6px 8px;flex:none" onclick="openGiftStatsModal()" title="Estadísticas de regalos" aria-label="Ver estadísticas de regalos">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                </button>
+                <button class="modal-cancel" style="padding:6px 12px;flex:none" onclick="closeGiftModal()">✕</button>
+            </div>
         </div>
         <p style="margin-bottom:14px;font-size:13px;color:var(--text2)">Configurá el precio máximo (de costo) del regalo para los 3 mejores clientes del mes. Esto te ayuda a fidelizar y aumentar la recurrencia.</p>
         <div style="margin-bottom:14px">
@@ -861,6 +884,35 @@
         </div>
     </div>
 </div>
+
+<!-- ══ MODAL ESTADÍSTICAS DE REGALOS ══ -->
+<div class="modal-overlay" id="gift-stats-modal" onclick="if(event.target===this)closeGiftStatsModal()">
+    <div class="modal-box" id="gift-stats-box" style="max-width:460px;max-height:85vh;overflow-y:auto">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+            <div style="display:flex;align-items:center;gap:10px">
+                <div class="modal-icon" style="background:rgba(245,158,11,.15);margin:0">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                </div>
+                <h3 style="margin:0">Estadísticas de regalos</h3>
+            </div>
+            <button class="modal-cancel" style="padding:6px 12px;flex:none" onclick="closeGiftStatsModal()">✕</button>
+        </div>
+
+        <div class="kpi-grid" style="margin-bottom:18px">
+            <div class="kpi"><div class="kpi-lbl">Total regalos</div><div class="kpi-val" id="gs-total-regalos">$0</div></div>
+            <div class="kpi"><div class="kpi-lbl">Pendientes</div><div class="kpi-val" style="color:var(--amber)" id="gs-total-pendientes">$0</div></div>
+            <div class="kpi"><div class="kpi-lbl">Entregados</div><div class="kpi-val" style="color:var(--green)" id="gs-total-entregados">$0</div></div>
+            <div class="kpi"><div class="kpi-lbl">Cant. entregados</div><div class="kpi-val" id="gs-cant-entregados">0</div></div>
+        </div>
+
+        <h4 style="font-size:13px;font-weight:700;margin-bottom:8px;color:var(--text2)">🕒 Regalos pendientes</h4>
+        <div id="gift-pending-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:18px"></div>
+
+        <h4 style="font-size:13px;font-weight:700;margin-bottom:8px;color:var(--text2)">✅ Regalos entregados</h4>
+        <div id="gift-delivered-list" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+</div>
+
 
 <!-- ══ MODAL GUÍA ══ -->
 <div class="modal-overlay" id="guide-modal" onclick="if(event.target===this)closeGuide()">
@@ -2260,14 +2312,148 @@ function cat(p) {
 // ═══════════════════════════════════════════════════════════
 // SESIÓN
 // ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+// HISTORIAL DE GANANCIAS OFICIALES
+// Solo se alimenta cuando un lote de pedidos fue efectivamente
+// pagado vía Mercado Pago (tras "Enviar todos" + pago aprobado).
+// Las vistas de "Ganancias" (oficiales) leen de este historial,
+// NUNCA de los pedidos pendientes/aprobados que aún no se pagaron.
+//
+// PERSISTENCIA: la fuente de verdad es Firestore
+// (usuarios/{uid}/gananciasOficiales/{pedidoId}). localStorage
+// se usa solo como caché de lectura instantánea — si se borra el
+// caché del navegador, los datos se vuelven a traer de Firestore
+// la próxima vez que se inicia sesión (ver _fsCargarGananciasYRegalos).
+// ═══════════════════════════════════════════════════════════
+const GANANCIAS_OFICIALES_KEY = 'rw_ganancias_oficiales_v1';
+const MP_PENDING_PAYMENT_KEY  = 'rw_mp_pending_payment_v1';
+
+function getGananciasOficiales() {
+    try { return JSON.parse(localStorage.getItem(GANANCIAS_OFICIALES_KEY) || '[]'); } catch(_) { return []; }
+}
+function saveGananciasOficiales(list) {
+    localStorage.setItem(GANANCIAS_OFICIALES_KEY, JSON.stringify(list.slice(-2000)));
+}
+
+// Escribe un registro de ganancia oficial en Firestore (no bloqueante).
+// Falla en silencio si no hay conexión: el dato ya quedó guardado en
+// localStorage, y quedará pendiente de sincronizar hasta la próxima carga.
+async function _fsGuardarGananciaOficial(item) {
+    if (!currentUid || !item?.id) return;
+    try {
+        await _db.collection('usuarios').doc(currentUid)
+            .collection('gananciasOficiales').doc(item.id)
+            .set(item, { merge: true });
+    } catch(e) {
+        console.warn('No se pudo persistir ganancia oficial en Firestore:', e.message);
+    }
+}
+
+// Agrega un lote de pedidos ya pagados al historial oficial (idempotente por id de pedido)
+function registrarPagoConfirmado(pedidoList) {
+    const historial = getGananciasOficiales();
+    const yaRegistrados = new Set(historial.map(h => h.id));
+    let agregados = 0;
+    const nuevos = [];
+    pedidoList.forEach(p => {
+        if (yaRegistrados.has(p.id)) return; // evita duplicar si ya se confirmó antes
+        const registro = {
+            id: p.id,
+            fechaPago: new Date().toISOString(),
+            cliente: p.cliente,
+            total: p.total || 0,
+            totalMayorista: p.totalMayorista || 0,
+            ganancia: p.ganancia || 0,
+            items: p.items || []
+        };
+        historial.push(registro);
+        nuevos.push(registro);
+        agregados++;
+    });
+    saveGananciasOficiales(historial);
+    // Persistir en Firestore en paralelo, sin bloquear la UI
+    nuevos.forEach(r => { _fsGuardarGananciaOficial(r); });
+    return agregados;
+}
+
+// Trae el historial de ganancias oficiales desde Firestore y reconstruye
+// el caché local. Además, sube (push) cualquier registro local que todavía
+// no exista en Firestore — cubre el caso en que un pago se confirmó antes
+// de que currentUid estuviera disponible (ver _checkMercadoPagoReturn) o
+// que la escritura haya fallado por conexión en su momento.
+// Se llama al iniciar sesión (loadData), así los datos sobreviven a un
+// borrado de caché del navegador.
+async function _fsCargarGananciasOficiales() {
+    if (!currentUid) return;
+    try {
+        const snap = await _db.collection('usuarios').doc(currentUid).collection('gananciasOficiales').get();
+        const remoto = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const local = getGananciasOficiales();
+
+        // Subir a Firestore lo local que no esté remoto todavía
+        const remotoIds = new Set(remoto.map(h => h.id));
+        local.filter(h => !remotoIds.has(h.id)).forEach(h => { _fsGuardarGananciaOficial(h); });
+
+        if (!remoto.length) return; // nada remoto aún: lo local ya quedó programado para subir arriba
+
+        const merged = new Map();
+        local.forEach(h => merged.set(h.id, h));
+        remoto.forEach(h => merged.set(h.id, h)); // Firestore es la fuente de verdad, pisa duplicados locales
+        saveGananciasOficiales(Array.from(merged.values()));
+    } catch(e) {
+        console.warn('No se pudo cargar ganancias oficiales desde Firestore:', e.message);
+    }
+}
+
+function getMpPendingPayment() {
+    try { return JSON.parse(sessionStorage.getItem(MP_PENDING_PAYMENT_KEY) || 'null'); } catch(_) { return null; }
+}
+function setMpPendingPayment(data) {
+    sessionStorage.setItem(MP_PENDING_PAYMENT_KEY, JSON.stringify(data));
+}
+function clearMpPendingPayment() {
+    sessionStorage.removeItem(MP_PENDING_PAYMENT_KEY);
+}
+
+// ─────────────────────────────────────────────
+// Detecta el regreso desde el checkout de Mercado Pago
+// (back_urls success/failure/pending configuradas en
+// confirmSendAll). Si el pago volvió aprobado, confirma el
+// lote pendiente y recién ahí actualiza las ganancias oficiales.
+// ─────────────────────────────────────────────
 function _checkMercadoPagoReturn() {
-    // Sin conexión externa — sin integración de pagos
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const status = params.get('status') || params.get('collection_status');
+        if (!status) return;
+
+        const pending = getMpPendingPayment();
+
+        if ((status === 'approved' || status === 'success') && pending && Array.isArray(pending.pedidos) && pending.pedidos.length) {
+            const agregados = registrarPagoConfirmado(pending.pedidos);
+            clearMpPendingPayment();
+            toast(`✅ Pago aprobado · ${agregados} pedido${agregados!==1?'s':''} confirmado${agregados!==1?'s':''}`, true);
+            try { renderGananciasView(); } catch(_) {}
+        } else if (status === 'pending' && pending) {
+            toast('⏳ Tu pago está pendiente de aprobación en Mercado Pago', false);
+        } else if (status === 'failure' || status === 'rejected') {
+            // El pago no se acreditó: el lote sigue en la lista "Pedido" para reintentar.
+            toast('❌ El pago no se completó. Los pedidos siguen en tu lista "Pedido".', 'err');
+        }
+
+        // Limpiar el query string para no re-procesar al refrescar
+        const cleanUrl = window.location.origin + window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+    } catch(e) {
+        console.warn('Error procesando retorno de Mercado Pago:', e);
+    }
 }
 
 function init() {
     const savedTheme = localStorage.getItem('rw_theme') || 'dark';
     if (savedTheme === 'light') document.body.classList.add('light-theme');
     applySavedCustomColors();
+    _checkMercadoPagoReturn();
     // La sesión la maneja onAuthStateChanged — no hacer nada más acá.
     // Si Firebase no tiene sesión, onAuthStateChanged llama a showLogin().
     // Mostramos el login mientras Firebase resuelve para evitar flash.
@@ -2846,6 +3032,16 @@ function loadData() {
         try {
             pedidos = [];
 
+            // Traer ganancias oficiales y regalos persistidos en Firestore.
+            // No se espera (sin await) para no demorar la carga de pedidos;
+            // cuando resuelva, refresca las vistas si están abiertas.
+            _fsCargarGananciasYRegalos().then(() => {
+                try {
+                    const active = document.querySelector('.menu-btn.active');
+                    if (active && active.dataset.view === 'ganancias') renderGananciasView();
+                } catch(_) {}
+            });
+
             // 1. workerwebcliente → FUENTE PRINCIPAL de todos los datos del pedido
             const urlCliente = `${WORKER_CLIENTE}/logistica?codigo=${encodeURIComponent(currentCode)}`;
             let rawPend = [];
@@ -2965,12 +3161,22 @@ function renderAll() {
 function renderStats(ps, k) {
     const el = document.getElementById('stats-'+k);
     if (!ps.length) { el.innerHTML = ''; return; }
-    const totalGain = ps.reduce((s,p) => s + resellerGainOf(p), 0);
+    const totalGain   = ps.reduce((s,p) => s + resellerGainOf(p), 0);
+    const totalCliente = ps.reduce((s,p) => s + totalFinalRevendedor(p), 0);
+    const totalInv    = ps.reduce((s,p) => s + totalInversionRevendedor(p), 0);
     const units = ps.reduce((s,p) => s + (p.items||[]).reduce((a,i) => a + (i.cantidad||1), 0), 0);
     const hasConfig = Object.keys(configTienda).length > 0;
     el.innerHTML = `
         <div class="stat-card"><div class="stat-lbl">Pedidos</div><div class="stat-val ${activeStatus==='pendiente'?'a':'g'}">${ps.length}</div></div>
         <div class="stat-card"><div class="stat-lbl">Unidades</div><div class="stat-val">${units}</div></div>
+        <div class="stat-card">
+            <div class="stat-lbl">Inv/gan</div>
+            <div class="stat-val split">
+                <div class="sv-inv">Inv: $${Math.round(totalInv).toLocaleString()}</div>
+                <div class="sv-gan">Gan: $${Math.round(totalGain).toLocaleString()}</div>
+            </div>
+        </div>
+        ${hasConfig ? `<div class="stat-card"><div class="stat-lbl">Precio cliente</div><div class="stat-val">$${Math.round(totalCliente).toLocaleString()}</div></div>` : ''}
         ${hasConfig ? `<div class="stat-card"><div class="stat-lbl">Mi ganancia</div><div class="stat-val g">$${Math.round(totalGain).toLocaleString()}</div></div>` : ''}
     `;
 }
@@ -3069,10 +3275,10 @@ function card(p) {
                             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                             Factura cliente
                         </button>
-                        <button class="btn-act btn-send" id="aprobar-btn-${p.id}" onclick="${stop}aprobarPedido('${p.id}',this)">
+                        ${estado === 'pagado' ? `<button class="btn-act btn-send" id="aprobar-btn-${p.id}" onclick="${stop}aprobarPedido('${p.id}',this)">
                             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-                            Aprobar
-                        </button>
+                            Confirmar Pedido
+                        </button>` : ''}
                         <button class="btn-act btn-del" onclick="${stop}askDelete('${p.id}')">
                             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
                             Eliminar
@@ -3220,13 +3426,21 @@ function aprobarPedido(id, btn) {
     const list = getPedidoList();
     const ya = list.find(x => x.id === id);
     if (!ya) {
+        let gananciaPedido = resellerGainOf(p);
+        // Si este cliente tiene un regalo del mes pendiente de entregar, se
+        // descuenta su monto de la ganancia de ESTE pedido (única vez) y el
+        // regalo pasa automáticamente a "entregado".
+        const descuentoRegalo = descontarRegaloPendienteSiAplica(p);
+        if (descuentoRegalo > 0) {
+            gananciaPedido = Math.max(0, gananciaPedido - descuentoRegalo);
+        }
         list.push({
             id,
             fecha: new Date().toISOString(),
             cliente: p._clienteName,
             total: totalFinalRevendedor(p),
             totalMayorista: totalInversionRevendedor(p),
-            ganancia: resellerGainOf(p),
+            ganancia: gananciaPedido,
             items: (p.items || []).map(it => ({ nombre: it.nombre, cantidad: it.cantidad, precio: it.precio }))
         });
         savePedidoList(list);
@@ -3272,28 +3486,56 @@ async function confirmSendAll() {
 
     const totalMayorista = pedidoList.reduce((s, p) => s + (p.totalMayorista || 0), 0);
 
-    // Enviar al WORKER_PRINCIPAL como pedidos pendientes de pago
+    // Guardamos el lote como "pago pendiente" ANTES de redirigir. Al volver de
+    // Mercado Pago (_checkMercadoPagoReturn, ejecutado en init()) este lote se
+    // usa para recién ahí actualizar las ganancias OFICIALES — nunca antes.
+    setMpPendingPayment({
+        codigoVendedor: currentCode,
+        pedidos: pedidoList,
+        total: Math.round(totalMayorista),
+        fecha: new Date().toISOString()
+    });
+
+    const returnBase = window.location.origin + window.location.pathname;
+
     let mpRedirectUrl = null;
     try {
         const payload = {
-            action: 'enviarPedidosLote',
-            codigoVendedor: currentCode,
-            vendedor: { nombre: currentVendorNombre, apellido: currentVendorApellido, codigo: currentCode },
-            pedidos: pedidoList,
-            total: Math.round(totalMayorista),
-            fecha: new Date().toISOString()
+            items: [{
+                title: `Pedidos Revende Ways (${pedidoList.length})`,
+                quantity: 1,
+                unit_price: Math.round(totalMayorista),
+                currency_id: 'ARS'
+            }],
+            payer: {
+                name: currentVendorNombre || '',
+                surname: currentVendorApellido || ''
+            },
+            back_urls: {
+                success: returnBase + '?status=approved',
+                failure: returnBase + '?status=failure',
+                pending: returnBase + '?status=pending'
+            },
+            auto_return: 'approved',
+            external_reference: 'lote_' + currentCode + '_' + Date.now(),
+            metadata: {
+                codigoVendedor: currentCode,
+                cantidadPedidos: pedidoList.length
+            }
         };
-        const res = await fetch(`${WORKER_PRINCIPAL}/api/pedidos-lote`, {
+        const res = await fetch(`${WORKER_MAYORISTA}/api/mp/create-preference`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
         if (res.ok) {
             const data = await res.json().catch(() => null);
-            mpRedirectUrl = data?.init_point || data?.mpUrl || data?.payment_url || null;
+            mpRedirectUrl = data?.init_point || data?.sandbox_init_point || null;
+        } else {
+            console.warn('No se pudo crear la preferencia de Mercado Pago:', await res.text().catch(()=>''));
         }
     } catch(e) {
-        console.warn('Error al enviar al worker:', e);
+        console.warn('Error al crear preferencia de pago:', e);
     }
 
     if (btn) {
@@ -3301,15 +3543,16 @@ async function confirmSendAll() {
         btn.disabled = false;
     }
 
-    // Limpiar lista local después de enviar
-    savePedidoList([]);
-
     if (mpRedirectUrl) {
+        // Limpiar lista local "Pedido" — el lote ya viajó como pago pendiente
+        savePedidoList([]);
         toast(`Redirigiendo a Mercado Pago...`, true);
-        setTimeout(() => { window.location.href = mpRedirectUrl; }, 800);
+        setTimeout(() => { window.location.href = mpRedirectUrl; }, 600);
     } else {
-        // Fallback: crear preferencia de pago MP manualmente con total
-        toast(`${pedidoList.length} pedidos enviados · Total: $${Math.round(totalMayorista).toLocaleString()}`, true);
+        // No se pudo generar el link de pago: NO limpiamos la lista ni el pago
+        // pendiente, así el usuario puede reintentar sin perder los pedidos.
+        clearMpPendingPayment();
+        toast(`No se pudo generar el link de pago de Mercado Pago. Intentá de nuevo.`, 'err');
     }
 }
 
@@ -3413,7 +3656,7 @@ function renderPedidoListaView() {
             Vaciar lista
         </button>
     </div>
-    <div class="kpi-grid" style="margin-bottom:20px">
+    <div class="kpi-row-3" style="margin-bottom:20px">
         <div class="kpi"><div class="kpi-lbl">Total a clientes</div><div class="kpi-val">$${Math.round(totalFinalClientes).toLocaleString()}</div></div>
         <div class="kpi"><div class="kpi-lbl">Total mayorista</div><div class="kpi-val" style="color:var(--blue)">$${Math.round(totalMayorista).toLocaleString()}</div></div>
         <div class="kpi"><div class="kpi-lbl">Ganancia total</div><div class="kpi-val" style="color:var(--green)">$${Math.round(totalGanancia).toLocaleString()}</div></div>
@@ -3879,6 +4122,13 @@ function switchMainChartPeriod(period) {
 // ═══════════════════════════════════════════════════════════
 // VISTA: GANANCIAS
 // ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+// VISTA: GANANCIAS (OFICIALES)
+// Fuente de datos: SOLO el historial de pagos confirmados por
+// Mercado Pago (getGananciasOficiales()). Los pedidos pendientes
+// o aprobados-sin-pagar NO entran acá — ese dato vive únicamente
+// en el cuadro "Inv/gan" dentro de la vista Pedidos.
+// ═══════════════════════════════════════════════════════════
 function renderGananciasView() {
     const el = document.getElementById('ganancias-content');
     const hasConfig = Object.keys(configTienda).length > 0;
@@ -3888,26 +4138,26 @@ function renderGananciasView() {
         return;
     }
 
-    const all = pedidos;
-    const apro = pedidos.filter(p => p.estado === 'pagado');
-    const pend = pedidos.filter(p => p.estado === 'pendiente');
+    const historial = getGananciasOficiales();
 
-    const totalGainAll  = all.reduce((s,p) => s + resellerGainOf(p), 0);
-    const totalGainApro = apro.reduce((s,p) => s + resellerGainOf(p), 0);
-    const totalGainPend = pend.reduce((s,p) => s + resellerGainOf(p), 0);
-    const totalFacAll   = all.reduce((s,p) => s + totalFinalRevendedor(p), 0);
-    const totalInvAll   = all.reduce((s,p) => s + totalInversionRevendedor(p), 0);
+    if (!historial.length) {
+        el.innerHTML = `<div class="empty"><div class="empty-icon">💳</div><h3>Sin ganancias confirmadas todavía</h3><p>Las ganancias oficiales se registran acá recién cuando confirmás pedidos y pagás el total vía Mercado Pago con "Enviar todos". Mientras tanto, mirá la inversión y ganancia estimada de tus pedidos sin enviar en el cuadro "Inv/gan" de la vista Pedidos.</p></div>`;
+        return;
+    }
+
+    const totalGainAll = historial.reduce((s,h) => s + (h.ganancia || 0), 0);
+    const totalFacAll  = historial.reduce((s,h) => s + (h.total || 0), 0);
+    const totalInvAll  = historial.reduce((s,h) => s + (h.totalMayorista || 0), 0);
 
     let html = `<h2 class="section-title">Mis ganancias</h2>
         <div class="kpi-grid">
-            <div class="kpi"><div class="kpi-lbl">Ganancia total</div><div class="kpi-val" style="color:var(--green)">$${Math.round(totalGainAll).toLocaleString()}</div></div>
-            <div class="kpi"><div class="kpi-lbl">Ganancia aprobada</div><div class="kpi-val" style="color:var(--green)">$${Math.round(totalGainApro).toLocaleString()}</div></div>
-            <div class="kpi"><div class="kpi-lbl">Ganancia pendiente</div><div class="kpi-val" style="color:var(--amber)">$${Math.round(totalGainPend).toLocaleString()}</div></div>
+            <div class="kpi"><div class="kpi-lbl">Ganancia confirmada</div><div class="kpi-val" style="color:var(--green)">$${Math.round(totalGainAll).toLocaleString()}</div></div>
+            <div class="kpi"><div class="kpi-lbl">Pedidos pagados</div><div class="kpi-val">${historial.length}</div></div>
             <div class="kpi"><div class="kpi-lbl">Inversión total</div><div class="kpi-val">$${Math.round(totalInvAll).toLocaleString()}</div></div>
             <div class="kpi"><div class="kpi-lbl">Facturación a clientes</div><div class="kpi-val">$${Math.round(totalFacAll).toLocaleString()}</div></div>
         </div>`;
 
-    // Ganancia por nicho
+    // Ganancia por nicho (clasificado por los items de cada pedido pagado)
     html += `<div class="section-block"><h2 class="section-title">Ganancia por categoría</h2><div class="mini-list">`;
     const nichos = [
         { k:'perfumes', l:'Perfumes Árabes' },
@@ -3915,12 +4165,12 @@ function renderGananciasView() {
         { k:'calzados', l:'Calzados' }
     ];
     nichos.forEach((n, i) => {
-        const ps = all.filter(p => cat(p) === n.k);
-        const gain = ps.reduce((s,p) => s + resellerGainOf(p), 0);
-        const fac  = ps.reduce((s,p) => s + totalFinalRevendedor(p), 0);
-        if (!ps.length) return;
-        html += miniRibbon(`gain-nic-${i}`, n.l, `$${Math.round(gain).toLocaleString()}`, `${ps.length} pedido${ps.length!==1?'s':''}`, [
-            ['Pedidos', ps.length],
+        const hs = historial.filter(h => cat({ items: h.items }) === n.k);
+        const gain = hs.reduce((s,h) => s + (h.ganancia || 0), 0);
+        const fac  = hs.reduce((s,h) => s + (h.total || 0), 0);
+        if (!hs.length) return;
+        html += miniRibbon(`gain-nic-${i}`, n.l, `$${Math.round(gain).toLocaleString()}`, `${hs.length} pedido${hs.length!==1?'s':''}`, [
+            ['Pedidos pagados', hs.length],
             ['Ganancia', `$${Math.round(gain).toLocaleString()}`],
             ['Facturación al cliente', `$${Math.round(fac).toLocaleString()}`],
         ], 'green', `ganancia-semanas`);
@@ -4338,6 +4588,77 @@ const GIFT_KEY   = 'rw_gift_max_v1';
 const GIFT_KEY2  = 'rw_gift_max2_v1';
 const GIFT_KEY3  = 'rw_gift_max3_v1';
 
+// ─────────────────────────────────────────────
+// Registro de regalos otorgados: se guarda como "pendiente" al
+// notificar al cliente del mes. Pasa a "entregado" manualmente
+// (botón "Entregado") o automáticamente cuando ese mismo cliente
+// hace su siguiente compra (se descuenta el monto del regalo de
+// la ganancia de ese pedido, una sola vez).
+//
+// PERSISTENCIA: la fuente de verdad es Firestore
+// (usuarios/{uid}/regalos/{giftId}). localStorage es solo caché
+// de lectura instantánea — si se borra el caché, los regalos se
+// recuperan de Firestore en la próxima sesión (ver _fsCargarRegalos).
+// ─────────────────────────────────────────────
+const GIFTS_LOG_KEY = 'rw_gifts_log_v1';
+
+function getGiftsLog() {
+    try { return JSON.parse(localStorage.getItem(GIFTS_LOG_KEY) || '[]'); } catch(_) { return []; }
+}
+function saveGiftsLog(list) {
+    localStorage.setItem(GIFTS_LOG_KEY, JSON.stringify(list.slice(-500)));
+}
+function _clienteKeyOf(nombre, tel) {
+    return (String(nombre||'') + '|' + String(tel||'')).toLowerCase().trim();
+}
+
+// Escribe/actualiza un regalo individual en Firestore (no bloqueante).
+async function _fsGuardarRegalo(gift) {
+    if (!currentUid || !gift?.id) return;
+    try {
+        await _db.collection('usuarios').doc(currentUid)
+            .collection('regalos').doc(gift.id)
+            .set(gift, { merge: true });
+    } catch(e) {
+        console.warn('No se pudo persistir el regalo en Firestore:', e.message);
+    }
+}
+
+// Trae el log de regalos desde Firestore y reconstruye el caché local.
+// Sube (push) los regalos locales que todavía no existan en Firestore —
+// cubre creaciones/cambios de estado que ocurrieron antes de tener
+// currentUid disponible o con la conexión caída en ese momento.
+// Se llama al iniciar sesión (loadData), así los regalos (pendientes,
+// entregados, y su estado de descuento) sobreviven a un borrado de caché.
+async function _fsCargarRegalos() {
+    if (!currentUid) return;
+    try {
+        const snap = await _db.collection('usuarios').doc(currentUid).collection('regalos').get();
+        const remoto = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const local = getGiftsLog();
+
+        const remotoIds = new Set(remoto.map(g => g.id));
+        local.filter(g => !remotoIds.has(g.id)).forEach(g => { _fsGuardarRegalo(g); });
+
+        if (!remoto.length) return; // nada remoto aún: lo local ya quedó programado para subir arriba
+
+        const merged = new Map();
+        local.forEach(g => merged.set(g.id, g));
+        remoto.forEach(g => merged.set(g.id, g)); // Firestore es la fuente de verdad
+        saveGiftsLog(Array.from(merged.values()));
+    } catch(e) {
+        console.warn('No se pudo cargar el registro de regalos desde Firestore:', e.message);
+    }
+}
+
+// Carga conjunta (ganancias oficiales + regalos) al iniciar sesión.
+async function _fsCargarGananciasYRegalos() {
+    await Promise.all([
+        _fsCargarGananciasOficiales(),
+        _fsCargarRegalos()
+    ]);
+}
+
 let _giftTopClientes = [];
 
 function openGiftModal() {
@@ -4402,6 +4723,33 @@ function notificarClienteMes(pos) {
     } else {
         msg += `Queremos agradecerte tu confianza. ¡Contactanos para tu sorpresa especial! 🎉`;
     }
+
+    // Guardar el regalo como PENDIENTE en el registro (solo si tiene monto > 0).
+    // Si ya existe un regalo pendiente sin entregar para este mismo cliente,
+    // no se duplica.
+    if (giftVal > 0) {
+        const clienteKey = _clienteKeyOf(top.nombre, top.tel);
+        const log = getGiftsLog();
+        const yaPendiente = log.find(g => g.clienteKey === clienteKey && g.estado === 'pendiente');
+        if (!yaPendiente) {
+            const nuevoRegalo = {
+                id: 'gift_' + Date.now() + '_' + pos,
+                clienteKey,
+                nombre: top.nombre,
+                tel: top.tel,
+                puesto: pos + 1,
+                monto: giftVal,
+                estado: 'pendiente',
+                fechaNotificado: new Date().toISOString(),
+                fechaEntregado: null,
+                descontadoDePedidoId: null
+            };
+            log.push(nuevoRegalo);
+            saveGiftsLog(log);
+            _fsGuardarRegalo(nuevoRegalo); // persistencia en Firestore (no bloqueante)
+        }
+    }
+
     const tel = top.tel.replace(/\D/g, '');
     const waUrl = `https://wa.me/${tel}?text=${encodeURIComponent(msg)}`;
     window.open(waUrl, '_blank');
@@ -4427,7 +4775,103 @@ function saveGift() {
 
 document.getElementById('gift-modal').addEventListener('click', function(e) { if (e.target === this) closeGiftModal(); });
 
-// Sin sincronización en vivo — modo local/demo
+// ═══════════════════════════════════════════════════════════
+// MODAL ESTADÍSTICAS DE REGALOS (pendientes / entregados)
+// ═══════════════════════════════════════════════════════════
+function openGiftStatsModal() {
+    renderGiftStatsModal();
+    document.getElementById('gift-stats-modal').classList.add('show');
+}
+function closeGiftStatsModal() {
+    document.getElementById('gift-stats-modal').classList.remove('show');
+}
+
+function renderGiftStatsModal() {
+    const log = getGiftsLog();
+    const pendientes = log.filter(g => g.estado === 'pendiente');
+    const entregados  = log.filter(g => g.estado === 'entregado');
+
+    const totalTodos      = log.reduce((s,g) => s + (g.monto||0), 0);
+    const totalPendientes = pendientes.reduce((s,g) => s + (g.monto||0), 0);
+    const totalEntregados = entregados.reduce((s,g) => s + (g.monto||0), 0);
+
+    document.getElementById('gs-total-regalos').textContent     = '$' + Math.round(totalTodos).toLocaleString();
+    document.getElementById('gs-total-pendientes').textContent  = '$' + Math.round(totalPendientes).toLocaleString();
+    document.getElementById('gs-total-entregados').textContent  = '$' + Math.round(totalEntregados).toLocaleString();
+    document.getElementById('gs-cant-entregados').textContent   = entregados.length;
+
+    const icons = ['🥇','🥈','🥉'];
+    const pendList = document.getElementById('gift-pending-list');
+    pendList.innerHTML = pendientes.length ? pendientes.map(g => `
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+            <div>
+                <div style="font-size:13px;font-weight:700">${icons[(g.puesto||1)-1]||'🎁'} ${esc(g.nombre)}</div>
+                <div style="font-size:11px;color:var(--text3)">Notificado: ${ba(new Date(g.fechaNotificado))} · $${Math.round(g.monto).toLocaleString()}</div>
+            </div>
+            <button onclick="marcarRegaloEntregado('${g.id}')" style="background:var(--green-pale);border:1px solid rgba(0,201,110,.25);color:var(--green);border-radius:6px;padding:6px 10px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font)">Entregado</button>
+        </div>
+    `).join('') : `<p style="font-size:12px;color:var(--text3)">No hay regalos pendientes.</p>`;
+
+    const delivList = document.getElementById('gift-delivered-list');
+    delivList.innerHTML = entregados.length ? entregados.slice().reverse().map(g => `
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px">
+            <div style="font-size:13px;font-weight:700">${icons[(g.puesto||1)-1]||'🎁'} ${esc(g.nombre)}</div>
+            <div style="font-size:11px;color:var(--text3)">
+                Entregado: ${g.fechaEntregado ? ba(new Date(g.fechaEntregado)) : '—'} · $${Math.round(g.monto).toLocaleString()}
+                ${g.descontadoDePedidoId ? ' · descontado automáticamente de su siguiente compra' : ' · marcado entregado manualmente'}
+            </div>
+        </div>
+    `).join('') : `<p style="font-size:12px;color:var(--text3)">Todavía no entregaste ningún regalo.</p>`;
+}
+
+function marcarRegaloEntregado(id) {
+    const log = getGiftsLog();
+    const g = log.find(x => x.id === id);
+    if (!g) return;
+    g.estado = 'entregado';
+    g.fechaEntregado = new Date().toISOString();
+    saveGiftsLog(log);
+    _fsGuardarRegalo(g); // persistencia en Firestore (no bloqueante)
+    renderGiftStatsModal();
+    toast('🎁 Regalo marcado como entregado', true);
+}
+
+// ─────────────────────────────────────────────
+// Descuento automático del regalo en la siguiente compra del
+// cliente beneficiado. Se llama al confirmar un pedido (mover a
+// la lista "Pedido" / registrar pago). Devuelve el monto a
+// descontar (0 si no aplica) y marca el regalo como entregado.
+// Es de única vez: una vez descontado, el regalo queda
+// "descontadoDePedidoId" seteado y no vuelve a aplicarse.
+// ─────────────────────────────────────────────
+function descontarRegaloPendienteSiAplica(pedido) {
+    try {
+        const env = pedido.envio || pedido.cliente || {};
+        const nombre = fullName(env) || pedido._clienteName || '';
+        const tel = env.telefono || '';
+        const clienteKey = _clienteKeyOf(nombre, tel);
+        if (!clienteKey || clienteKey === '|') return 0;
+
+        const log = getGiftsLog();
+        const giftPendiente = log.find(g => g.clienteKey === clienteKey && g.estado === 'pendiente');
+        if (!giftPendiente) return 0;
+
+        giftPendiente.estado = 'entregado';
+        giftPendiente.fechaEntregado = new Date().toISOString();
+        giftPendiente.descontadoDePedidoId = pedido.id || null;
+        saveGiftsLog(log);
+        _fsGuardarRegalo(giftPendiente); // persistencia en Firestore (no bloqueante)
+        toast(`🎁 Se descontó $${Math.round(giftPendiente.monto).toLocaleString()} del regalo de ${nombre} en este pedido`, true);
+        return Number(giftPendiente.monto) || 0;
+    } catch(_) {
+        return 0;
+    }
+}
+
+document.getElementById('gift-stats-modal').addEventListener('click', function(e) { if (e.target === this) closeGiftStatsModal(); });
+
+// Ganancias oficiales y regalos: persistidos en Firestore (usuarios/{uid}/gananciasOficiales
+// y usuarios/{uid}/regalos), con localStorage como caché local. Ver _fsCargarGananciasYRegalos.
 
 window.addEventListener('load', init);
 </script>
