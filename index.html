@@ -710,11 +710,6 @@
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
                 Clientes
             </button>
-            <button class="menu-btn" data-view="pedidolista" onclick="switchView('pedidolista')">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="15" x2="13" y2="15"/></svg>
-                <span id="pedidolista-cnt-badge" style="display:none;background:var(--green);color:#0b0d12;border-radius:20px;font-size:10px;font-weight:800;padding:0 5px;min-width:16px;text-align:center"></span>
-                Pedido
-            </button>
         </div>
 
         <!-- VIEW: PEDIDOS -->
@@ -734,7 +729,11 @@
 
             <div class="tabs-bar">
                 <button class="tab-btn active" id="tbtn-calzados" onclick="switchTab('calzados')"><span class="tlbl">Calzados</span> <span class="pill on" id="pill-calzados">0</span></button>
-                <button class="tab-btn" id="tbtn-perfumes" onclick="switchTab('perfumes')"><span class="tlbl lbl-full">Perfumes Árabes</span><span class="tlbl lbl-short">Perfumes</span> <span class="pill" id="pill-perfumes">0</span></button>
+                <button class="tab-btn" id="tbtn-perfumes" onclick="switchTab('perfumes')"><span class="tlbl">Perfumería</span> <span class="pill" id="pill-perfumes">0</span></button>
+                <button class="tab-btn" id="tbtn-belleza" onclick="switchTab('belleza')"><span class="tlbl lbl-full">Belleza y Cuidado Personal</span><span class="tlbl lbl-short">Belleza</span> <span class="pill" id="pill-belleza">0</span></button>
+                <button class="tab-btn" id="tbtn-bazar" onclick="switchTab('bazar')"><span class="tlbl">Bazar</span> <span class="pill" id="pill-bazar">0</span></button>
+                <button class="tab-btn" id="tbtn-jugueteria" onclick="switchTab('jugueteria')"><span class="tlbl">Juguetería</span> <span class="pill" id="pill-jugueteria">0</span></button>
+                <button class="tab-btn" id="tbtn-libreria" onclick="switchTab('libreria')"><span class="tlbl">Librería</span> <span class="pill" id="pill-libreria">0</span></button>
                 <button class="tab-btn" id="tbtn-multishop" onclick="switchTab('multishop')"><span class="tlbl">Multishop</span> <span class="pill" id="pill-multishop">0</span></button>
             </div>
 
@@ -745,6 +744,22 @@
             <div class="tab-pane" id="pane-perfumes">
                 <div class="stats-row" id="stats-perfumes"></div>
                 <div id="list-perfumes"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
+            </div>
+            <div class="tab-pane" id="pane-belleza">
+                <div class="stats-row" id="stats-belleza"></div>
+                <div id="list-belleza"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
+            </div>
+            <div class="tab-pane" id="pane-bazar">
+                <div class="stats-row" id="stats-bazar"></div>
+                <div id="list-bazar"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
+            </div>
+            <div class="tab-pane" id="pane-jugueteria">
+                <div class="stats-row" id="stats-jugueteria"></div>
+                <div id="list-jugueteria"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
+            </div>
+            <div class="tab-pane" id="pane-libreria">
+                <div class="stats-row" id="stats-libreria"></div>
+                <div id="list-libreria"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
             </div>
             <div class="tab-pane" id="pane-multishop">
                 <div class="stats-row" id="stats-multishop"></div>
@@ -760,16 +775,16 @@
         <!-- VIEW: GANANCIAS -->
         <div class="view" id="view-ganancias">
             <div id="ganancias-content"></div>
+
+            <hr style="border:none;border-top:1px solid var(--line,rgba(255,255,255,.08));margin:28px 0 20px">
+
+            <!-- Antes era la vista "Pedido" (tab aparte) — ahora vive acá abajo -->
+            <div id="pedidolista-content"></div>
         </div>
 
         <!-- VIEW: RANKING CLIENTES -->
         <div class="view" id="view-ranking">
             <div id="ranking-content"></div>
-        </div>
-
-        <!-- VIEW: LISTA PEDIDO -->
-        <div class="view" id="view-pedidolista">
-            <div id="pedidolista-content"></div>
         </div>
 
 
@@ -1520,9 +1535,40 @@ const CATALOGO_PRECIOS_REF = {
     "RETRO 3 PURES MONEY": 37000,
     "LOUIS VUITTON": 37000
 };
+// Precios mayoristas de las categorías nuevas (Bazar, Juguetería, Vajilla
+// de Melamina, Peluches, Librería, Electrónicos) — se traen del Worker en
+// vivo, así no hace falta mantener un diccionario fijo a mano cada vez que
+// se suma un producto nuevo a la plataforma.
+const RESTOPRECIOS_WORKER = 'https://restoprecios.tuweb.workers.dev/';
+let CATALOGO_PRECIOS_WORKER = {};
+(function cargarCatalogoPreciosWorker() {
+    try {
+        const cache = JSON.parse(localStorage.getItem('_catalogoPreciosWorkerCache') || 'null');
+        if (cache && cache.data && (Date.now() - (cache.ts || 0) < 6 * 60 * 60 * 1000)) {
+            CATALOGO_PRECIOS_WORKER = cache.data;
+        }
+    } catch(_) {}
+    fetch(RESTOPRECIOS_WORKER)
+        .then(r => r.json())
+        .then(data => {
+            const mapa = {};
+            (data.productos || []).forEach(p => {
+                if (p && p.nombre && p.precio_mayorista != null) {
+                    mapa[String(p.nombre).trim().toUpperCase()] = Number(p.precio_mayorista);
+                }
+            });
+            CATALOGO_PRECIOS_WORKER = mapa;
+            try { localStorage.setItem('_catalogoPreciosWorkerCache', JSON.stringify({ ts: Date.now(), data: mapa })); } catch(_) {}
+            // Si ya se había renderizado algo con precio 0 por no tener el
+            // dato todavía, se refresca ahora que llegaron los precios.
+            if (typeof renderAll === 'function' && typeof pedidos !== 'undefined' && pedidos.length) renderAll();
+        })
+        .catch(() => {});
+})();
+
 function _precioRefCatalogo(nombre) {
     if (!nombre) return null;
-    const keys = Object.keys(CATALOGO_PRECIOS_REF);
+    const fuentes = [CATALOGO_PRECIOS_REF, CATALOGO_PRECIOS_WORKER];
 
     // Limpia el nombre: quita talle "(T.43)", "(T43)", espacios extra
     function limpiar(s) {
@@ -1533,24 +1579,29 @@ function _precioRefCatalogo(nombre) {
 
     const n = limpiar(nombre);
 
-    // 1. Match exacto con nombre limpio
-    if (CATALOGO_PRECIOS_REF[n] != null) return CATALOGO_PRECIOS_REF[n];
-    const exacto = keys.find(k => limpiar(k) === n);
-    if (exacto) return CATALOGO_PRECIOS_REF[exacto];
+    for (const fuente of fuentes) {
+        const keys = Object.keys(fuente);
+        if (!keys.length) continue;
 
-    // 2. El nombre del catálogo está contenido en el nombre del ítem
-    //    Ej: "DUNK PANDA 3D (T.43)" contiene "DUNK PANDA 3D"
-    //    Ordenar por longitud desc para preferir el match más largo/específico
-    const porContenido = keys
-        .filter(k => n.includes(limpiar(k)) && limpiar(k).length > 3)
-        .sort((a, b) => limpiar(b).length - limpiar(a).length);
-    if (porContenido.length) return CATALOGO_PRECIOS_REF[porContenido[0]];
+        // 1. Match exacto con nombre limpio
+        if (fuente[n] != null) return fuente[n];
+        const exacto = keys.find(k => limpiar(k) === n);
+        if (exacto) return fuente[exacto];
 
-    // 3. El nombre del ítem está contenido en el catálogo
-    const porContenido2 = keys
-        .filter(k => limpiar(k).includes(n) && n.length > 3)
-        .sort((a, b) => limpiar(a).length - limpiar(b).length);
-    if (porContenido2.length) return CATALOGO_PRECIOS_REF[porContenido2[0]];
+        // 2. El nombre del catálogo está contenido en el nombre del ítem
+        //    Ej: "DUNK PANDA 3D (T.43)" contiene "DUNK PANDA 3D"
+        //    Ordenar por longitud desc para preferir el match más largo/específico
+        const porContenido = keys
+            .filter(k => n.includes(limpiar(k)) && limpiar(k).length > 3)
+            .sort((a, b) => limpiar(b).length - limpiar(a).length);
+        if (porContenido.length) return fuente[porContenido[0]];
+
+        // 3. El nombre del ítem está contenido en el catálogo
+        const porContenido2 = keys
+            .filter(k => limpiar(k).includes(n) && n.length > 3)
+            .sort((a, b) => limpiar(a).length - limpiar(b).length);
+        if (porContenido2.length) return fuente[porContenido2[0]];
+    }
 
     return null;
 }
@@ -2309,9 +2360,13 @@ function totalInversionRevendedor(p) {
 function cat(p) {
     if (p.nicho) {
         const n = p.nicho.toLowerCase();
-        if (n.includes('calzad') || n.includes('adult') || n.includes('niñ') || n.includes('nino')) return 'calzados';
-        if (n.includes('perfum') || n.includes('árabe') || n.includes('arabe')) return 'perfumes';
-        if (n.includes('multishop')) return 'multishop';
+        if (n === 'calzados' || n.includes('calzad') || n.includes('adult') || n.includes('niñ') || n.includes('nino')) return 'calzados';
+        if (n === 'perfumes' || n.includes('perfum') || n.includes('árabe') || n.includes('arabe')) return 'perfumes';
+        if (n === 'belleza') return 'belleza';
+        if (n === 'bazar') return 'bazar';
+        if (n === 'jugueteria' || n === 'juguetería') return 'jugueteria';
+        if (n === 'libreria' || n === 'librería') return 'libreria';
+        if (n === 'multishop') return 'multishop';
     }
     const items = p.items || [];
     const nm = i => (i.nombre || '').toUpperCase();
@@ -3027,13 +3082,13 @@ async function _fetchPedidosFirestoreUsuario() {
 }
 
 function loadData() {
-    ['perfumes','multishop','calzados'].forEach(k => {
+    ['perfumes','belleza','calzados','bazar','jugueteria','libreria','multishop'].forEach(k => {
         document.getElementById('list-'+k).innerHTML =
             '<div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div>';
     });
 
     if (!currentCode) {
-        ['perfumes','multishop','calzados'].forEach(k => {
+        ['perfumes','belleza','calzados','bazar','jugueteria','libreria','multishop'].forEach(k => {
             document.getElementById('list-'+k).innerHTML =
                 `<div class="empty"><div class="empty-icon">⚠️</div><h3>Sin sesión</h3><p>No hay código de revendedor activo.</p></div>`;
         });
@@ -3146,7 +3201,7 @@ function loadData() {
         } catch(e) {
             console.error('loadData error:', e);
             toast('Error al cargar: ' + e.message, 'err');
-            ['perfumes','multishop','calzados'].forEach(k => {
+            ['perfumes','belleza','calzados','bazar','jugueteria','libreria','multishop'].forEach(k => {
                 document.getElementById('list-'+k).innerHTML =
                     `<div class="empty"><div class="empty-icon">⚠️</div><h3>Error</h3><p>${esc(e.message)}</p></div>`;
             });
@@ -3159,10 +3214,10 @@ function loadData() {
 // ═══════════════════════════════════════════════════════════
 function renderAll() {
     const filtered = pedidos.filter(p => p.estado === activeStatus);
-    const cats = { perfumes:[], multishop:[], calzados:[] };
+    const cats = { perfumes:[], belleza:[], calzados:[], bazar:[], jugueteria:[], libreria:[], multishop:[] };
     filtered.forEach(p => { const c = cat(p); if (cats[c]) cats[c].push(p); });
 
-    ['perfumes','multishop','calzados'].forEach(k => {
+    ['perfumes','belleza','calzados','bazar','jugueteria','libreria','multishop'].forEach(k => {
         document.getElementById('pill-'+k).textContent = cats[k].length;
         renderStats(cats[k], k);
         renderList(cats[k], k);
@@ -3632,9 +3687,8 @@ function switchView(v) {
     document.getElementById('view-'+v)?.classList.add('active');
     document.querySelectorAll('.menu-btn').forEach(e => e.classList.toggle('active', e.dataset.view === v));
     if (v === 'stats')        renderStatsView();
-    if (v === 'ganancias')    renderGananciasView();
+    if (v === 'ganancias')  { renderGananciasView(); renderPedidoListaView(); }
     if (v === 'ranking')      renderRankingView();
-    if (v === 'pedidolista')  renderPedidoListaView();
 }
 
 function _updatePedidoListaBadge() {
@@ -3655,7 +3709,7 @@ function renderPedidoListaView() {
     _updatePedidoListaBadge();
 
     if (!list.length) {
-        el.innerHTML = `<div class="empty"><div class="empty-icon">🛒</div><h3>Lista "Pedido" vacía</h3><p>Aprobá pedidos desde la vista de Pedidos Aprobados para agregarlos acá.</p></div>`;
+        el.innerHTML = `<div class="empty"><div class="empty-icon">🛒</div><h3>No hay pedidos listos para ejecutar</h3><p>Aprobá pedidos desde la vista de Pedidos Aprobados para agregarlos acá.</p></div>`;
         return;
     }
 
@@ -3664,8 +3718,8 @@ function renderPedidoListaView() {
     const totalGanancia  = list.reduce((s, p) => s + (p.ganancia || 0), 0);
 
     let html = `<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px">
-        <h2 class="section-title" style="margin:0">Lista "Pedido" <span style="font-size:13px;font-weight:400;color:var(--text3)">(${list.length} pedido${list.length!==1?'s':''})</span></h2>
-        <button class="btn-head" style="background:var(--red-pale);border-color:rgba(244,63,94,.3);color:var(--red)" onclick="if(confirm('¿Vaciar toda la lista Pedido?')){savePedidoList([]);renderPedidoListaView();_updatePedidoListaBadge();}">
+        <h2 class="section-title" style="margin:0">Listos para ejecutar <span style="font-size:13px;font-weight:400;color:var(--text3)">(${list.length} pedido${list.length!==1?'s':''})</span></h2>
+        <button class="btn-head" style="background:var(--red-pale);border-color:rgba(244,63,94,.3);color:var(--red)" onclick="if(confirm('¿Vaciar toda la lista de pedidos listos para ejecutar?')){savePedidoList([]);renderPedidoListaView();_updatePedidoListaBadge();}">
             Vaciar lista
         </button>
     </div>
@@ -3675,9 +3729,9 @@ function renderPedidoListaView() {
         <div class="kpi"><div class="kpi-lbl">Ganancia total</div><div class="kpi-val" style="color:var(--green)">$${Math.round(totalGanancia).toLocaleString()}</div></div>
     </div>`;
 
-    list.forEach((p, idx) => {
+    const pedidoCardHtml = (p) => {
         const fecha = p.fecha ? new Date(p.fecha).toLocaleString('es-AR', { timeZone:'America/Argentina/Buenos_Aires', day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : '—';
-        html += `<div class="ribbon" style="margin-bottom:8px">
+        return `<div class="ribbon" style="margin-bottom:8px">
             <div class="ribbon-head" style="cursor:default">
                 <div class="ribbon-main">
                     <span class="r-name">${esc(p.cliente || 'Cliente')}</span>
@@ -3698,7 +3752,23 @@ function renderPedidoListaView() {
                 </div>
             </div>
         </div>`;
-    });
+    };
+
+    // Los primeros 2 pedidos siempre visibles.
+    const SIEMPRE_VISIBLES = 2;
+    const primeros = list.slice(0, SIEMPRE_VISIBLES);
+    const resto = list.slice(SIEMPRE_VISIBLES);
+
+    html += `<div id="pedidolista-primeros">${primeros.map(pedidoCardHtml).join('')}</div>`;
+
+    if (resto.length > 0) {
+        html += `<div id="pedidolista-drawer" class="pedidolista-drawer" style="max-height:0;overflow:hidden;transition:max-height .35s ease">
+            <div id="pedidolista-drawer-inner">${resto.map(p => `<div style="display:none">${pedidoCardHtml(p)}</div>`).join('')}</div>
+        </div>
+        <button type="button" id="pedidolista-vermas-btn" onclick="_pedidolistaVerMas()" style="width:100%;background:none;border:1px dashed var(--line,rgba(255,255,255,.15));color:var(--text2);border-radius:10px;padding:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:16px">
+            Ver más <span id="pedidolista-vermas-arrow" style="display:inline-block;transition:transform .25s ease">▾</span>
+        </button>`;
+    }
 
     html += `<div style="margin-top:16px">
         <button class="btn-head btn-send-all" style="width:100%;justify-content:center;padding:14px" onclick="sendAllPedidos()">
@@ -3708,11 +3778,49 @@ function renderPedidoListaView() {
     </div>`;
 
     el.innerHTML = html;
+
+    // Reiniciar estado de despliegue cada vez que se re-renderiza
+    window._pedidolistaMostrados = 0;
+
     // hacer ribbons expandibles
     el.querySelectorAll('.ribbon .ribbon-head').forEach(h => {
         h.style.cursor = 'pointer';
         h.addEventListener('click', () => h.closest('.ribbon').classList.toggle('expanded'));
     });
+}
+
+// Despliega el resto de los pedidos de a 6 en 6, dentro de una cortina
+// deslizable. El botón "Ver más" desaparece cuando ya no queda nada más
+// por mostrar.
+function _pedidolistaVerMas() {
+    const drawer = document.getElementById('pedidolista-drawer');
+    const inner = document.getElementById('pedidolista-drawer-inner');
+    const btn = document.getElementById('pedidolista-vermas-btn');
+    const arrow = document.getElementById('pedidolista-vermas-arrow');
+    if (!drawer || !inner || !btn) return;
+
+    const items = Array.from(inner.children);
+    const PASO = 6;
+    window._pedidolistaMostrados = (window._pedidolistaMostrados || 0) + PASO;
+
+    items.forEach((item, idx) => {
+        item.style.display = idx < window._pedidolistaMostrados ? '' : 'none';
+    });
+
+    drawer.style.maxHeight = drawer.scrollHeight + 'px';
+    if (arrow) arrow.style.transform = 'rotate(180deg)';
+
+    if (window._pedidolistaMostrados >= items.length) {
+        btn.style.display = 'none';
+    }
+
+    // Reajustar la altura del contenedor deslizable si dentro se expande
+    // algún pedido individual (acordeón .ribbon).
+    if (!drawer.dataset.observando) {
+        drawer.dataset.observando = '1';
+        new MutationObserver(() => { drawer.style.maxHeight = drawer.scrollHeight + 'px'; })
+            .observe(inner, { attributes: true, subtree: true, attributeFilter: ['class'] });
+    }
 }
 
 function quitarDePedidoLista(id) {
@@ -4010,12 +4118,16 @@ function renderStatsView() {
         });
     });
 
-    const nichoLabels = { calzados:'Calzados', perfumes:'Perfumes Árabes', multishop:'Multishop' };
+    const nichoLabels = { calzados:'Calzados', perfumes:'Perfumería', belleza:'Belleza y Cuidado Personal', bazar:'Bazar', jugueteria:'Juguetería', libreria:'Librería', multishop:'Multishop' };
     let catHtml = `<div class="section-block"><h2 class="section-title">Por categoría</h2>
-        <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
-            <div class="kpi"><div class="kpi-lbl">Calzados</div><div class="kpi-val">${byNicho.calzados}</div></div>
-            <div class="kpi"><div class="kpi-lbl">Perfumes Árabes</div><div class="kpi-val">${byNicho.perfumes}</div></div>
-            <div class="kpi"><div class="kpi-lbl">Multishop</div><div class="kpi-val">${byNicho.multishop}</div></div>
+        <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(110px,1fr))">
+            <div class="kpi"><div class="kpi-lbl">Calzados</div><div class="kpi-val">${byNicho.calzados || 0}</div></div>
+            <div class="kpi"><div class="kpi-lbl">Perfumería</div><div class="kpi-val">${byNicho.perfumes || 0}</div></div>
+            <div class="kpi"><div class="kpi-lbl">Belleza y Cuidado Personal</div><div class="kpi-val">${byNicho.belleza || 0}</div></div>
+            <div class="kpi"><div class="kpi-lbl">Bazar</div><div class="kpi-val">${byNicho.bazar || 0}</div></div>
+            <div class="kpi"><div class="kpi-lbl">Juguetería</div><div class="kpi-val">${byNicho.jugueteria || 0}</div></div>
+            <div class="kpi"><div class="kpi-lbl">Librería</div><div class="kpi-val">${byNicho.libreria || 0}</div></div>
+            <div class="kpi"><div class="kpi-lbl">Multishop</div><div class="kpi-val">${byNicho.multishop || 0}</div></div>
         </div>
     </div>`;
 
@@ -4173,12 +4285,16 @@ function renderGananciasView() {
     // Ganancia por nicho (clasificado por los items de cada pedido pagado)
     html += `<div class="section-block"><h2 class="section-title">Ganancia por categoría</h2><div class="mini-list">`;
     const nichos = [
-        { k:'perfumes', l:'Perfumes Árabes' },
-        { k:'multishop', l:'Multishop' },
-        { k:'calzados', l:'Calzados' }
+        { k:'perfumes', l:'Perfumería' },
+        { k:'belleza', l:'Belleza y Cuidado Personal' },
+        { k:'calzados', l:'Calzados' },
+        { k:'bazar', l:'Bazar' },
+        { k:'jugueteria', l:'Juguetería' },
+        { k:'libreria', l:'Librería' },
+        { k:'multishop', l:'Multishop' }
     ];
     nichos.forEach((n, i) => {
-        const hs = historial.filter(h => cat({ items: h.items }) === n.k);
+        const hs = historial.filter(h => cat(h) === n.k);
         const gain = hs.reduce((s,h) => s + (h.ganancia || 0), 0);
         const fac  = hs.reduce((s,h) => s + (h.total || 0), 0);
         if (!hs.length) return;
@@ -4192,7 +4308,7 @@ function renderGananciasView() {
 
     // Configuración de márgenes activa
     html += `<div class="section-block"><h2 class="section-title">Mi configuración de márgenes</h2>`;
-    const cats = ['perfumes','multishop','calzados','general'];
+    const cats = ['perfumes','belleza','calzados','bazar','jugueteria','libreria','multishop','general'];
     cats.forEach(c => {
         const cfg = configTienda[c];
         if (!cfg || !Array.isArray(cfg.rangos) || !cfg.rangos.length) return;
@@ -4418,14 +4534,18 @@ function renderRevendedorDetalle(el, rv, todos) {
     </div>`;
 
     // Nichos
-    const nichos = { perfumes:0, multishop:0, calzados:0 };
+    const nichos = { perfumes:0, belleza:0, calzados:0, bazar:0, jugueteria:0, libreria:0, multishop:0 };
     peds.forEach(p => { const c = cat(p); if (nichos[c] !== undefined) nichos[c]++; });
     const totalNicho = peds.length || 1;
     if (peds.length) {
         html += `<div class="section-block"><h2 class="section-title">Distribución por categoría</h2>
-        <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
+        <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(110px,1fr))">
             <div class="kpi"><div class="kpi-lbl">Calzados</div><div class="kpi-val">${nichos.calzados}</div></div>
-            <div class="kpi"><div class="kpi-lbl">Perfumes Árabes</div><div class="kpi-val">${nichos.perfumes}</div></div>
+            <div class="kpi"><div class="kpi-lbl">Perfumería</div><div class="kpi-val">${nichos.perfumes}</div></div>
+            <div class="kpi"><div class="kpi-lbl">Belleza y Cuidado Personal</div><div class="kpi-val">${nichos.belleza}</div></div>
+            <div class="kpi"><div class="kpi-lbl">Bazar</div><div class="kpi-val">${nichos.bazar}</div></div>
+            <div class="kpi"><div class="kpi-lbl">Juguetería</div><div class="kpi-val">${nichos.jugueteria}</div></div>
+            <div class="kpi"><div class="kpi-lbl">Librería</div><div class="kpi-val">${nichos.libreria}</div></div>
             <div class="kpi"><div class="kpi-lbl">Multishop</div><div class="kpi-val">${nichos.multishop}</div></div>
         </div></div>`;
     }
