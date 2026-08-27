@@ -3509,6 +3509,7 @@ function aprobarPedido(id, btn) {
             total: totalFinalRevendedor(p),
             totalMayorista: totalInversionRevendedor(p),
             ganancia: gananciaPedido,
+            nicho: cat(p),
             items: (p.items || []).map(it => ({ nombre: it.nombre, cantidad: it.cantidad, precio: it.precio }))
         });
         savePedidoList(list);
@@ -3554,6 +3555,45 @@ async function confirmSendAll() {
 
     const totalMayorista = pedidoList.reduce((s, p) => s + (p.totalMayorista || 0), 0);
 
+    // Aplanar los items de todos los pedidos del lote en una sola lista de
+    // productos, y quedarnos con el nicho predominante (si el lote mezcla
+    // categorías, mandamos 'multishop' para no perder el dato).
+    const itemsLote = pedidoList.flatMap(p => (p.items || []).map(it => ({
+        nombre: it.nombre,
+        cantidad: it.cantidad,
+        precio: it.precio
+    })));
+    const nichosDelLote = [...new Set(pedidoList.map(p => p.nicho).filter(Boolean))];
+    const nichoLote = nichosDelLote.length === 1 ? nichosDelLote[0] : 'multishop';
+
+    // 1) Registrar el lote como pedido PENDIENTE en workerpagos — recién con
+    // esto aparece del lado de pedidos.html apenas el revendedor confirma,
+    // sin esperar a que se apruebe el pago.
+    let pedidoIdReal = null;
+    try {
+        const resPedido = await fetch(`${WORKER_MAYORISTA}/api/pedido`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                cliente: {
+                    nombre: `${currentVendorNombre || ''} ${currentVendorApellido || ''}`.trim() || currentCode,
+                    email: (currentCode ? currentCode.toLowerCase() : 'revendedor') + '@revendeways.com',
+                    telefono: ''
+                },
+                productos: itemsLote,
+                total: Math.round(totalMayorista),
+                codigoVendedor: currentCode,
+                nicho: nichoLote
+            })
+        });
+        if (resPedido.ok) {
+            const dataPedido = await resPedido.json().catch(() => null);
+            pedidoIdReal = dataPedido?.pedidoId || null;
+        }
+    } catch (e) {
+        console.warn('No se pudo registrar el lote como pendiente:', e);
+    }
+
     // Guardamos el lote como "pago pendiente" ANTES de redirigir. Al volver de
     // Mercado Pago (_checkMercadoPagoReturn, ejecutado en init()) este lote se
     // usa para recién ahí actualizar las ganancias OFICIALES — nunca antes.
@@ -3561,6 +3601,7 @@ async function confirmSendAll() {
         codigoVendedor: currentCode,
         pedidos: pedidoList,
         total: Math.round(totalMayorista),
+        pedidoId: pedidoIdReal,
         fecha: new Date().toISOString()
     });
 
@@ -3585,7 +3626,11 @@ async function confirmSendAll() {
                 pending: returnBase + '?status=pending'
             },
             auto_return: 'approved',
-            external_reference: 'lote_' + currentCode + '_' + Date.now(),
+            // Si se pudo registrar el pedido como pendiente, usamos SU id real
+            // para que el webhook de Mercado Pago actualice ese mismo
+            // documento a APROBADO. Si no se pudo (sin conexión, etc.), se
+            // mantiene el identificador de lote como respaldo.
+            external_reference: pedidoIdReal || ('lote_' + currentCode + '_' + Date.now()),
             metadata: {
                 codigoVendedor: currentCode,
                 cantidadPedidos: pedidoList.length
