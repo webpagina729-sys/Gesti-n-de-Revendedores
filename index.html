@@ -168,8 +168,8 @@
         .stab.active.pend .cnt { background: var(--amber); color: #0b0d12; }
         .stab.active.apro .cnt { background: var(--green); color: #0b0d12; }
 
-        /* ── NICHO TABS ── */
-        .tabs-bar { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 28px; overflow: hidden; flex-wrap: nowrap; width: 100%; }
+        /* ── NICHO TABS (legacy, ya no se usa como fila horizontal) ── */
+        .tabs-bar { display: none; }
         .tab-btn { display: flex; align-items: center; justify-content: center; gap: 7px; padding: 10px 16px; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; font-size: 12px; font-weight: 600; color: var(--text2); cursor: pointer; font-family: var(--font); transition: all .18s; white-space: nowrap; flex: 1 1 0; min-width: 0; overflow: hidden; }
         .tab-btn .tlbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .tab-btn .lbl-short { display: none; }
@@ -179,6 +179,43 @@
         .pill.on { background: var(--blue); color: white; }
         .tab-pane { display: none; }
         .tab-pane.active { display: block; }
+
+        /* ── ACORDEÓN: CONFIRMAR PEDIDOS POR CATEGORÍA ── */
+        .cat-confirm-accordion { margin-bottom: 22px; }
+        .cat-confirm-toggle {
+            width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+            background: var(--surface, #14171f); border: 1px solid var(--border); border-radius: 12px;
+            padding: 14px 16px; cursor: pointer; font-family: var(--font); font-size: 14px; font-weight: 700;
+            color: var(--text); transition: border-color .18s;
+        }
+        .cat-confirm-toggle:hover { border-color: var(--blue); }
+        .cat-confirm-toggle-left { display: flex; align-items: center; gap: 9px; }
+        .cat-confirm-badge-total {
+            display: none; background: #ef4444; color: #fff; border-radius: 20px; font-size: 12px;
+            font-weight: 800; padding: 2px 9px; min-width: 20px; text-align: center;
+        }
+        .cat-confirm-arrow { transition: transform .25s ease; color: var(--text3); }
+        .cat-confirm-arrow.open { transform: rotate(180deg); }
+        .cat-confirm-drawer {
+            max-height: 0; overflow: hidden; transition: max-height .3s ease;
+            display: flex; flex-direction: column; gap: 8px; padding-top: 0;
+        }
+        .cat-confirm-drawer.open { padding-top: 12px; }
+        .cat-ribbon {
+            display: flex; align-items: center; justify-content: space-between; gap: 10px;
+            background: var(--surface2, #1b1f29); border: 1px solid transparent; border-radius: 10px;
+            padding: 12px 14px; cursor: pointer; font-family: var(--font); font-size: 13.5px; font-weight: 600;
+            color: var(--text2); text-align: left; transition: all .18s;
+        }
+        .cat-ribbon.active { color: var(--blue); border-color: var(--blue); background: rgba(0,102,255,.08); }
+        .cat-ribbon:hover:not(.active) { color: var(--text); }
+        .cat-ribbon-badge {
+            background: var(--surface2); color: var(--text3); font-size: 11.5px; font-weight: 800;
+            padding: 2px 9px; border-radius: 20px; min-width: 20px; text-align: center; flex-shrink: 0;
+        }
+        .cat-ribbon-badge.on { background: #ef4444; color: #fff; }
+        .cat-pane-drawer { max-height: 0; overflow: hidden; transition: max-height .3s ease; }
+        .cat-pane-drawer.open { padding-top: 10px; }
 
         /* ── STATS ROW ── */
         .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); grid-auto-flow: column; gap: 8px; margin-bottom: 24px; align-items: stretch; }
@@ -678,10 +715,6 @@
                 </button>
             </div>
             <div class="head-actions">
-                <button class="btn-head btn-send-all" onclick="sendAllPedidos()">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                    Enviar todos
-                </button>
                 <button class="btn-head" onclick="this.blur();loadData()">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
                     Actualizar
@@ -727,43 +760,54 @@
                 </button>
             </div>
 
-            <div class="tabs-bar">
-                <button class="tab-btn active" id="tbtn-calzados" onclick="switchTab('calzados')"><span class="tlbl">Calzados</span> <span class="pill on" id="pill-calzados">0</span></button>
-                <button class="tab-btn" id="tbtn-perfumes" onclick="switchTab('perfumes')"><span class="tlbl">Perfumería</span> <span class="pill" id="pill-perfumes">0</span></button>
-                <button class="tab-btn" id="tbtn-belleza" onclick="switchTab('belleza')"><span class="tlbl lbl-full">Belleza y Cuidado Personal</span><span class="tlbl lbl-short">Belleza</span> <span class="pill" id="pill-belleza">0</span></button>
-                <button class="tab-btn" id="tbtn-bazar" onclick="switchTab('bazar')"><span class="tlbl">Bazar</span> <span class="pill" id="pill-bazar">0</span></button>
-                <button class="tab-btn" id="tbtn-jugueteria" onclick="switchTab('jugueteria')"><span class="tlbl">Juguetería</span> <span class="pill" id="pill-jugueteria">0</span></button>
-                <button class="tab-btn" id="tbtn-libreria" onclick="switchTab('libreria')"><span class="tlbl">Librería</span> <span class="pill" id="pill-libreria">0</span></button>
-                <button class="tab-btn" id="tbtn-multishop" onclick="switchTab('multishop')"><span class="tlbl">Multishop</span> <span class="pill" id="pill-multishop">0</span></button>
-            </div>
+            <div class="cat-confirm-accordion">
+                <button type="button" class="cat-confirm-toggle" id="cat-confirm-toggle" onclick="toggleCategoriasDrawer()">
+                    <span class="cat-confirm-toggle-left">
+                        📦 Confirmar pedidos por Categoría
+                        <span class="cat-confirm-badge-total" id="cat-confirm-badge-total">0</span>
+                    </span>
+                    <span class="cat-confirm-arrow" id="cat-confirm-arrow">▾</span>
+                </button>
+                <div class="cat-confirm-drawer" id="cat-confirm-drawer">
+                    <button class="cat-ribbon active" id="tbtn-calzados" onclick="switchTab('calzados')">Calzados <span class="cat-ribbon-badge" id="pill-calzados">0</span></button>
+                    <button class="cat-ribbon" id="tbtn-perfumes" onclick="switchTab('perfumes')">Perfumería <span class="cat-ribbon-badge" id="pill-perfumes">0</span></button>
+                    <button class="cat-ribbon" id="tbtn-belleza" onclick="switchTab('belleza')">Belleza y Cuidado Personal <span class="cat-ribbon-badge" id="pill-belleza">0</span></button>
+                    <button class="cat-ribbon" id="tbtn-bazar" onclick="switchTab('bazar')">Bazar <span class="cat-ribbon-badge" id="pill-bazar">0</span></button>
+                    <button class="cat-ribbon" id="tbtn-jugueteria" onclick="switchTab('jugueteria')">Juguetería <span class="cat-ribbon-badge" id="pill-jugueteria">0</span></button>
+                    <button class="cat-ribbon" id="tbtn-libreria" onclick="switchTab('libreria')">Librería <span class="cat-ribbon-badge" id="pill-libreria">0</span></button>
+                    <button class="cat-ribbon" id="tbtn-multishop" onclick="switchTab('multishop')">Multishop <span class="cat-ribbon-badge" id="pill-multishop">0</span></button>
 
-            <div class="tab-pane active" id="pane-calzados">
-                <div class="stats-row" id="stats-calzados"></div>
-                <div id="list-calzados"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
-            </div>
-            <div class="tab-pane" id="pane-perfumes">
-                <div class="stats-row" id="stats-perfumes"></div>
-                <div id="list-perfumes"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
-            </div>
-            <div class="tab-pane" id="pane-belleza">
-                <div class="stats-row" id="stats-belleza"></div>
-                <div id="list-belleza"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
-            </div>
-            <div class="tab-pane" id="pane-bazar">
-                <div class="stats-row" id="stats-bazar"></div>
-                <div id="list-bazar"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
-            </div>
-            <div class="tab-pane" id="pane-jugueteria">
-                <div class="stats-row" id="stats-jugueteria"></div>
-                <div id="list-jugueteria"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
-            </div>
-            <div class="tab-pane" id="pane-libreria">
-                <div class="stats-row" id="stats-libreria"></div>
-                <div id="list-libreria"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
-            </div>
-            <div class="tab-pane" id="pane-multishop">
-                <div class="stats-row" id="stats-multishop"></div>
-                <div id="list-multishop"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
+                    <div class="cat-pane-drawer open" id="cat-pane-drawer">
+                        <div class="tab-pane active" id="pane-calzados">
+                            <div class="stats-row" id="stats-calzados"></div>
+                            <div id="list-calzados"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
+                        </div>
+                        <div class="tab-pane" id="pane-perfumes">
+                            <div class="stats-row" id="stats-perfumes"></div>
+                            <div id="list-perfumes"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
+                        </div>
+                        <div class="tab-pane" id="pane-belleza">
+                            <div class="stats-row" id="stats-belleza"></div>
+                            <div id="list-belleza"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
+                        </div>
+                        <div class="tab-pane" id="pane-bazar">
+                            <div class="stats-row" id="stats-bazar"></div>
+                            <div id="list-bazar"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
+                        </div>
+                        <div class="tab-pane" id="pane-jugueteria">
+                            <div class="stats-row" id="stats-jugueteria"></div>
+                            <div id="list-jugueteria"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
+                        </div>
+                        <div class="tab-pane" id="pane-libreria">
+                            <div class="stats-row" id="stats-libreria"></div>
+                            <div id="list-libreria"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
+                        </div>
+                        <div class="tab-pane" id="pane-multishop">
+                            <div class="stats-row" id="stats-multishop"></div>
+                            <div id="list-multishop"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -1022,7 +1066,7 @@
             <div class="guide-ribbon" onclick="toggleGuide(this)">
                 <div class="guide-head">
                     <span class="guide-icon">✈️</span>
-                    <span class="guide-title">Botón "Enviar todos"</span>
+                    <span class="guide-title">Botón "Enviar a precio mayorista"</span>
                     <svg class="guide-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                 </div>
                 <div class="guide-body">
@@ -2383,7 +2427,7 @@ function cat(p) {
 // ═══════════════════════════════════════════════════════════
 // HISTORIAL DE GANANCIAS OFICIALES
 // Solo se alimenta cuando un lote de pedidos fue efectivamente
-// pagado vía Mercado Pago (tras "Enviar todos" + pago aprobado).
+// pagado vía Mercado Pago (tras "Enviar a precio mayorista" + pago aprobado).
 // Las vistas de "Ganancias" (oficiales) leen de este historial,
 // NUNCA de los pedidos pendientes/aprobados que aún no se pagaron.
 //
@@ -3217,11 +3261,24 @@ function renderAll() {
     const cats = { perfumes:[], belleza:[], calzados:[], bazar:[], jugueteria:[], libreria:[], multishop:[] };
     filtered.forEach(p => { const c = cat(p); if (cats[c]) cats[c].push(p); });
 
+    let totalTodas = 0;
     ['perfumes','belleza','calzados','bazar','jugueteria','libreria','multishop'].forEach(k => {
-        document.getElementById('pill-'+k).textContent = cats[k].length;
+        const n = cats[k].length;
+        totalTodas += n;
+        const badge = document.getElementById('pill-'+k);
+        badge.textContent = n;
+        badge.classList.toggle('on', n > 0);
         renderStats(cats[k], k);
         renderList(cats[k], k);
     });
+
+    // Notificación roja agregada en el botón "Confirmar pedidos por Categoría"
+    const badgeTotal = document.getElementById('cat-confirm-badge-total');
+    if (badgeTotal) {
+        badgeTotal.textContent = totalTodas;
+        badgeTotal.style.display = totalTodas > 0 ? 'inline-block' : 'none';
+    }
+
     refreshActiveView();
     try { renderLevelBar(); } catch(_) {}
 }
@@ -3652,7 +3709,7 @@ async function confirmSendAll() {
     }
 
     if (btn) {
-        btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Enviar todos`;
+        btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Enviar a precio mayorista`;
         btn.disabled = false;
     }
 
@@ -3721,11 +3778,24 @@ function switchStatus(s) {
 function switchTab(k) {
     activeTab = k;
     document.querySelectorAll('.tab-pane').forEach(e => e.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(e => e.classList.remove('active'));
-    document.querySelectorAll('.pill').forEach(e => e.classList.remove('on'));
+    document.querySelectorAll('.cat-ribbon').forEach(e => e.classList.remove('active'));
     document.getElementById('pane-'+k).classList.add('active');
     document.getElementById('tbtn-'+k).classList.add('active');
-    document.getElementById('pill-'+k).classList.add('on');
+    // Al elegir una categoría, si el acordeón estaba cerrado lo abrimos, así
+    // se ve de una la lista de pedidos de esa categoría.
+    const drawer = document.getElementById('cat-confirm-drawer');
+    if (drawer && !drawer.classList.contains('open')) toggleCategoriasDrawer(true);
+}
+
+// Acordeón "Confirmar pedidos por Categoría": cortina deslizable hacia abajo.
+function toggleCategoriasDrawer(forzarAbierto) {
+    const drawer = document.getElementById('cat-confirm-drawer');
+    const arrow = document.getElementById('cat-confirm-arrow');
+    if (!drawer) return;
+    const abrir = forzarAbierto === true ? true : !drawer.classList.contains('open');
+    drawer.classList.toggle('open', abrir);
+    if (arrow) arrow.classList.toggle('open', abrir);
+    drawer.style.maxHeight = abrir ? '6000px' : '0';
 }
 function switchView(v) {
     document.querySelectorAll('.view').forEach(e => e.classList.remove('active'));
@@ -3763,7 +3833,7 @@ function renderPedidoListaView() {
     const totalGanancia  = list.reduce((s, p) => s + (p.ganancia || 0), 0);
 
     let html = `<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px">
-        <h2 class="section-title" style="margin:0">Listos para ejecutar <span style="font-size:13px;font-weight:400;color:var(--text3)">(${list.length} pedido${list.length!==1?'s':''})</span></h2>
+        <h2 class="section-title" style="margin:0">Pedidos Confirmados <span style="font-size:13px;font-weight:400;color:var(--text3)">(${list.length} pedido${list.length!==1?'s':''})</span></h2>
         <button class="btn-head" style="background:var(--red-pale);border-color:rgba(244,63,94,.3);color:var(--red)" onclick="if(confirm('¿Vaciar toda la lista de pedidos listos para ejecutar?')){savePedidoList([]);renderPedidoListaView();_updatePedidoListaBadge();}">
             Vaciar lista
         </button>
@@ -3818,7 +3888,7 @@ function renderPedidoListaView() {
     html += `<div style="margin-top:16px">
         <button class="btn-head btn-send-all" style="width:100%;justify-content:center;padding:14px" onclick="sendAllPedidos()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-            Enviar todos y pagar $${Math.round(totalMayorista).toLocaleString()} via Mercado Pago
+            Enviar a precio mayorista ($${Math.round(totalMayorista).toLocaleString()})
         </button>
     </div>`;
 
@@ -4311,7 +4381,7 @@ function renderGananciasView() {
     const historial = getGananciasOficiales();
 
     if (!historial.length) {
-        el.innerHTML = `<div class="empty"><div class="empty-icon">💳</div><h3>Sin ganancias confirmadas todavía</h3><p>Las ganancias oficiales se registran acá recién cuando confirmás pedidos y pagás el total vía Mercado Pago con "Enviar todos". Mientras tanto, mirá la inversión y ganancia estimada de tus pedidos sin enviar en el cuadro "Inv/gan" de la vista Pedidos.</p></div>`;
+        el.innerHTML = `<div class="empty"><div class="empty-icon">💳</div><h3>Sin ganancias confirmadas todavía</h3><p>Las ganancias oficiales se registran acá recién cuando confirmás pedidos y pagás el total vía Mercado Pago con "Enviar a precio mayorista". Mientras tanto, mirá la inversión y ganancia estimada de tus pedidos sin enviar en el cuadro "Inv/gan" de la vista Pedidos.</p></div>`;
         return;
     }
 
