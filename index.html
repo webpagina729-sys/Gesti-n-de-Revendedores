@@ -181,41 +181,42 @@
         .tab-pane.active { display: block; }
 
         /* ── ACORDEÓN: CONFIRMAR PEDIDOS POR CATEGORÍA ── */
-        .cat-confirm-accordion { margin-bottom: 22px; }
+        .cat-confirm-accordion { margin-bottom: 18px; }
         .cat-confirm-toggle {
             width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px;
-            background: var(--surface, #14171f); border: 1px solid var(--border); border-radius: 12px;
-            padding: 14px 16px; cursor: pointer; font-family: var(--font); font-size: 14px; font-weight: 700;
+            background: var(--surface, #14171f); border: 1px solid var(--border); border-radius: 10px;
+            padding: 11px 14px; cursor: pointer; font-family: var(--font); font-size: 13px; font-weight: 700;
             color: var(--text); transition: border-color .18s;
         }
         .cat-confirm-toggle:hover { border-color: var(--blue); }
-        .cat-confirm-toggle-left { display: flex; align-items: center; gap: 9px; }
+        .cat-confirm-toggle-left { display: flex; align-items: center; gap: 8px; }
         .cat-confirm-badge-total {
-            display: none; background: #ef4444; color: #fff; border-radius: 20px; font-size: 12px;
-            font-weight: 800; padding: 2px 9px; min-width: 20px; text-align: center;
+            display: none; background: #ef4444; color: #fff; border-radius: 20px; font-size: 11px;
+            font-weight: 800; padding: 1px 8px; min-width: 18px; text-align: center;
         }
         .cat-confirm-arrow { transition: transform .25s ease; color: var(--text3); }
         .cat-confirm-arrow.open { transform: rotate(180deg); }
         .cat-confirm-drawer {
             max-height: 0; overflow: hidden; transition: max-height .3s ease;
-            display: flex; flex-direction: column; gap: 8px; padding-top: 0;
+            display: flex; flex-direction: column; gap: 6px; padding-top: 0;
         }
-        .cat-confirm-drawer.open { padding-top: 12px; }
+        .cat-confirm-drawer.open { padding-top: 10px; }
         .cat-ribbon {
             display: flex; align-items: center; justify-content: space-between; gap: 10px;
-            background: var(--surface2, #1b1f29); border: 1px solid transparent; border-radius: 10px;
-            padding: 12px 14px; cursor: pointer; font-family: var(--font); font-size: 13.5px; font-weight: 600;
+            background: var(--surface2, #1b1f29); border: 1px solid transparent; border-radius: 9px;
+            padding: 10px 13px; cursor: pointer; font-family: var(--font); font-size: 12.5px; font-weight: 600;
             color: var(--text2); text-align: left; transition: all .18s;
         }
         .cat-ribbon.active { color: var(--blue); border-color: var(--blue); background: rgba(0,102,255,.08); }
         .cat-ribbon:hover:not(.active) { color: var(--text); }
         .cat-ribbon-badge {
-            background: var(--surface2); color: var(--text3); font-size: 11.5px; font-weight: 800;
-            padding: 2px 9px; border-radius: 20px; min-width: 20px; text-align: center; flex-shrink: 0;
+            background: var(--surface2); color: var(--text3); font-size: 11px; font-weight: 800;
+            padding: 1px 8px; border-radius: 20px; min-width: 18px; text-align: center; flex-shrink: 0;
         }
         .cat-ribbon-badge.on { background: #ef4444; color: #fff; }
         .cat-pane-drawer { max-height: 0; overflow: hidden; transition: max-height .3s ease; }
-        .cat-pane-drawer.open { padding-top: 10px; }
+        .cat-pane-drawer.open { max-height: none; overflow: visible; padding-top: 8px; }
+        .pend-info-msg { font-size: 11px; font-weight: 600; color: var(--text3); background: var(--surface2); border-radius: 8px; padding: 6px 10px; white-space: nowrap; }
 
         /* ── STATS ROW ── */
         .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); grid-auto-flow: column; gap: 8px; margin-bottom: 24px; align-items: stretch; }
@@ -763,7 +764,7 @@
             <div class="cat-confirm-accordion">
                 <button type="button" class="cat-confirm-toggle" id="cat-confirm-toggle" onclick="toggleCategoriasDrawer()">
                     <span class="cat-confirm-toggle-left">
-                        📦 Confirmar pedidos por Categoría
+                        📦 <span id="cat-confirm-toggle-label">Ver pedidos pendientes</span>
                         <span class="cat-confirm-badge-total" id="cat-confirm-badge-total">0</span>
                     </span>
                     <span class="cat-confirm-arrow" id="cat-confirm-arrow">▾</span>
@@ -1878,7 +1879,7 @@ function renderInvoicesList() {
         const cli = p._clienteName || [p.cliente?.nombre, p.cliente?.apellido].filter(Boolean).join(' ') || 'Cliente';
         const estado = p.estado === 'pagado' ? 'Aprobado' : 'Pendiente';
         return `<div class="ribbon" style="margin-bottom:10px">
-            <div class="ribbon-head" style="cursor:default">
+            <div class="ribbon-head" style="cursor:default;flex-direction:column;align-items:stretch;gap:10px">
                 <div class="ribbon-main" style="flex-direction:column;align-items:flex-start;gap:4px">
                     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
                         <span class="r-name">Factura #${nro}</span>
@@ -1887,9 +1888,9 @@ function renderInvoicesList() {
                     <div style="font-size:12px;color:var(--text2)">${esc(revName)} · ${esc(cli)} · ${fecha}</div>
                     <div style="font-size:12px;color:var(--text3)">Total cliente: <strong style="color:var(--text)">$${Math.round(totalFin).toLocaleString()}</strong> · Ganancia: <strong style="color:#0a8a52">+$${Math.round(ganancia).toLocaleString()}</strong></div>
                 </div>
-                <div class="ribbon-meta" style="display:flex;gap:6px;flex-wrap:wrap">
-                    <button class="btn-act btn-pdf" onclick="downloadInvoicePDF('${p.id}')">Revendedor</button>
-                    <button class="btn-act btn-pdf" style="background:#0a8a52 !important" onclick="downloadClientInvoicePDF('${p.id}')">Cliente</button>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <button class="btn-act btn-pdf" style="flex:1;min-width:120px;justify-content:center" onclick="downloadInvoicePDF('${p.id}')">Factura revendedor</button>
+                    <button class="btn-act btn-pdf" style="flex:1;min-width:120px;justify-content:center;background:#0a8a52 !important" onclick="downloadClientInvoicePDF('${p.id}')">Factura cliente</button>
                 </div>
             </div>
         </div>`;
@@ -3403,7 +3404,7 @@ function card(p) {
                         ${estado === 'pagado' ? `<button class="btn-act btn-send" id="aprobar-btn-${p.id}" onclick="${stop}aprobarPedido('${p.id}',this)">
                             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
                             Confirmar Pedido
-                        </button>` : ''}
+                        </button>` : `<span class="pend-info-msg">🔒 Confirmar desde tu Perfil en la Plataforma</span>`}
                         <button class="btn-act btn-del" onclick="${stop}askDelete('${p.id}')">
                             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
                             Eliminar
@@ -3773,6 +3774,8 @@ function switchStatus(s) {
     activeStatus = s;
     document.getElementById('stab-pendiente').className = 'stab pend' + (s==='pendiente'?' active':'');
     document.getElementById('stab-pagado').className    = 'stab apro' + (s==='pagado'   ?' active':'');
+    const lbl = document.getElementById('cat-confirm-toggle-label');
+    if (lbl) lbl.textContent = (s === 'pendiente') ? 'Ver pedidos pendientes' : 'Confirmar pedidos por Categoría';
     renderAll();
 }
 function switchTab(k) {
