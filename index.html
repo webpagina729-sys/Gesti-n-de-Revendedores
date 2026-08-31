@@ -167,7 +167,7 @@
         .stab .cnt { min-width: 20px; height: 20px; padding: 0 6px; display: flex; align-items: center; justify-content: center; background: var(--surface2); border-radius: 20px; font-size: 11px; font-weight: 800; color: var(--text3); flex-shrink: 0; }
         .stab.active.pend .cnt { background: var(--amber); color: #0b0d12; }
         .stab.active.apro .cnt { background: var(--green); color: #0b0d12; }
-        .menu-btn .cnt { min-width: 18px; height: 18px; padding: 0 5px; display: none; align-items: center; justify-content: center; border-radius: 20px; font-size: 10.5px; font-weight: 800; flex-shrink: 0; }
+        .menu-btn .cnt, .btn-head .cnt { min-width: 18px; height: 18px; padding: 0 5px; display: none; align-items: center; justify-content: center; border-radius: 20px; font-size: 10.5px; font-weight: 800; flex-shrink: 0; }
 
         /* ── NICHO TABS (legacy, ya no se usa como fila horizontal) ── */
         .tabs-bar { display: none; }
@@ -561,18 +561,18 @@
         .cliente-mes-gift-val { font-size:18px;font-weight:800;color:#f59e0b; }
 
         /* ── NIVEL REVENDEDOR (topbar) ── */
-        .level-block { display:flex; align-items:center; gap:10px; padding:6px 12px; background:rgba(10,71,222,.08); border:1px solid rgba(57,104,246,.25); border-radius:12px; min-width:0; max-width:420px; }
+        .level-block { display:flex; align-items:center; gap:10px; padding:8px 14px; background:rgba(10,71,222,.08); border:1px solid rgba(57,104,246,.25); border-radius:12px; min-width:0; max-width:480px; width:100%; }
         .level-avatar { width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,#0a47de,#3968f6); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:14px; flex:none; box-shadow:0 2px 8px rgba(10,71,222,.4); }
-        .level-info { display:flex; flex-direction:column; gap:3px; min-width:0; flex:1; }
-        .level-name { font-size:11px; font-weight:700; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:140px; }
+        .level-info { display:flex; flex-direction:column; gap:5px; min-width:0; flex:1; }
+        .level-name { font-size:12px; font-weight:700; color:var(--text); white-space:normal; overflow:visible; text-overflow:clip; max-width:none; line-height:1.25; }
         .level-row { display:flex; align-items:center; gap:8px; }
         .level-stars { display:flex; gap:2px; }
         .level-star { width:13px; height:13px; color:#3a3f55; transition:color .3s, transform .3s, filter .3s; }
         .level-star.on { color:#f5b400; filter:drop-shadow(0 0 4px rgba(245,180,0,.6)); }
-        .level-bar-wrap { flex:1; min-width:80px; height:8px; background:rgba(255,255,255,.06); border-radius:4px; overflow:hidden; position:relative; }
+        .level-bar-wrap { flex:1; min-width:80px; height:5px; background:rgba(255,255,255,.06); border-radius:4px; overflow:hidden; position:relative; }
         .level-bar-fill { height:100%; width:0%; border-radius:4px; background:linear-gradient(90deg,#f43f5e 0%,#f59e0b 50%,#2d924c 100%); transition:width 1.2s cubic-bezier(.4,0,.2,1); box-shadow:0 0 8px rgba(45,146,76,.4); }
         .level-count { font-size:10px; color:var(--text2); white-space:nowrap; font-weight:600; }
-        @media (max-width:780px) { .level-block { padding:5px 9px; gap:7px; max-width:240px; } .level-name { max-width:90px; font-size:10px; } .level-avatar { width:30px; height:30px; font-size:12px; } }
+        @media (max-width:780px) { .level-block { padding:7px 10px; gap:8px; max-width:320px; } .level-name { font-size:11px; } .level-avatar { width:30px; height:30px; font-size:12px; } }
         .level-strip { display:flex; justify-content:center; padding:10px 24px 0; }
         .level-strip .level-block { max-width:480px; width:100%; }
         @media (max-width:640px) { .level-strip { padding:8px 14px 0; } }
@@ -643,12 +643,12 @@
         <div class="level-info">
             <div class="level-name" id="level-name">Revendedor</div>
             <div class="level-row">
-                <div class="level-stars" id="level-stars"></div>
                 <div class="level-bar-wrap" title="Progreso al siguiente nivel">
                     <div class="level-bar-fill" id="level-bar-fill"></div>
                 </div>
                 <div class="level-count" id="level-count">0/100</div>
             </div>
+            <div class="level-stars" id="level-stars"></div>
         </div>
     </div>
 </div>
@@ -716,6 +716,11 @@
                 </button>
             </div>
             <div class="head-actions">
+                <button class="btn-head" id="btn-confirmados" onclick="this.blur();openConfirmadosModal()" style="position:relative">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                    Pedidos Confirmados
+                    <span class="cnt" id="cnt-confirmados" style="background:#ef4444;color:#fff">0</span>
+                </button>
                 <button class="btn-head" onclick="this.blur();loadData()">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
                     Actualizar
@@ -731,11 +736,6 @@
             <button class="menu-btn active" data-view="pedidos" onclick="switchView('pedidos')">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
                 Pedidos
-            </button>
-            <button class="menu-btn" data-view="confirmados" onclick="switchView('confirmados')">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-                Pedidos Confirmados
-                <span class="cnt" id="cnt-confirmados" style="background:#ef4444;color:#fff">0</span>
             </button>
             <button class="menu-btn" data-view="stats" onclick="switchView('stats')">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
@@ -838,11 +838,6 @@
             <div id="ganancias-content"></div>
         </div>
 
-        <!-- VIEW: PEDIDOS CONFIRMADOS -->
-        <div class="view" id="view-confirmados">
-            <div id="pedidolista-content"></div>
-        </div>
-
         <!-- VIEW: RANKING CLIENTES -->
         <div class="view" id="view-ranking">
             <div id="ranking-content"></div>
@@ -882,6 +877,19 @@
     </div>
 </div>
 
+<!-- ══ MODAL PEDIDOS CONFIRMADOS ══ -->
+<div class="modal-overlay" id="confirmados-modal" onclick="if(event.target===this)closeConfirmadosModal()">
+    <div class="modal-box" style="max-width:640px;max-height:86vh;overflow-y:auto;padding:22px 20px;text-align:left">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+            <h3 style="margin:0">Pedidos Confirmados</h3>
+            <button onclick="closeConfirmadosModal()" style="background:none;border:none;cursor:pointer;color:var(--text3);padding:4px" aria-label="Cerrar">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div id="pedidolista-content"></div>
+    </div>
+</div>
+
 <!-- ══ MODAL ELIMINAR ══ --><div class="modal-overlay" id="del-modal">
     <div class="modal-box">
         <div class="modal-icon">
@@ -910,7 +918,7 @@
 
 <!-- ══ MODAL REGALO CLIENTE DEL MES ══ -->
 <div class="modal-overlay" id="gift-modal">
-    <div class="modal-box" style="max-width:440px">
+    <div class="modal-box" style="max-width:420px;max-height:88vh;overflow-y:auto;padding:20px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
             <div style="display:flex;align-items:center;gap:10px">
                 <div class="modal-icon" style="background:rgba(245,158,11,.15);margin:0">
@@ -925,26 +933,26 @@
                 <button class="modal-cancel" style="padding:6px 12px;flex:none" onclick="closeGiftModal()">✕</button>
             </div>
         </div>
-        <p style="margin-bottom:14px;font-size:13px;color:var(--text2)">Configurá el precio máximo (de costo) del regalo para los 3 mejores clientes del mes. Esto te ayuda a fidelizar y aumentar la recurrencia.</p>
-        <div style="margin-bottom:14px">
-            <label style="display:block;font-size:12px;color:var(--text2);margin-bottom:6px;font-weight:600">🥇 Puesto 1 — Precio máximo del regalo</label>
-            <div style="display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:10px 12px">
+        <p style="margin-bottom:12px;font-size:12.5px;color:var(--text2);line-height:1.4">Configurá el precio máximo del bono de regalo para los 3 mejores clientes del mes. Esto ayuda a fidelizar y aumentar la recurrencia, y se aplicará en su próxima compra.</p>
+        <div style="margin-bottom:10px">
+            <label style="display:block;font-size:11.5px;color:var(--text2);margin-bottom:5px;font-weight:600">🥇 Puesto 1 — Precio máximo del regalo</label>
+            <div style="display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:8px 12px">
                 <span style="color:#f5b400;font-weight:700">$</span>
-                <input id="gift-input-1" type="number" min="0" step="100" placeholder="0" style="flex:1;background:transparent;border:0;color:var(--text);font-size:15px;font-weight:600;outline:none">
+                <input id="gift-input-1" type="number" min="0" step="100" placeholder="0" style="flex:1;background:transparent;border:0;color:var(--text);font-size:14px;font-weight:600;outline:none">
             </div>
         </div>
-        <div style="margin-bottom:14px">
-            <label style="display:block;font-size:12px;color:var(--text2);margin-bottom:6px;font-weight:600">🥈 Puesto 2 — Precio máximo del regalo</label>
-            <div style="display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:10px 12px">
+        <div style="margin-bottom:10px">
+            <label style="display:block;font-size:11.5px;color:var(--text2);margin-bottom:5px;font-weight:600">🥈 Puesto 2 — Precio máximo del regalo</label>
+            <div style="display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:8px 12px">
                 <span style="color:#c0c0c0;font-weight:700">$</span>
-                <input id="gift-input-2" type="number" min="0" step="100" placeholder="0" style="flex:1;background:transparent;border:0;color:var(--text);font-size:15px;font-weight:600;outline:none">
+                <input id="gift-input-2" type="number" min="0" step="100" placeholder="0" style="flex:1;background:transparent;border:0;color:var(--text);font-size:14px;font-weight:600;outline:none">
             </div>
         </div>
-        <div style="margin-bottom:14px">
-            <label style="display:block;font-size:12px;color:var(--text2);margin-bottom:6px;font-weight:600">🥉 Puesto 3 — Precio máximo del regalo</label>
-            <div style="display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:10px 12px">
+        <div style="margin-bottom:10px">
+            <label style="display:block;font-size:11.5px;color:var(--text2);margin-bottom:5px;font-weight:600">🥉 Puesto 3 — Precio máximo del regalo</label>
+            <div style="display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:8px 12px">
                 <span style="color:#cd7f32;font-weight:700">$</span>
-                <input id="gift-input-3" type="number" min="0" step="100" placeholder="0" style="flex:1;background:transparent;border:0;color:var(--text);font-size:15px;font-weight:600;outline:none">
+                <input id="gift-input-3" type="number" min="0" step="100" placeholder="0" style="flex:1;background:transparent;border:0;color:var(--text);font-size:14px;font-weight:600;outline:none">
             </div>
         </div>
         <!-- mantener id="gift-input" como alias del 1er puesto para compatibilidad -->
@@ -957,17 +965,17 @@
             <button class="modal-cancel" onclick="closeGiftModal()">Cancelar</button>
             <button class="modal-confirm-btn" style="background:#f59e0b" onclick="saveGift()">Guardar</button>
         </div>
-        <div id="gift-notify-wrap" style="display:none;margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;justify-content:center">
-            <button onclick="notificarClienteMes(0)" style="background:transparent;border:1px solid #25D366;color:#25D366;border-radius:8px;padding:7px 12px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M11.999 2C6.477 2 2 6.477 2 12c0 1.883.516 3.646 1.41 5.162L2 22l4.956-1.391A9.951 9.951 0 0 0 12 22c5.523 0 10-4.477 10-10S17.523 2 12 2z" fill-rule="evenodd"/></svg>
+        <div id="gift-notify-wrap" style="display:none;margin-top:10px;flex-direction:column;gap:7px">
+            <button onclick="notificarClienteMes(0)" style="width:100%;margin-bottom:7px;background:transparent;border:1px solid #25D366;color:#25D366;border-radius:8px;padding:9px 12px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;box-sizing:border-box">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M11.999 2C6.477 2 2 6.477 2 12c0 1.883.516 3.646 1.41 5.162L2 22l4.956-1.391A9.951 9.951 0 0 0 12 22c5.523 0 10-4.477 10-10S17.523 2 12 2z" fill-rule="evenodd"/></svg>
                 🥇 Notificar 1°
             </button>
-            <button onclick="notificarClienteMes(1)" style="background:transparent;border:1px solid #25D366;color:#25D366;border-radius:8px;padding:7px 12px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M11.999 2C6.477 2 2 6.477 2 12c0 1.883.516 3.646 1.41 5.162L2 22l4.956-1.391A9.951 9.951 0 0 0 12 22c5.523 0 10-4.477 10-10S17.523 2 12 2z" fill-rule="evenodd"/></svg>
+            <button onclick="notificarClienteMes(1)" style="width:100%;margin-bottom:7px;background:transparent;border:1px solid #25D366;color:#25D366;border-radius:8px;padding:9px 12px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;box-sizing:border-box">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M11.999 2C6.477 2 2 6.477 2 12c0 1.883.516 3.646 1.41 5.162L2 22l4.956-1.391A9.951 9.951 0 0 0 12 22c5.523 0 10-4.477 10-10S17.523 2 12 2z" fill-rule="evenodd"/></svg>
                 🥈 Notificar 2°
             </button>
-            <button onclick="notificarClienteMes(2)" style="background:transparent;border:1px solid #25D366;color:#25D366;border-radius:8px;padding:7px 12px;font-size:11px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M11.999 2C6.477 2 2 6.477 2 12c0 1.883.516 3.646 1.41 5.162L2 22l4.956-1.391A9.951 9.951 0 0 0 12 22c5.523 0 10-4.477 10-10S17.523 2 12 2z" fill-rule="evenodd"/></svg>
+            <button onclick="notificarClienteMes(2)" style="width:100%;background:transparent;border:1px solid #25D366;color:#25D366;border-radius:8px;padding:9px 12px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;box-sizing:border-box">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M11.999 2C6.477 2 2 6.477 2 12c0 1.883.516 3.646 1.41 5.162L2 22l4.956-1.391A9.951 9.951 0 0 0 12 22c5.523 0 10-4.477 10-10S17.523 2 12 2z" fill-rule="evenodd"/></svg>
                 🥉 Notificar 3°
             </button>
         </div>
@@ -3824,8 +3832,16 @@ function switchView(v) {
     document.querySelectorAll('.menu-btn').forEach(e => e.classList.toggle('active', e.dataset.view === v));
     if (v === 'stats')        renderStatsView();
     if (v === 'ganancias')    renderGananciasView();
-    if (v === 'confirmados')  renderPedidoListaView();
     if (v === 'ranking')      renderRankingView();
+}
+
+function openConfirmadosModal() {
+    renderPedidoListaView();
+    document.getElementById('confirmados-modal').classList.add('show');
+}
+
+function closeConfirmadosModal() {
+    document.getElementById('confirmados-modal').classList.remove('show');
 }
 
 function actualizarBadgeConfirmados() {
@@ -3878,14 +3894,14 @@ function renderPedidoListaView() {
     const pedidoCardHtml = (p) => {
         const fecha = p.fecha ? new Date(p.fecha).toLocaleString('es-AR', { timeZone:'America/Argentina/Buenos_Aires', day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : '—';
         return `<div class="ribbon" style="margin-bottom:8px">
-            <div class="ribbon-head" style="cursor:default">
-                <div class="ribbon-main">
-                    <span class="r-name">${esc(p.cliente || 'Cliente')}</span>
-                    <span class="r-code" style="font-size:10px">📅 ${fecha}</span>
+            <div class="ribbon-head" style="cursor:default;flex-direction:column;align-items:stretch;gap:6px">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+                    <span class="r-name" style="white-space:normal;overflow:visible;text-overflow:clip">${esc(p.cliente || 'Cliente')}</span>
+                    <button onclick="quitarDePedidoLista('${p.id}')" style="flex-shrink:0;background:var(--red-pale);border:1px solid rgba(244,63,94,.2);color:var(--red);border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font)">Quitar</button>
                 </div>
-                <div class="ribbon-meta" style="gap:8px">
-                    <span style="font-size:12px;font-weight:700;color:var(--green)">+$${Math.round(p.ganancia||0).toLocaleString()}</span>
-                    <button onclick="quitarDePedidoLista('${p.id}')" style="background:var(--red-pale);border:1px solid rgba(244,63,94,.2);color:var(--red);border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font)">Quitar</button>
+                <div style="display:flex;align-items:center;gap:10px">
+                    <span class="r-code" style="font-size:10.5px">📅 ${fecha}</span>
+                    <span style="font-size:11.5px;font-weight:700;color:var(--green)">+$${Math.round(p.ganancia||0).toLocaleString()} ganancia</span>
                 </div>
             </div>
             <div class="ribbon-body">
