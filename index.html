@@ -780,7 +780,7 @@
                 </button>
                 <div class="cat-confirm-drawer" id="cat-confirm-drawer">
                     <div class="cat-group">
-                        <button class="cat-ribbon active" id="tbtn-calzados" onclick="switchTab('calzados')">Calzados <span class="cat-ribbon-badge" id="pill-calzados">0</span></button>
+                        <button class="cat-ribbon active" id="tbtn-calzados" onclick="switchTab('calzados')">Calzados Importados <span class="cat-ribbon-badge" id="pill-calzados">0</span></button>
                         <div class="tab-pane active" id="pane-calzados">
                             <div class="stats-row" id="stats-calzados"></div>
                             <div id="list-calzados"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
@@ -1064,7 +1064,7 @@
             <div class="guide-ribbon" onclick="toggleGuide(this)">
                 <div class="guide-head">
                     <span class="guide-icon">🗂️</span>
-                    <span class="guide-title">Calzados · Perfumes Árabes · Multishop</span>
+                    <span class="guide-title">Calzados Importados · Perfumería · Belleza · Bazar · Juguetería · Librería · Multishop</span>
                     <svg class="guide-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                 </div>
                 <div class="guide-body">
@@ -1624,11 +1624,17 @@ const CATALOGO_PRECIOS_REF = {
     "RETRO 3 PURES MONEY": 37000,
     "LOUIS VUITTON": 37000
 };
-// Precios mayoristas de las categorías nuevas (Bazar, Juguetería, Vajilla
-// de Melamina, Peluches, Librería, Electrónicos) — se traen del Worker en
-// vivo, así no hace falta mantener un diccionario fijo a mano cada vez que
-// se suma un producto nuevo a la plataforma.
-const RESTOPRECIOS_WORKER = 'https://restoprecios.tuweb.workers.dev/';
+// Precios mayoristas DE LA PLATAFORMA — Perfumería y Calzados vienen del
+// mismo Worker que usa el resto de la app (workerpagos); Belleza, Bazar,
+// Juguetería, Librería y Multishop vienen de preciosmayoristasrevendedores
+// (Worker dedicado a este panel). Así no hace falta mantener el diccionario
+// fijo de arriba actualizado a mano.
+// ⚠️ IMPORTANTE: acá NUNCA se debe usar restoprecios.tuweb.workers.dev —
+// ese Worker es el costo REAL del dueño de la plataforma y solo se usa
+// dentro de pedidos.html para calcular SU ganancia cuando el revendedor le
+// paga a precio mayorista. Este panel calcula la ganancia del REVENDEDOR:
+// precio de la plataforma (acá) contra lo que le cobró al cliente — son dos
+// cuentas totalmente distintas y no deben mezclarse.
 let CATALOGO_PRECIOS_WORKER = {};
 (function cargarCatalogoPreciosWorker() {
     try {
@@ -1637,22 +1643,33 @@ let CATALOGO_PRECIOS_WORKER = {};
             CATALOGO_PRECIOS_WORKER = cache.data;
         }
     } catch(_) {}
-    fetch(RESTOPRECIOS_WORKER)
-        .then(r => r.json())
-        .then(data => {
-            const mapa = {};
-            (data.productos || []).forEach(p => {
-                if (p && p.nombre && p.precio_mayorista != null) {
-                    mapa[String(p.nombre).trim().toUpperCase()] = Number(p.precio_mayorista);
+    Promise.allSettled([
+        fetch('https://workerpagos.tuweb.workers.dev/api/precios-mayoristas?categoria=perfumes').then(r => r.ok ? r.json() : null),
+        fetch('https://workerpagos.tuweb.workers.dev/api/precios-mayoristas?categoria=calzados').then(r => r.ok ? r.json() : null),
+        fetch('https://preciosmayoristasrevendedores.tuweb.workers.dev/api/products').then(r => r.ok ? r.json() : null)
+    ]).then(([rPerfumes, rCalzados, rResto]) => {
+        const mapa = {};
+        [rPerfumes, rCalzados].forEach(r => {
+            if (r.status !== 'fulfilled' || !r.value) return;
+            (r.value.precios || []).forEach(p => {
+                if (p && p.nombre && typeof p.precioMayorista === 'number') {
+                    mapa[String(p.nombre).trim().toUpperCase()] = p.precioMayorista;
                 }
             });
-            CATALOGO_PRECIOS_WORKER = mapa;
-            try { localStorage.setItem('_catalogoPreciosWorkerCache', JSON.stringify({ ts: Date.now(), data: mapa })); } catch(_) {}
-            // Si ya se había renderizado algo con precio 0 por no tener el
-            // dato todavía, se refresca ahora que llegaron los precios.
-            if (typeof renderAll === 'function' && typeof pedidos !== 'undefined' && pedidos.length) renderAll();
-        })
-        .catch(() => {});
+        });
+        if (rResto.status === 'fulfilled' && Array.isArray(rResto.value)) {
+            rResto.value.forEach(p => {
+                if (p && p.name && typeof p.price === 'number') {
+                    mapa[String(p.name).trim().toUpperCase()] = p.price;
+                }
+            });
+        }
+        CATALOGO_PRECIOS_WORKER = mapa;
+        try { localStorage.setItem('_catalogoPreciosWorkerCache', JSON.stringify({ ts: Date.now(), data: mapa })); } catch(_) {}
+        // Si ya se había renderizado algo con precio 0 por no tener el
+        // dato todavía, se refresca ahora que llegaron los precios.
+        if (typeof renderAll === 'function' && typeof pedidos !== 'undefined' && pedidos.length) renderAll();
+    }).catch(() => {});
 })();
 
 function _precioRefCatalogo(nombre) {
@@ -4355,10 +4372,10 @@ function renderStatsView() {
         });
     });
 
-    const nichoLabels = { calzados:'Calzados', perfumes:'Perfumería', belleza:'Belleza y Cuidado Personal', bazar:'Bazar', jugueteria:'Juguetería', libreria:'Librería', multishop:'Multishop' };
+    const nichoLabels = { calzados:'Calzados Importados', perfumes:'Perfumería', belleza:'Belleza y Cuidado Personal', bazar:'Bazar', jugueteria:'Juguetería', libreria:'Librería', multishop:'Multishop' };
     let catHtml = `<div class="section-block"><h2 class="section-title">Por categoría</h2>
         <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(110px,1fr))">
-            <div class="kpi"><div class="kpi-lbl">Calzados</div><div class="kpi-val">${byNicho.calzados || 0}</div></div>
+            <div class="kpi"><div class="kpi-lbl">Calzados Importados</div><div class="kpi-val">${byNicho.calzados || 0}</div></div>
             <div class="kpi"><div class="kpi-lbl">Perfumería</div><div class="kpi-val">${byNicho.perfumes || 0}</div></div>
             <div class="kpi"><div class="kpi-lbl">Belleza y Cuidado Personal</div><div class="kpi-val">${byNicho.belleza || 0}</div></div>
             <div class="kpi"><div class="kpi-lbl">Bazar</div><div class="kpi-val">${byNicho.bazar || 0}</div></div>
@@ -4524,7 +4541,7 @@ function renderGananciasView() {
     const nichos = [
         { k:'perfumes', l:'Perfumería' },
         { k:'belleza', l:'Belleza y Cuidado Personal' },
-        { k:'calzados', l:'Calzados' },
+        { k:'calzados', l:'Calzados Importados' },
         { k:'bazar', l:'Bazar' },
         { k:'jugueteria', l:'Juguetería' },
         { k:'libreria', l:'Librería' },
@@ -4777,7 +4794,7 @@ function renderRevendedorDetalle(el, rv, todos) {
     if (peds.length) {
         html += `<div class="section-block"><h2 class="section-title">Distribución por categoría</h2>
         <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(110px,1fr))">
-            <div class="kpi"><div class="kpi-lbl">Calzados</div><div class="kpi-val">${nichos.calzados}</div></div>
+            <div class="kpi"><div class="kpi-lbl">Calzados Importados</div><div class="kpi-val">${nichos.calzados}</div></div>
             <div class="kpi"><div class="kpi-lbl">Perfumería</div><div class="kpi-val">${nichos.perfumes}</div></div>
             <div class="kpi"><div class="kpi-lbl">Belleza y Cuidado Personal</div><div class="kpi-val">${nichos.belleza}</div></div>
             <div class="kpi"><div class="kpi-lbl">Bazar</div><div class="kpi-val">${nichos.bazar}</div></div>
