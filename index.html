@@ -167,6 +167,7 @@
         .stab .cnt { min-width: 20px; height: 20px; padding: 0 6px; display: flex; align-items: center; justify-content: center; background: var(--surface2); border-radius: 20px; font-size: 11px; font-weight: 800; color: var(--text3); flex-shrink: 0; }
         .stab.active.pend .cnt { background: var(--amber); color: #0b0d12; }
         .stab.active.apro .cnt { background: var(--green); color: #0b0d12; }
+        .menu-btn .cnt { min-width: 18px; height: 18px; padding: 0 5px; display: none; align-items: center; justify-content: center; border-radius: 20px; font-size: 10.5px; font-weight: 800; flex-shrink: 0; }
 
         /* ── NICHO TABS (legacy, ya no se usa como fila horizontal) ── */
         .tabs-bar { display: none; }
@@ -177,8 +178,6 @@
         .tab-btn:hover:not(.active) { color: var(--text); }
         .pill { background: var(--surface2); color: var(--text3); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; flex-shrink: 0; }
         .pill.on { background: var(--blue); color: white; }
-        .tab-pane { display: none; }
-        .tab-pane.active { display: block; }
 
         /* ── ACORDEÓN: CONFIRMAR PEDIDOS POR CATEGORÍA ── */
         .cat-confirm-accordion { margin-bottom: 18px; }
@@ -214,8 +213,9 @@
             padding: 1px 8px; border-radius: 20px; min-width: 18px; text-align: center; flex-shrink: 0;
         }
         .cat-ribbon-badge.on { background: #ef4444; color: #fff; }
-        .cat-pane-drawer { max-height: 0; overflow: hidden; transition: max-height .3s ease; }
-        .cat-pane-drawer.open { max-height: none; overflow: visible; padding-top: 8px; }
+        .cat-group { display: flex; flex-direction: column; }
+        .tab-pane { max-height: 0; overflow: hidden; transition: max-height .3s ease; }
+        .tab-pane.active { max-height: 4000px; overflow: visible; padding-top: 8px; }
         .pend-info-msg { font-size: 11px; font-weight: 600; color: var(--text3); background: var(--surface2); border-radius: 8px; padding: 6px 10px; white-space: nowrap; }
 
         /* ── STATS ROW ── */
@@ -732,6 +732,11 @@
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
                 Pedidos
             </button>
+            <button class="menu-btn" data-view="confirmados" onclick="switchView('confirmados')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                Pedidos Confirmados
+                <span class="cnt" id="cnt-confirmados" style="background:#ef4444;color:#fff">0</span>
+            </button>
             <button class="menu-btn" data-view="stats" onclick="switchView('stats')">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
                 <span class="lbl-full">Estadísticas</span><span class="lbl-short">Estad.</span>
@@ -770,39 +775,50 @@
                     <span class="cat-confirm-arrow" id="cat-confirm-arrow">▾</span>
                 </button>
                 <div class="cat-confirm-drawer" id="cat-confirm-drawer">
-                    <button class="cat-ribbon active" id="tbtn-calzados" onclick="switchTab('calzados')">Calzados <span class="cat-ribbon-badge" id="pill-calzados">0</span></button>
-                    <button class="cat-ribbon" id="tbtn-perfumes" onclick="switchTab('perfumes')">Perfumería <span class="cat-ribbon-badge" id="pill-perfumes">0</span></button>
-                    <button class="cat-ribbon" id="tbtn-belleza" onclick="switchTab('belleza')">Belleza y Cuidado Personal <span class="cat-ribbon-badge" id="pill-belleza">0</span></button>
-                    <button class="cat-ribbon" id="tbtn-bazar" onclick="switchTab('bazar')">Bazar <span class="cat-ribbon-badge" id="pill-bazar">0</span></button>
-                    <button class="cat-ribbon" id="tbtn-jugueteria" onclick="switchTab('jugueteria')">Juguetería <span class="cat-ribbon-badge" id="pill-jugueteria">0</span></button>
-                    <button class="cat-ribbon" id="tbtn-libreria" onclick="switchTab('libreria')">Librería <span class="cat-ribbon-badge" id="pill-libreria">0</span></button>
-                    <button class="cat-ribbon" id="tbtn-multishop" onclick="switchTab('multishop')">Multishop <span class="cat-ribbon-badge" id="pill-multishop">0</span></button>
-
-                    <div class="cat-pane-drawer open" id="cat-pane-drawer">
+                    <div class="cat-group">
+                        <button class="cat-ribbon active" id="tbtn-calzados" onclick="switchTab('calzados')">Calzados <span class="cat-ribbon-badge" id="pill-calzados">0</span></button>
                         <div class="tab-pane active" id="pane-calzados">
                             <div class="stats-row" id="stats-calzados"></div>
                             <div id="list-calzados"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
                         </div>
+                    </div>
+                    <div class="cat-group">
+                        <button class="cat-ribbon" id="tbtn-perfumes" onclick="switchTab('perfumes')">Perfumería <span class="cat-ribbon-badge" id="pill-perfumes">0</span></button>
                         <div class="tab-pane" id="pane-perfumes">
                             <div class="stats-row" id="stats-perfumes"></div>
                             <div id="list-perfumes"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
                         </div>
+                    </div>
+                    <div class="cat-group">
+                        <button class="cat-ribbon" id="tbtn-belleza" onclick="switchTab('belleza')">Belleza y Cuidado Personal <span class="cat-ribbon-badge" id="pill-belleza">0</span></button>
                         <div class="tab-pane" id="pane-belleza">
                             <div class="stats-row" id="stats-belleza"></div>
                             <div id="list-belleza"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
                         </div>
+                    </div>
+                    <div class="cat-group">
+                        <button class="cat-ribbon" id="tbtn-bazar" onclick="switchTab('bazar')">Bazar <span class="cat-ribbon-badge" id="pill-bazar">0</span></button>
                         <div class="tab-pane" id="pane-bazar">
                             <div class="stats-row" id="stats-bazar"></div>
                             <div id="list-bazar"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
                         </div>
+                    </div>
+                    <div class="cat-group">
+                        <button class="cat-ribbon" id="tbtn-jugueteria" onclick="switchTab('jugueteria')">Juguetería <span class="cat-ribbon-badge" id="pill-jugueteria">0</span></button>
                         <div class="tab-pane" id="pane-jugueteria">
                             <div class="stats-row" id="stats-jugueteria"></div>
                             <div id="list-jugueteria"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
                         </div>
+                    </div>
+                    <div class="cat-group">
+                        <button class="cat-ribbon" id="tbtn-libreria" onclick="switchTab('libreria')">Librería <span class="cat-ribbon-badge" id="pill-libreria">0</span></button>
                         <div class="tab-pane" id="pane-libreria">
                             <div class="stats-row" id="stats-libreria"></div>
                             <div id="list-libreria"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
                         </div>
+                    </div>
+                    <div class="cat-group">
+                        <button class="cat-ribbon" id="tbtn-multishop" onclick="switchTab('multishop')">Multishop <span class="cat-ribbon-badge" id="pill-multishop">0</span></button>
                         <div class="tab-pane" id="pane-multishop">
                             <div class="stats-row" id="stats-multishop"></div>
                             <div id="list-multishop"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
@@ -820,10 +836,10 @@
         <!-- VIEW: GANANCIAS -->
         <div class="view" id="view-ganancias">
             <div id="ganancias-content"></div>
+        </div>
 
-            <hr style="border:none;border-top:1px solid var(--line,rgba(255,255,255,.08));margin:28px 0 20px">
-
-            <!-- Antes era la vista "Pedido" (tab aparte) — ahora vive acá abajo -->
+        <!-- VIEW: PEDIDOS CONFIRMADOS -->
+        <div class="view" id="view-confirmados">
             <div id="pedidolista-content"></div>
         </div>
 
@@ -2567,6 +2583,7 @@ function init() {
     if (savedTheme === 'light') document.body.classList.add('light-theme');
     applySavedCustomColors();
     _checkMercadoPagoReturn();
+    actualizarBadgeConfirmados();
     // La sesión la maneja onAuthStateChanged — no hacer nada más acá.
     // Si Firebase no tiene sesión, onAuthStateChanged llama a showLogin().
     // Mostramos el login mientras Firebase resuelve para evitar flash.
@@ -3571,6 +3588,7 @@ function aprobarPedido(id, btn) {
             items: (p.items || []).map(it => ({ nombre: it.nombre, cantidad: it.cantidad, precio: it.precio }))
         });
         savePedidoList(list);
+        actualizarBadgeConfirmados();
     }
 
     // Feedback visual: check verde en el botón
@@ -3805,11 +3823,21 @@ function switchView(v) {
     document.getElementById('view-'+v)?.classList.add('active');
     document.querySelectorAll('.menu-btn').forEach(e => e.classList.toggle('active', e.dataset.view === v));
     if (v === 'stats')        renderStatsView();
-    if (v === 'ganancias')  { renderGananciasView(); renderPedidoListaView(); }
+    if (v === 'ganancias')    renderGananciasView();
+    if (v === 'confirmados')  renderPedidoListaView();
     if (v === 'ranking')      renderRankingView();
 }
 
+function actualizarBadgeConfirmados() {
+    const badge = document.getElementById('cnt-confirmados');
+    if (!badge) return;
+    const n = getPedidoList().length;
+    badge.textContent = n;
+    badge.style.display = n > 0 ? 'inline-flex' : 'none';
+}
+
 function _updatePedidoListaBadge() {
+    actualizarBadgeConfirmados();
     const list = getPedidoList();
     const badge = document.getElementById('pedidolista-cnt-badge');
     if (!badge) return;
