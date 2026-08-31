@@ -547,6 +547,7 @@
 
         /* ── BTN REGALO ── */
         .btn-gift { background:linear-gradient(135deg,#f59e0b,#f43f5e)!important;color:#fff!important;border:0!important;width:38px;padding:0!important;display:inline-flex;align-items:center;justify-content:center;border-radius:9px;box-shadow:0 2px 10px rgba(245,158,11,.35);transition:transform .18s,box-shadow .18s; }
+        .btn-history { background:#ffffff!important;color:#0b0d12!important;border:1px solid var(--border2)!important;width:38px;padding:0!important;display:inline-flex;align-items:center;justify-content:center;border-radius:9px;box-shadow:0 2px 8px rgba(0,0,0,.12);transition:transform .18s,box-shadow .18s; }
         .btn-gift:hover { transform:translateY(-1px) scale(1.04);box-shadow:0 4px 14px rgba(245,158,11,.5); }
 
         /* ── CLIENTE DEL MES ── */
@@ -717,6 +718,9 @@
                 <button class="btn-guide-icon btn-gift" onclick="this.blur();openGiftModal()" title="Regalo al mejor cliente" aria-label="Configurar regalo">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
                 </button>
+                <button class="btn-guide-icon btn-history" onclick="this.blur();openHistorialModal()" title="Historial de pedidos realizados" aria-label="Historial de pedidos realizados">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15l2 2 4-4"/></svg>
+                </button>
             </div>
             <div class="head-actions">
                 <button class="btn-head" id="btn-confirmados" onclick="this.blur();openConfirmadosModal()" style="position:relative">
@@ -874,6 +878,22 @@
             <button class="modal-cancel" onclick="closeSendConfirmModal()">Cancelar</button>
             <button class="modal-confirm-btn" id="send-confirm-btn" style="background:var(--green)" onclick="confirmSendPedido()">Enviar y pagar</button>
         </div>
+    </div>
+</div>
+
+<!-- ══ MODAL HISTORIAL DE PEDIDOS REALIZADOS ══ -->
+<div class="modal-overlay" id="historial-modal" onclick="if(event.target===this)closeHistorialModal()">
+    <div class="modal-box" style="max-width:600px;max-height:86vh;overflow-y:auto;padding:22px 20px;text-align:left">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+            <div style="display:flex;align-items:center;gap:9px">
+                <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="#0b0d12" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15l2 2 4-4"/></svg>
+                <h3 style="margin:0">Historial de pedidos realizados</h3>
+            </div>
+            <button onclick="closeHistorialModal()" style="background:none;border:none;cursor:pointer;color:var(--text3);padding:4px" aria-label="Cerrar">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div id="historial-modal-content"></div>
     </div>
 </div>
 
@@ -3251,17 +3271,11 @@ function loadData() {
 
             pedidos.sort((a,b) => (b.fechaCreacion?.seconds||0) - (a.fechaCreacion?.seconds||0));
 
-            const tot  = pedidos.length;
-            const pend = pedidos.filter(p => p.estado === 'pendiente').length;
-            const apro = pedidos.filter(p => p.estado === 'pagado').length;
-
-            document.getElementById('count-lbl').textContent = tot ? `(${tot} pedido${tot!==1?'s':''})` : '';
-            document.getElementById('scnt-pendiente').textContent = pend;
-            document.getElementById('scnt-pagado').textContent    = apro;
-
             renderAll();
             try { _updatePedidoListaBadge(); } catch(_) {}
 
+            const { pend, apro } = contarPedidosPorEstado();
+            const tot = pend + apro;
             if (!tot) {
                 toast(`Sin pedidos para "${currentCode}"`, 'err');
             } else {
@@ -3282,6 +3296,31 @@ function loadData() {
 // ═══════════════════════════════════════════════════════════
 // RENDER
 // ═══════════════════════════════════════════════════════════
+
+// Cuenta pedidos pendientes/aprobados EXCLUYENDO los que ya se
+// confirmaron (se movieron a "Pedidos Confirmados"). Se usa en todos
+// lados donde se muestra la cantidad, para que nunca queden
+// desincronizados entre sí.
+function contarPedidosPorEstado() {
+    const confirmadosIds = new Set(getPedidoList().map(x => x.id));
+    const pend = pedidos.filter(p => p.estado === 'pendiente').length;
+    const apro = pedidos.filter(p => p.estado === 'pagado' && !confirmadosIds.has(p.id)).length;
+    return { pend, apro };
+}
+
+function actualizarContadoresEstado() {
+    const { pend, apro } = contarPedidosPorEstado();
+    const elPend = document.getElementById('scnt-pendiente');
+    const elApro = document.getElementById('scnt-pagado');
+    if (elPend) elPend.textContent = pend;
+    if (elApro) elApro.textContent = apro;
+    const elCount = document.getElementById('count-lbl');
+    if (elCount) {
+        const tot = pend + apro;
+        elCount.textContent = tot ? `(${tot} pedido${tot!==1?'s':''})` : '';
+    }
+}
+
 function renderAll() {
     // Los pedidos ya confirmados (movidos a "Pedidos Confirmados") no deben
     // seguir apareciendo en "Pedidos aprobados" — si no, el revendedor cree
@@ -3290,6 +3329,7 @@ function renderAll() {
     const filtered = pedidos.filter(p => p.estado === activeStatus && !(p.estado === 'pagado' && confirmadosIds.has(p.id)));
     const cats = { perfumes:[], belleza:[], calzados:[], bazar:[], jugueteria:[], libreria:[], multishop:[] };
     filtered.forEach(p => { const c = cat(p); if (cats[c]) cats[c].push(p); });
+    actualizarContadoresEstado();
 
     let totalTodas = 0;
     ['perfumes','belleza','calzados','bazar','jugueteria','libreria','multishop'].forEach(k => {
@@ -3550,10 +3590,6 @@ async function confirmSendPedido() {
 
     // Sin conexión externa — aprobar localmente
     p.estado = 'pagado';
-    const pend = pedidos.filter(x => x.estado === 'pendiente').length;
-    const apro = pedidos.filter(x => x.estado === 'pagado').length;
-    document.getElementById('scnt-pendiente').textContent = pend;
-    document.getElementById('scnt-pagado').textContent    = apro;
     renderAll();
     toastRich(ganancia, totalInv, '¡Pedido aprobado!');
     if (btn) { btn.textContent = 'Enviar y pagar'; btn.disabled = false; }
@@ -3615,10 +3651,6 @@ function aprobarPedido(id, btn) {
     // Quitar de la vista de pedidos aprobados (solo en UI local)
     setTimeout(() => {
         pedidos = pedidos.filter(x => x.id !== id);
-        const pend = pedidos.filter(x => x.estado === 'pendiente').length;
-        const apro = pedidos.filter(x => x.estado === 'pagado').length;
-        document.getElementById('scnt-pendiente').textContent = pend;
-        document.getElementById('scnt-pagado').textContent    = apro;
         renderAll();
     }, 900);
 }
@@ -3779,13 +3811,6 @@ async function confirmDelete() {
     rememberLocalDelete(id);
     pedidos = pedidos.filter(p => p.id !== id);
 
-    const pend = pedidos.filter(p => p.estado === 'pendiente').length;
-    const apro = pedidos.filter(p => p.estado === 'pagado').length;
-    document.getElementById('scnt-pendiente').textContent = pend;
-    document.getElementById('scnt-pagado').textContent    = apro;
-    const tot = pedidos.length;
-    document.getElementById('count-lbl').textContent = tot ? `(${tot} pedido${tot!==1?'s':''})` : '';
-
     closeModal();
     renderAll();
     btn.textContent = 'Eliminar'; btn.disabled = false;
@@ -3846,6 +3871,51 @@ function openConfirmadosModal() {
 
 function closeConfirmadosModal() {
     document.getElementById('confirmados-modal').classList.remove('show');
+}
+
+// Historial de pedidos ya pagados a precio mayorista (mismo dato que
+// alimenta "Ganancias", solo que acá se ve como lista rápida de accesos).
+function openHistorialModal() {
+    renderHistorialModal();
+    document.getElementById('historial-modal').classList.add('show');
+}
+
+function closeHistorialModal() {
+    document.getElementById('historial-modal').classList.remove('show');
+}
+
+function renderHistorialModal() {
+    const el = document.getElementById('historial-modal-content');
+    const historial = getGananciasOficiales().slice().sort((a,b) => new Date(b.fechaPago) - new Date(a.fechaPago));
+
+    if (!historial.length) {
+        el.innerHTML = `<div class="empty"><div class="empty-icon">📭</div><h3>Todavía no hay pedidos realizados</h3><p>Acá vas a ver el historial apenas se confirme un pago a precio mayorista vía Mercado Pago.</p></div>`;
+        return;
+    }
+
+    const totalGanancia = historial.reduce((s,h) => s + (h.ganancia||0), 0);
+    let html = `<div class="kpi-grid" style="margin-bottom:16px">
+        <div class="kpi"><div class="kpi-lbl">Pedidos realizados</div><div class="kpi-val">${historial.length}</div></div>
+        <div class="kpi"><div class="kpi-lbl">Ganancia total</div><div class="kpi-val" style="color:var(--green)">$${Math.round(totalGanancia).toLocaleString()}</div></div>
+    </div>`;
+
+    html += historial.map(h => {
+        const fecha = h.fechaPago ? ba(new Date(h.fechaPago)) : '—';
+        return `<div class="ribbon" style="margin-bottom:8px">
+            <div class="ribbon-head" style="cursor:default;flex-direction:column;align-items:stretch;gap:6px">
+                <div style="display:flex;align-items:center;gap:8px">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--green)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                    <span class="r-name">${esc(h.cliente || 'Cliente')}</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px">
+                    <span class="r-code" style="font-size:10.5px">📅 ${fecha}</span>
+                    <span style="font-size:11.5px;font-weight:700;color:var(--green)">+$${Math.round(h.ganancia||0).toLocaleString()} ganancia</span>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+
+    el.innerHTML = html;
 }
 
 function actualizarBadgeConfirmados() {
@@ -3994,6 +4064,7 @@ function quitarDePedidoLista(id) {
     savePedidoList(list);
     renderPedidoListaView();
     _updatePedidoListaBadge();
+    renderAll();
 }
 function refreshActiveView() {
     const a = document.querySelector('.menu-btn.active');
