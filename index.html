@@ -714,6 +714,9 @@
                 <button id="btn-guide" class="btn-guide-icon" onclick="openGuide()" title="Guía del panel" aria-label="Abrir guía">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                 </button>
+                <button class="btn-guide-icon btn-gift" onclick="this.blur();openGiftModal()" title="Regalo al mejor cliente" aria-label="Configurar regalo">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
+                </button>
             </div>
             <div class="head-actions">
                 <button class="btn-head" id="btn-confirmados" onclick="this.blur();openConfirmadosModal()" style="position:relative">
@@ -724,9 +727,6 @@
                 <button class="btn-head" onclick="this.blur();loadData()">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
                     Actualizar
-                </button>
-                <button class="btn-head btn-gift" onclick="this.blur();openGiftModal()" title="Regalo al mejor cliente" aria-label="Configurar regalo">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
                 </button>
             </div>
         </div>
@@ -3283,7 +3283,11 @@ function loadData() {
 // RENDER
 // ═══════════════════════════════════════════════════════════
 function renderAll() {
-    const filtered = pedidos.filter(p => p.estado === activeStatus);
+    // Los pedidos ya confirmados (movidos a "Pedidos Confirmados") no deben
+    // seguir apareciendo en "Pedidos aprobados" — si no, el revendedor cree
+    // que todavía están pendientes de confirmar y se genera confusión.
+    const confirmadosIds = new Set(getPedidoList().map(x => x.id));
+    const filtered = pedidos.filter(p => p.estado === activeStatus && !(p.estado === 'pagado' && confirmadosIds.has(p.id)));
     const cats = { perfumes:[], belleza:[], calzados:[], bazar:[], jugueteria:[], libreria:[], multishop:[] };
     filtered.forEach(p => { const c = cat(p); if (cats[c]) cats[c].push(p); });
 
