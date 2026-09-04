@@ -43,7 +43,9 @@
         }
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         html { scroll-behavior: smooth; overflow-x: hidden; width: 100%; }
-        body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; line-height: 1.6; min-height: 100vh; width: 100%; overflow-x: hidden; }
+        body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; line-height: 1.6; min-height: 100vh; width: 100%; overflow-x: hidden; position: relative; }
+        body::before { content:''; position: fixed; inset: 0; z-index: 0; pointer-events: none; background: radial-gradient(ellipse 70% 50% at 50% 0%, var(--luz-general, rgba(0,102,255,.10)), transparent 70%); }
+        .wrap { position: relative; z-index: 1; }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: var(--bg2); }
         ::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 3px; }
@@ -631,7 +633,6 @@
         <span class="badge-live">Activo</span>
         <button class="btn-logout btn-customize" onclick="openCustomPanel()" title="Personalizar panel" aria-label="Personalizar panel">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-            Personalizar
         </button>
         <button class="btn-logout btn-customize" onclick="openInvoicesModal()" title="Mis facturas" aria-label="Facturas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>Facturas</button>
         <button class="btn-logout" onclick="logout()">Salir</button>
@@ -710,17 +711,20 @@
     <div class="wrap">
 
         <div class="page-head">
-            <div style="display:flex;align-items:center;gap:12px">
-                <div class="page-title">Mis Pedidos <span id="count-lbl"></span></div>
-                <button id="btn-guide" class="btn-guide-icon" onclick="openGuide()" title="Guía del panel" aria-label="Abrir guía">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                </button>
-                <button class="btn-guide-icon btn-gift" onclick="this.blur();openGiftModal()" title="Regalo al mejor cliente" aria-label="Configurar regalo">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
-                </button>
-                <button class="btn-guide-icon btn-history" onclick="this.blur();openHistorialModal()" title="Historial de pedidos realizados" aria-label="Historial de pedidos realizados">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15l2 2 4-4"/></svg>
-                </button>
+            <div style="display:flex;flex-direction:column;gap:2px">
+                <div style="display:flex;align-items:center;gap:12px">
+                    <div class="page-title" style="margin:0">Mis Pedidos</div>
+                    <button id="btn-guide" class="btn-guide-icon" onclick="openGuide()" title="Guía del panel" aria-label="Abrir guía">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    </button>
+                    <button class="btn-guide-icon btn-gift" onclick="this.blur();openGiftModal()" title="Regalo al mejor cliente" aria-label="Configurar regalo">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
+                    </button>
+                    <button class="btn-guide-icon btn-history" onclick="this.blur();openHistorialModal()" title="Historial de pedidos realizados" aria-label="Historial de pedidos realizados">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15l2 2 4-4"/></svg>
+                    </button>
+                </div>
+                <span id="count-lbl" style="font-size:12px;color:var(--text3);font-weight:600;"></span>
             </div>
             <div class="head-actions">
                 <button class="btn-head" id="btn-confirmados" onclick="this.blur();openConfirmadosModal()" style="position:relative">
@@ -1142,34 +1146,53 @@
         <div class="color-bar-wrap">
             <div class="color-bar-label">
                 <div>
-                    <div class="cbl-name">Color del código</div>
-                    <div class="cbl-sub">Acentos, código y enlaces</div>
+                    <div class="cbl-name">Color de Fondo</div>
+                    <div class="cbl-sub">Fondo general del panel — claro en tema claro, oscuro en tema oscuro</div>
                 </div>
-                <span class="color-bar-swatch" id="cbsw-code"></span>
             </div>
-            <input type="range" min="0" max="360" value="217" class="color-range color-range-code" id="cbar-code" oninput="onColorBarInput('code', this.value)">
+            <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+                <input type="color" id="cpick-bg" value="#0d1117" oninput="onColorPickerInput('bg', this.value)" style="width:38px;height:38px;border:none;border-radius:8px;cursor:pointer;background:none;padding:0;flex-shrink:0;">
+                <input type="text" id="ctext-bg" placeholder="#0D1117" oninput="onColorTextInput('bg', this.value)" style="flex:1;padding:8px 10px;border:1px solid var(--border2);border-radius:8px;font-size:13px;font-family:monospace;background:var(--bg2);color:var(--text);">
+            </div>
         </div>
 
         <div class="color-bar-wrap">
             <div class="color-bar-label">
                 <div>
-                    <div class="cbl-name">Color de botones y letras</div>
-                    <div class="cbl-sub">Textos y botones secundarios</div>
+                    <div class="cbl-name">Color de bordes</div>
+                    <div class="cbl-sub">Bordes de tarjetas, botones y separadores — colores vivos</div>
                 </div>
-                <span class="color-bar-swatch" id="cbsw-btn"></span>
             </div>
-            <input type="range" min="0" max="360" value="225" class="color-range color-range-btn" id="cbar-btn" oninput="onColorBarInput('btn', this.value)">
+            <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+                <input type="color" id="cpick-border" value="#3968f6" oninput="onColorPickerInput('border', this.value)" style="width:38px;height:38px;border:none;border-radius:8px;cursor:pointer;background:none;padding:0;flex-shrink:0;">
+                <input type="text" id="ctext-border" placeholder="#3968F6" oninput="onColorTextInput('border', this.value)" style="flex:1;padding:8px 10px;border:1px solid var(--border2);border-radius:8px;font-size:13px;font-family:monospace;background:var(--bg2);color:var(--text);">
+            </div>
         </div>
 
         <div class="color-bar-wrap">
             <div class="color-bar-label">
                 <div>
-                    <div class="cbl-name">Color de fondo</div>
-                    <div class="cbl-sub">Fondo general del panel</div>
+                    <div class="cbl-name">Color de botones</div>
+                    <div class="cbl-sub">Botones principales y acentos — colores vivos</div>
                 </div>
-                <span class="color-bar-swatch" id="cbsw-bg"></span>
             </div>
-            <input type="range" min="0" max="360" value="222" class="color-range color-range-bg" id="cbar-bg" oninput="onColorBarInput('bg', this.value)">
+            <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+                <input type="color" id="cpick-btn" value="#0a47de" oninput="onColorPickerInput('btn', this.value)" style="width:38px;height:38px;border:none;border-radius:8px;cursor:pointer;background:none;padding:0;flex-shrink:0;">
+                <input type="text" id="ctext-btn" placeholder="#0A47DE" oninput="onColorTextInput('btn', this.value)" style="flex:1;padding:8px 10px;border:1px solid var(--border2);border-radius:8px;font-size:13px;font-family:monospace;background:var(--bg2);color:var(--text);">
+            </div>
+        </div>
+
+        <div class="color-bar-wrap">
+            <div class="color-bar-label">
+                <div>
+                    <div class="cbl-name">Luz general</div>
+                    <div class="cbl-sub">Brillos y luces ambiente del panel — colores claros</div>
+                </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+                <input type="color" id="cpick-glow" value="#66a3ff" oninput="onColorPickerInput('glow', this.value)" style="width:38px;height:38px;border:none;border-radius:8px;cursor:pointer;background:none;padding:0;flex-shrink:0;">
+                <input type="text" id="ctext-glow" placeholder="#66A3FF" oninput="onColorTextInput('glow', this.value)" style="flex:1;padding:8px 10px;border:1px solid var(--border2);border-radius:8px;font-size:13px;font-family:monospace;background:var(--bg2);color:var(--text);">
+            </div>
         </div>
 
         <div class="modal-actions" style="margin-top:8px">
@@ -3851,9 +3874,17 @@ function switchStatus(s) {
     renderAll();
 }
 function switchTab(k) {
-    activeTab = k;
+    const yaActiva = document.getElementById('tbtn-'+k).classList.contains('active');
     document.querySelectorAll('.tab-pane').forEach(e => e.classList.remove('active'));
     document.querySelectorAll('.cat-ribbon').forEach(e => e.classList.remove('active'));
+
+    if (yaActiva) {
+        // Tocar de nuevo la misma cinta la cierra, igual que los pedidos.
+        activeTab = null;
+        return;
+    }
+
+    activeTab = k;
     document.getElementById('pane-'+k).classList.add('active');
     document.getElementById('tbtn-'+k).classList.add('active');
     // Al elegir una categoría, si el acordeón estaba cerrado lo abrimos, así
@@ -4150,6 +4181,28 @@ function getWeeklyData(metric) {
     return weeks;
 }
 
+function getBiweeklyData(metric) {
+    // Agrupa en bloques de 15 días (últimas 8 quincenas = ~4 meses).
+    const bloques = [];
+    const now = Date.now() / 1000;
+    for (let i = 7; i >= 0; i--) {
+        const start = now - (i+1)*15*86400;
+        const end   = now - i*15*86400;
+        const ps = pedidos.filter(p => {
+            const s = p.fechaCreacion?.seconds || 0;
+            return s >= start && s < end;
+        });
+        const fin = new Date((now - i*15*86400)*1000);
+        const label = fin.toLocaleString('es-AR', { month:'short', day:'numeric' });
+        let val = 0;
+        if (metric === 'pedidos') val = ps.length;
+        else if (metric === 'ganancia') val = Math.round(ps.reduce((s,p) => s + resellerGainOf(p), 0));
+        else if (metric === 'facturacion') val = Math.round(ps.reduce((s,p) => s + totalFinalRevendedor(p), 0));
+        bloques.push({ label, val });
+    }
+    return bloques;
+}
+
 function getMonthlyData(metric) {
     const months = [];
     const now = new Date();
@@ -4170,16 +4223,42 @@ function getMonthlyData(metric) {
     return months;
 }
 
+function getYearlyData(metric) {
+    // Últimos 12 meses agrupados por AÑO (útil cuando hay varios años de datos)
+    // — si todo cae en el mismo año, se ve un solo punto con el total.
+    const years = [];
+    const now = new Date();
+    for (let i = 4; i >= 0; i--) {
+        const y = now.getFullYear() - i;
+        const ps = pedidos.filter(p => {
+            const s = (p.fechaCreacion?.seconds || 0) * 1000;
+            return s > 0 && new Date(s).getFullYear() === y;
+        });
+        let val = 0;
+        if (metric === 'pedidos') val = ps.length;
+        else if (metric === 'ganancia') val = Math.round(ps.reduce((s,p) => s + resellerGainOf(p), 0));
+        else if (metric === 'facturacion') val = Math.round(ps.reduce((s,p) => s + totalFinalRevendedor(p), 0));
+        years.push({ label: String(y), val });
+    }
+    return years;
+}
+
 // ═══════════════════════════════════════════════════════════
 // MODAL GRÁFICO
 // ═══════════════════════════════════════════════════════════
 const CHART_METRICS = {
-    'pedidos-semanas':    { metric:'pedidos',       fn: getWeeklyData,  label:'Pedidos',      color:'rgba(0,102,255,' },
-    'ganancia-semanas':   { metric:'ganancia',      fn: getWeeklyData,  label:'Ganancia ($)', color:'rgba(0,201,110,' },
-    'facturacion-semanas':{ metric:'facturacion',   fn: getWeeklyData,  label:'Facturación ($)', color:'rgba(245,158,11,' },
-    'pedidos-meses':      { metric:'pedidos',       fn: getMonthlyData, label:'Pedidos',      color:'rgba(0,102,255,' },
-    'ganancia-meses':     { metric:'ganancia',      fn: getMonthlyData, label:'Ganancia ($)', color:'rgba(0,201,110,' },
-    'facturacion-meses':  { metric:'facturacion',   fn: getMonthlyData, label:'Facturación ($)', color:'rgba(245,158,11,' },
+    'pedidos-semanas':    { metric:'pedidos',       fn: getWeeklyData,   label:'Pedidos',      color:'rgba(0,102,255,' },
+    'ganancia-semanas':   { metric:'ganancia',      fn: getWeeklyData,   label:'Ganancia ($)', color:'rgba(0,201,110,' },
+    'facturacion-semanas':{ metric:'facturacion',   fn: getWeeklyData,   label:'Facturación ($)', color:'rgba(245,158,11,' },
+    'pedidos-quincenas':    { metric:'pedidos',     fn: getBiweeklyData, label:'Pedidos',      color:'rgba(0,102,255,' },
+    'ganancia-quincenas':   { metric:'ganancia',    fn: getBiweeklyData, label:'Ganancia ($)', color:'rgba(0,201,110,' },
+    'facturacion-quincenas':{ metric:'facturacion', fn: getBiweeklyData, label:'Facturación ($)', color:'rgba(245,158,11,' },
+    'pedidos-meses':      { metric:'pedidos',       fn: getMonthlyData,  label:'Pedidos',      color:'rgba(0,102,255,' },
+    'ganancia-meses':     { metric:'ganancia',      fn: getMonthlyData,  label:'Ganancia ($)', color:'rgba(0,201,110,' },
+    'facturacion-meses':  { metric:'facturacion',   fn: getMonthlyData,  label:'Facturación ($)', color:'rgba(245,158,11,' },
+    'pedidos-anios':      { metric:'pedidos',       fn: getYearlyData,   label:'Pedidos',      color:'rgba(0,102,255,' },
+    'ganancia-anios':     { metric:'ganancia',      fn: getYearlyData,   label:'Ganancia ($)', color:'rgba(0,201,110,' },
+    'facturacion-anios':  { metric:'facturacion',   fn: getYearlyData,   label:'Facturación ($)', color:'rgba(245,158,11,' },
 };
 
 let _chartKey = '';
@@ -4187,11 +4266,13 @@ function openChart(key, titleBase) {
     document.getElementById('chart-modal-title').textContent = `Gráfico: ${titleBase}`;
     _chartKey = key;
 
-    // Tabs: semanas / meses
+    // Tabs: semanas / quincenas / meses / años
     const base = key.split('-')[0];
     document.getElementById('chart-modal-tabs').innerHTML = `
-        <button class="chart-tab ${key.includes('semanas')?'active':''}" onclick="switchChartTab('${base}-semanas','${titleBase}')">Por semanas</button>
-        <button class="chart-tab ${key.includes('meses')?'active':''}" onclick="switchChartTab('${base}-meses','${titleBase}')">Por meses</button>
+        <button class="chart-tab ${key.includes('semanas')?'active':''}" onclick="switchChartTab('${base}-semanas','${titleBase}')">Semana</button>
+        <button class="chart-tab ${key.includes('quincenas')?'active':''}" onclick="switchChartTab('${base}-quincenas','${titleBase}')">Quincena</button>
+        <button class="chart-tab ${key.includes('meses')?'active':''}" onclick="switchChartTab('${base}-meses','${titleBase}')">Mes</button>
+        <button class="chart-tab ${key.includes('anios')?'active':''}" onclick="switchChartTab('${base}-anios','${titleBase}')">Año</button>
     `;
 
     renderChartModal(key);
@@ -4200,8 +4281,10 @@ function openChart(key, titleBase) {
 
 function switchChartTab(key, titleBase) {
     _chartKey = key;
+    const suf = key.split('-')[1];
     document.querySelectorAll('#chart-modal-tabs .chart-tab').forEach((b,i) => {
-        b.classList.toggle('active', i === (key.includes('semanas') ? 0 : 1));
+        const orden = ['semanas','quincenas','meses','anios'];
+        b.classList.toggle('active', orden[i] === suf);
     });
     renderChartModal(key);
 }
@@ -4214,18 +4297,23 @@ function renderChartModal(key) {
     if (chartModalInst) { chartModalInst.destroy(); chartModalInst = null; }
 
     const ctx = document.getElementById('chart-modal-canvas').getContext('2d');
+    // Estilo "electrocardiograma": línea suavizada, punteada por debajo,
+    // en vez de barras — el mismo criterio que el gráfico principal.
     chartModalInst = new Chart(ctx, {
-        type: 'bar',
+        type: 'line',
         data: {
             labels: pts.map(p => p.label),
             datasets: [{
                 label: cfg.label,
                 data: pts.map(p => p.val),
-                backgroundColor: cfg.color + '0.7)',
                 borderColor: cfg.color + '1)',
-                borderWidth: 2,
-                borderRadius: 6,
-                hoverBackgroundColor: cfg.color + '0.9)'
+                backgroundColor: cfg.color + '0.12)',
+                borderWidth: 2.5,
+                tension: 0.4,
+                fill: true,
+                pointBackgroundColor: cfg.color + '1)',
+                pointRadius: 3.5,
+                pointHoverRadius: 5
             }]
         },
         options: {
@@ -4358,7 +4446,7 @@ function renderStatsView() {
     html += `</div></div>`;
 
     // Distribución por nicho
-    const byNicho = { perfumes: 0, multishop: 0, calzados: 0 };
+    const byNicho = { perfumes: 0, calzados: 0, belleza: 0, bazar: 0, jugueteria: 0, libreria: 0, multishop: 0 };
     pedidos.forEach(p => { const c = cat(p); if (byNicho[c] !== undefined) byNicho[c]++; });
 
     // Frecuencia de productos por categoría
@@ -4387,7 +4475,7 @@ function renderStatsView() {
 
     // Productos más frecuentes por categoría
     catHtml += `<div class="section-block"><h2 class="section-title">Productos más pedidos por categoría</h2>`;
-    ['calzados','perfumes','multishop'].forEach(c => {
+    ['calzados','perfumes','belleza','bazar','jugueteria','libreria','multishop'].forEach(c => {
         const freq = freqMap[c];
         if (!freq || !Object.keys(freq).length) return;
         const sorted = Object.entries(freq).sort((a,b) => b[1]-a[1]).slice(0, 10);
@@ -4420,8 +4508,12 @@ function renderStatsView() {
                 <button class="chart-tab active" id="main-chart-tab-ped" onclick="switchMainChart('pedidos')">Pedidos</button>
                 ${hasConfig ? '<button class="chart-tab" id="main-chart-tab-gan" onclick="switchMainChart(\'ganancia\')">Ganancia</button>' : ''}
                 <button class="chart-tab" id="main-chart-tab-fac" onclick="switchMainChart(\'facturacion\')">Facturación</button>
-                <button class="chart-tab" id="main-chart-tab-p2" onclick="switchMainChartPeriod('semanas')" style="margin-left:10px;border-color:var(--border)">Semanas</button>
-                <button class="chart-tab" id="main-chart-tab-m2" onclick="switchMainChartPeriod('meses')">Meses</button>
+            </div>
+            <div class="chart-tabs" style="margin-top:6px">
+                <button class="chart-tab active" id="main-chart-tab-p2" onclick="switchMainChartPeriod('semanas')" style="border-color:var(--border)">Semana</button>
+                <button class="chart-tab" id="main-chart-tab-q2" onclick="switchMainChartPeriod('quincenas')">Quincena</button>
+                <button class="chart-tab" id="main-chart-tab-m2" onclick="switchMainChartPeriod('meses')">Mes</button>
+                <button class="chart-tab" id="main-chart-tab-a2" onclick="switchMainChartPeriod('anios')">Año</button>
             </div>
             <div class="chart-wrap"><canvas id="main-chart-canvas"></canvas></div>
         </div>
@@ -4494,7 +4586,9 @@ function switchMainChart(metric) {
 function switchMainChartPeriod(period) {
     window._mainChartPeriod = period;
     document.getElementById('main-chart-tab-p2')?.classList.toggle('active', period === 'semanas');
+    document.getElementById('main-chart-tab-q2')?.classList.toggle('active', period === 'quincenas');
     document.getElementById('main-chart-tab-m2')?.classList.toggle('active', period === 'meses');
+    document.getElementById('main-chart-tab-a2')?.classList.toggle('active', period === 'anios');
     renderMainChart();
 }
 
@@ -4866,57 +4960,83 @@ function _hexToRgba(hex, alpha) {
     return `rgba(${r},${g},${b},${alpha})`;
 }
 
-function _applyCustomColors(hues) {
+// Aclara/oscurece un color hex un porcentaje dado (positivo = más claro,
+// negativo = más oscuro). Se usa para derivar los distintos tonos de fondo
+// (--bg, --bg2, --bg3, --surface, --surface2) a partir de UN solo color base.
+function _shadeHex(hex, percent) {
+    hex = (hex || '#000000').replace('#', '');
+    if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+    let r = parseInt(hex.substring(0, 2), 16);
+    let g = parseInt(hex.substring(2, 4), 16);
+    let b = parseInt(hex.substring(4, 6), 16);
+    const amt = Math.round(2.55 * percent);
+    r = Math.max(0, Math.min(255, r + amt));
+    g = Math.max(0, Math.min(255, g + amt));
+    b = Math.max(0, Math.min(255, b + amt));
+    return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
+}
+
+function _applyCustomColorsV2(colors) {
     const root = document.documentElement.style;
     const isLight = document.body.classList.contains('light-theme');
 
-    if (hues.code !== null && hues.code !== undefined) {
-        const base = _hslToHex(hues.code, 82, 55);
-        const dim  = _hslToHex(hues.code, 82, 47);
-        root.setProperty('--blue', base);
-        root.setProperty('--blue-dim', dim);
-        root.setProperty('--blue-pale', _hexToRgba(base, .12));
-        root.setProperty('--blue-glow', _hexToRgba(base, .25));
-    }
-    if (hues.btn !== null && hues.btn !== undefined) {
-        const text  = _hslToHex(hues.btn, isLight ? 35 : 28, isLight ? 22 : 90);
-        const text2 = _hslToHex(hues.btn, isLight ? 25 : 22, isLight ? 38 : 65);
-        root.setProperty('--text', text);
-        root.setProperty('--text2', text2);
-    }
-    if (hues.bg !== null && hues.bg !== undefined) {
-        const l = isLight ? [97, 94, 91, 100, 96] : [7, 10, 13, 16, 20];
-        root.setProperty('--bg',       _hslToHex(hues.bg, isLight ? 30 : 22, l[0]));
-        root.setProperty('--bg2',      _hslToHex(hues.bg, isLight ? 30 : 22, l[1]));
-        root.setProperty('--bg3',      _hslToHex(hues.bg, isLight ? 30 : 22, l[2]));
-        root.setProperty('--surface',  _hslToHex(hues.bg, isLight ? 30 : 22, l[3]));
-        root.setProperty('--surface2', _hslToHex(hues.bg, isLight ? 30 : 22, l[4]));
+    // Color de Fondo — se derivan los 5 tonos de fondo que usa el panel a
+    // partir de un solo color base elegido por el revendedor.
+    if (colors.bg) {
+        const pasos = isLight ? [0, -3, -6, 3, -1] : [0, 3, 6, 9, 13];
+        root.setProperty('--bg',       _shadeHex(colors.bg, pasos[0]));
+        root.setProperty('--bg2',      _shadeHex(colors.bg, pasos[1]));
+        root.setProperty('--bg3',      _shadeHex(colors.bg, pasos[2]));
+        root.setProperty('--surface',  _shadeHex(colors.bg, pasos[3]));
+        root.setProperty('--surface2', _shadeHex(colors.bg, pasos[4]));
     }
 
-    const swCode = document.getElementById('cbsw-code');
-    const swBtn  = document.getElementById('cbsw-btn');
-    const swBg   = document.getElementById('cbsw-bg');
-    if (swCode) swCode.style.background = _hslToHex(hues.code ?? 217, 82, 55);
-    if (swBtn)  swBtn.style.background  = _hslToHex(hues.btn  ?? 225, isLight ? 35 : 28, isLight ? 22 : 90);
-    if (swBg)   swBg.style.background   = _hslToHex(hues.bg   ?? 222, isLight ? 30 : 22, isLight ? 97 : 7);
+    // Color de bordes — bordes de tarjetas/botones/separadores.
+    if (colors.border) {
+        root.setProperty('--border',  _hexToRgba(colors.border, isLight ? .35 : .35));
+        root.setProperty('--border2', _hexToRgba(colors.border, isLight ? .55 : .55));
+    }
+
+    // Color de botones — acento principal (botones, links, elementos activos).
+    if (colors.btn) {
+        root.setProperty('--blue', colors.btn);
+        root.setProperty('--blue-dim', _shadeHex(colors.btn, -12));
+        root.setProperty('--blue-pale', _hexToRgba(colors.btn, .12));
+        root.setProperty('--blue-glow', _hexToRgba(colors.btn, .25));
+    }
+
+    // Luz general — brillos y luces ambiente del panel (resplandor detrás
+    // del contenido, no confundir con el color de los botones).
+    if (colors.glow) {
+        root.setProperty('--luz-general', _hexToRgba(colors.glow, .14));
+    }
+
+    // Reflejar el color elegido en cada input de texto/picker.
+    ['bg', 'border', 'btn', 'glow'].forEach(k => {
+        if (!colors[k]) return;
+        const pick = document.getElementById('cpick-' + k);
+        const text = document.getElementById('ctext-' + k);
+        if (pick) pick.value = colors[k];
+        if (text) text.value = colors[k].toUpperCase();
+    });
 }
 
-let _customColorsDraft = { code: null, btn: null, bg: null };
+let _customColorsDraft = { bg: null, border: null, btn: null, glow: null };
 
 function _loadCustomColors() {
     try {
         const raw = localStorage.getItem(CUSTOM_COLOR_KEY);
-        return raw ? JSON.parse(raw) : { code: null, btn: null, bg: null };
-    } catch(_) { return { code: null, btn: null, bg: null }; }
+        return raw ? JSON.parse(raw) : { bg: null, border: null, btn: null, glow: null };
+    } catch(_) { return { bg: null, border: null, btn: null, glow: null }; }
 }
 
 function applySavedCustomColors() {
     const saved = _loadCustomColors();
     _customColorsDraft = Object.assign({}, saved);
-    if (saved.code !== null || saved.btn !== null || saved.bg !== null) {
-        _applyCustomColors(saved);
+    if (saved.bg || saved.border || saved.btn || saved.glow) {
+        _applyCustomColorsV2(saved);
     } else {
-        ['--blue','--blue-dim','--blue-pale','--blue-glow','--text','--text2','--bg','--bg2','--bg3','--surface','--surface2']
+        ['--blue','--blue-dim','--blue-pale','--blue-glow','--border','--border2','--bg','--bg2','--bg3','--surface','--surface2','--luz-general']
             .forEach(p => document.documentElement.style.removeProperty(p));
     }
 }
@@ -4924,10 +5044,16 @@ function applySavedCustomColors() {
 function openCustomPanel() {
     const saved = _loadCustomColors();
     _customColorsDraft = Object.assign({}, saved);
-    document.getElementById('cbar-code').value = saved.code ?? 217;
-    document.getElementById('cbar-btn').value  = saved.btn  ?? 225;
-    document.getElementById('cbar-bg').value   = saved.bg   ?? 222;
-    _applyCustomColors(_customColorsDraft);
+    const cs = getComputedStyle(document.documentElement);
+    const isLight = document.body.classList.contains('light-theme');
+    document.getElementById('cpick-bg').value     = saved.bg     || (isLight ? '#f7f8fb' : '#0d1117');
+    document.getElementById('ctext-bg').value     = (saved.bg    || (isLight ? '#F7F8FB' : '#0D1117')).toUpperCase();
+    document.getElementById('cpick-border').value = saved.border || '#3968f6';
+    document.getElementById('ctext-border').value = (saved.border|| '#3968F6').toUpperCase();
+    document.getElementById('cpick-btn').value    = saved.btn    || '#0a47de';
+    document.getElementById('ctext-btn').value    = (saved.btn   || '#0A47DE').toUpperCase();
+    document.getElementById('cpick-glow').value   = saved.glow   || '#66a3ff';
+    document.getElementById('ctext-glow').value   = (saved.glow  || '#66A3FF').toUpperCase();
     document.getElementById('custom-modal').classList.add('show');
 }
 
@@ -4937,9 +5063,20 @@ function closeCustomPanel() {
     applySavedCustomColors();
 }
 
-function onColorBarInput(which, value) {
-    _customColorsDraft[which] = Number(value);
-    _applyCustomColors(_customColorsDraft);
+function onColorPickerInput(which, value) {
+    _customColorsDraft[which] = value;
+    document.getElementById('ctext-' + which).value = value.toUpperCase();
+    _applyCustomColorsV2(_customColorsDraft);
+}
+
+function onColorTextInput(which, value) {
+    const v = value.trim();
+    if (!/^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/.test(v)) return; // esperar código válido
+    _customColorsDraft[which] = v;
+    document.getElementById('cpick-' + which).value = v.length === 4
+        ? '#' + v.slice(1).split('').map(c => c + c).join('')
+        : v;
+    _applyCustomColorsV2(_customColorsDraft);
 }
 
 function saveCustomColors() {
@@ -4949,20 +5086,19 @@ function saveCustomColors() {
 }
 
 function resetCustomColors() {
-    _customColorsDraft = { code: null, btn: null, bg: null };
-    document.getElementById('cbar-code').value = 217;
-    document.getElementById('cbar-btn').value  = 225;
-    document.getElementById('cbar-bg').value   = 222;
-    ['--blue','--blue-dim','--blue-pale','--blue-glow','--text','--text2','--bg','--bg2','--bg3','--surface','--surface2']
+    _customColorsDraft = { bg: null, border: null, btn: null, glow: null };
+    ['--blue','--blue-dim','--blue-pale','--blue-glow','--border','--border2','--bg','--bg2','--bg3','--surface','--surface2','--luz-general']
         .forEach(p => document.documentElement.style.removeProperty(p));
     localStorage.removeItem(CUSTOM_COLOR_KEY);
-    const cs = getComputedStyle(document.documentElement);
-    const swCode = document.getElementById('cbsw-code');
-    const swBtn  = document.getElementById('cbsw-btn');
-    const swBg   = document.getElementById('cbsw-bg');
-    if (swCode) swCode.style.background = cs.getPropertyValue('--blue').trim();
-    if (swBtn)  swBtn.style.background  = cs.getPropertyValue('--text').trim();
-    if (swBg)   swBg.style.background   = cs.getPropertyValue('--bg').trim();
+    const isLight = document.body.classList.contains('light-theme');
+    document.getElementById('cpick-bg').value     = isLight ? '#f7f8fb' : '#0d1117';
+    document.getElementById('ctext-bg').value     = (isLight ? '#F7F8FB' : '#0D1117');
+    document.getElementById('cpick-border').value = '#3968f6';
+    document.getElementById('ctext-border').value = '#3968F6';
+    document.getElementById('cpick-btn').value    = '#0a47de';
+    document.getElementById('ctext-btn').value    = '#0A47DE';
+    document.getElementById('cpick-glow').value   = '#66a3ff';
+    document.getElementById('ctext-glow').value   = '#66A3FF';
     toast('Colores restablecidos', true);
 }
 
