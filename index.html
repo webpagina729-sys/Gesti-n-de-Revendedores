@@ -3455,8 +3455,9 @@ function card(p) {
         const pFin = hasConfig ? resellerPriceFinal(it, nichoKey) : null;
         const gain = hasConfig ? resellerGainForItem(it, nichoKey) : null;
         const mayCell = pMay > 0 ? '$' + Math.round(pMay).toLocaleString() : '<span style="color:var(--text3)" title="Pendiente de workerpagos">—</span>';
+        const detalle = [it.talle ? 'Talle ' + it.talle : null, it.variante ? 'Variante: ' + it.variante : null].filter(Boolean).join(' · ');
         return `<tr>
-            <td><div class="prod-name">${esc(it.nombre||'—')}</div></td>
+            <td><div class="prod-name">${esc(it.nombre||'—')}</div>${detalle ? `<div style="font-size:11px;color:var(--text3);margin-top:2px">${esc(detalle)}</div>` : ''}</td>
             <td class="qty-num">${it.cantidad||1}</td>
             <td class="price-cell">${mayCell}</td>
             ${hasConfig ? `<td class="price-cell">$${(pFin||0).toLocaleString()}</td><td class="gain-cell">+$${Math.round(gain||0).toLocaleString()}</td>` : ''}
