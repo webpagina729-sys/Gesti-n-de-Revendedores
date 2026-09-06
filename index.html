@@ -631,9 +631,6 @@
     </div>
     <div class="topbar-right">
         <span class="badge-live">Activo</span>
-        <button class="btn-logout btn-customize" onclick="openCustomPanel()" title="Personalizar panel" aria-label="Personalizar panel">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        </button>
         <button class="btn-logout btn-customize" onclick="openInvoicesModal()" title="Mis facturas" aria-label="Facturas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>Facturas</button>
         <button class="btn-logout" onclick="logout()">Salir</button>
     </div>
@@ -722,6 +719,9 @@
                     </button>
                     <button class="btn-guide-icon btn-history" onclick="this.blur();openHistorialModal()" title="Historial de pedidos realizados" aria-label="Historial de pedidos realizados">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15l2 2 4-4"/></svg>
+                    </button>
+                    <button onclick="openCustomPanel()" title="Personalizar panel" aria-label="Personalizar panel" style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;background:none;border:none;padding:0;color:var(--text3);cursor:pointer;flex-shrink:0;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
                     </button>
                 </div>
                 <span id="count-lbl" style="font-size:12px;color:var(--text3);font-weight:600;"></span>
@@ -2486,6 +2486,22 @@ function totalInversionRevendedor(p) {
 // se devuelve null en vez de forzar una categoría (evita aplicar
 // el % de margen de una categoría equivocada).
 // ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+// ETAPA DEL PEDIDO APROBADO — para separar las estadísticas en
+// Pendiente de confirmar → Confirmado sin pagar → Pagado.
+// Solo aplica a pedidos ya aprobados por el revendedor (p.estado
+// === 'pagado' en el resto del código, que históricamente significa
+// "aprobado desde Pedidos Recibidos", no "pagado por el cliente").
+// ═══════════════════════════════════════════════════════════
+function getPedidoStage(p) {
+    if (!p || p.estado !== 'pagado') return null;
+    const pagadoIds = new Set(getGananciasOficiales().map(g => g.id));
+    if (pagadoIds.has(p.id)) return 'pagado';
+    const confirmadoIds = new Set(getPedidoList().map(x => x.id));
+    if (confirmadoIds.has(p.id)) return 'confirmado';
+    return 'pendiente';
+}
+
 function cat(p) {
     if (p.nicho) {
         const n = p.nicho.toLowerCase();
@@ -2932,6 +2948,46 @@ function showMain() {
 //   pedidoId, codigoVendedor, cliente (STRING), telefono, items [{nombre,cantidad,precio}]
 // Y también el formato de workerwebcliente /logistica:
 //   id, nombre, apellido, telefono, productos (array strings), cantidades, preciosIndividuales
+// 🔧 FIX: parser explícito para fechas argentinas (DD/MM/YYYY, con o sin
+// hora pegada), en vez de confiar en new Date(texto) — que en JS asume
+// formato de EE.UU. (MM/DD/YYYY) y mezclaba día y mes en casi todos los
+// pedidos. Si el texto ya viene en formato ISO (YYYY-MM-DD, con o sin
+// hora), se respeta tal cual porque ahí no hay ambigüedad.
+function _parsearFechaArgentina(fechaStr, horaStr) {
+    if (!fechaStr) return 0;
+    const s = String(fechaStr).trim();
+
+    // Formato ISO (YYYY-MM-DD...) — sin ambigüedad, se usa directo.
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+        const d = new Date(s);
+        return isNaN(d) ? 0 : Math.floor(d.getTime() / 1000);
+    }
+
+    // Formato argentino DD/MM/YYYY (la fecha puede traer la hora pegada
+    // con un espacio, ej. "2/9/2026 11:36").
+    const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+    if (m) {
+        const dia = parseInt(m[1], 10);
+        const mes = parseInt(m[2], 10) - 1;
+        const anio = parseInt(m[3], 10);
+        let hh = m[4] ? parseInt(m[4], 10) : 0;
+        let mm = m[5] ? parseInt(m[5], 10) : 0;
+        let ss = m[6] ? parseInt(m[6], 10) : 0;
+        // Si la hora viene en un parámetro aparte (p.hora, formato "HH:MM"
+        // o "HH:MM:SS"), tiene prioridad sobre cualquier hora pegada arriba.
+        if (horaStr) {
+            const hm = String(horaStr).match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+            if (hm) { hh = parseInt(hm[1], 10); mm = parseInt(hm[2], 10); ss = hm[3] ? parseInt(hm[3], 10) : 0; }
+        }
+        const d = new Date(anio, mes, dia, hh, mm, ss);
+        return isNaN(d) ? 0 : Math.floor(d.getTime() / 1000);
+    }
+
+    // Último recurso: dejar que el motor lo intente interpretar.
+    const d = new Date(s);
+    return isNaN(d) ? 0 : Math.floor(d.getTime() / 1000);
+}
+
 function _norm(p, estadoForzado) {
     const id = p.pedidoId || p.id || p._id;
     if (!id) return null;
@@ -3012,12 +3068,17 @@ function _norm(p, estadoForzado) {
     }
 
     // Fecha
+    // 🔧 FIX: p.fecha viene en formato argentino DD/MM/YYYY (o con hora
+    // pegada, "DD/MM/YYYY HH:MM"), pero new Date(texto) lo interpreta como
+    // MM/DD/YYYY (formato de EE.UU.) — día y mes quedaban invertidos para
+    // casi todos los pedidos. El AÑO seguía coincidiendo casi siempre, por
+    // eso las estadísticas "por año" mostraban datos pero semana/quincena/
+    // mes (que dependen del día exacto) no encontraban nada.
     let fechaSecs = 0;
     if (p.fechaCreacion?.seconds) {
         fechaSecs = p.fechaCreacion.seconds;
     } else if (p.fecha || p.fechaRegistro) {
-        const d = new Date(p.fecha || p.fechaRegistro);
-        fechaSecs = isNaN(d) ? 0 : Math.floor(d.getTime() / 1000);
+        fechaSecs = _parsearFechaArgentina(p.fecha || p.fechaRegistro, p.hora);
     }
     if (!fechaSecs) fechaSecs = Math.floor(Date.now() / 1000);
 
@@ -3160,11 +3221,11 @@ function _normWorker(raw, estadoForzado) {
     }
 
     // Fecha
+    // 🔧 FIX: mismo problema de formato DD/MM/YYYY vs MM/DD/YYYY que en _norm().
     let fechaSecs = 0;
     if (raw.fechaCreacion?.seconds)             fechaSecs = raw.fechaCreacion.seconds;
     else if (raw.fecha || raw.fechaRegistro) {
-        const d = new Date(raw.fecha || raw.fechaRegistro);
-        if (!isNaN(d)) fechaSecs = Math.floor(d.getTime() / 1000);
+        fechaSecs = _parsearFechaArgentina(raw.fecha || raw.fechaRegistro, raw.hora);
     }
     if (!fechaSecs) fechaSecs = Math.floor(Date.now() / 1000);
 
@@ -4160,6 +4221,19 @@ function toggleMini(id) { document.getElementById(id)?.classList.toggle('expande
 // ═══════════════════════════════════════════════════════════
 // DATOS PARA GRÁFICOS (últimas 8 semanas)
 // ═══════════════════════════════════════════════════════════
+
+// 🔧 Helper compartido: ganancia OFICIAL (pagada) dentro de una ventana de
+// días — usado por los 4 selectores de período del gráfico para que
+// "Ganancia" en el gráfico coincida siempre con "Ganancia por período"
+// (ambos basados solo en lo efectivamente pagado, no en todo lo aprobado).
+function _gananciaOficialEnRango(startSecs, endSecs) {
+    const oficiales = getGananciasOficiales();
+    return oficiales.filter(g => {
+        const s = Math.floor(new Date(g.fechaPago).getTime() / 1000) || 0;
+        return s >= startSecs && s < endSecs;
+    }).reduce((sum, g) => sum + Number(g.ganancia || 0), 0);
+}
+
 function getWeeklyData(metric) {
     // metric: 'pedidos' | 'ganancia' | 'facturacion'
     const weeks = [];
@@ -4175,7 +4249,7 @@ function getWeeklyData(metric) {
         const label = weekDate.toLocaleString('es-AR', { month:'short', day:'numeric' });
         let val = 0;
         if (metric === 'pedidos') val = ps.length;
-        else if (metric === 'ganancia') val = Math.round(ps.reduce((s,p) => s + resellerGainOf(p), 0));
+        else if (metric === 'ganancia') val = Math.round(_gananciaOficialEnRango(start, end));
         else if (metric === 'facturacion') val = Math.round(ps.reduce((s,p) => s + totalFinalRevendedor(p), 0));
         weeks.push({ label, val });
     }
@@ -4197,7 +4271,7 @@ function getBiweeklyData(metric) {
         const label = fin.toLocaleString('es-AR', { month:'short', day:'numeric' });
         let val = 0;
         if (metric === 'pedidos') val = ps.length;
-        else if (metric === 'ganancia') val = Math.round(ps.reduce((s,p) => s + resellerGainOf(p), 0));
+        else if (metric === 'ganancia') val = Math.round(_gananciaOficialEnRango(start, end));
         else if (metric === 'facturacion') val = Math.round(ps.reduce((s,p) => s + totalFinalRevendedor(p), 0));
         bloques.push({ label, val });
     }
@@ -4217,7 +4291,7 @@ function getMonthlyData(metric) {
         const label = d.toLocaleString('es-AR', { month:'short', year:'2-digit' });
         let val = 0;
         if (metric === 'pedidos') val = ps.length;
-        else if (metric === 'ganancia') val = Math.round(ps.reduce((s,p) => s + resellerGainOf(p), 0));
+        else if (metric === 'ganancia') val = Math.round(_gananciaOficialEnRango(d.getTime()/1000, dEnd.getTime()/1000));
         else if (metric === 'facturacion') val = Math.round(ps.reduce((s,p) => s + totalFinalRevendedor(p), 0));
         months.push({ label, val });
     }
@@ -4237,7 +4311,7 @@ function getYearlyData(metric) {
         });
         let val = 0;
         if (metric === 'pedidos') val = ps.length;
-        else if (metric === 'ganancia') val = Math.round(ps.reduce((s,p) => s + resellerGainOf(p), 0));
+        else if (metric === 'ganancia') val = Math.round(_gananciaOficialEnRango(new Date(y,0,1).getTime()/1000, new Date(y+1,0,1).getTime()/1000));
         else if (metric === 'facturacion') val = Math.round(ps.reduce((s,p) => s + totalFinalRevendedor(p), 0));
         years.push({ label: String(y), val });
     }
@@ -4358,22 +4432,46 @@ function renderStatsView() {
 
     let html = `<h2 class="section-title">Mis estadísticas</h2>`;
 
-    // KPIs generales
+    // ── Desglose por etapa: Pendiente de confirmar → Confirmado sin pagar → Pagado ──
+    // 🔧 NUEVO: antes, apenas se confirmaba un pedido (se sumaba al lote de
+    // "Tu Pedido por Encargo"), desaparecía de las estadísticas por completo
+    // hasta que se pagaba — daba la sensación de haber perdido el pedido.
+    // Ahora cada etapa se cuenta y se muestra por separado, y "Ganancia" y
+    // "Cliente del mes" recién quedan DEFINITIVOS cuando el lote se paga de
+    // verdad con "Enviar a precio mayorista" — mientras tanto se muestran
+    // como estimados/pendientes, nunca como si no existieran.
+    const aprobadosTotal = pedidos.filter(p => p.estado === 'pagado');
+    const enEtapa = { pendiente: [], confirmado: [], pagado: [] };
+    aprobadosTotal.forEach(p => {
+        const st = getPedidoStage(p);
+        if (st) enEtapa[st].push(p);
+    });
     const totalPeds = pedidos.length;
-    const aprobados = pedidos.filter(p => p.estado === 'pagado').length;
-    const pendientes = pedidos.filter(p => p.estado === 'pendiente').length;
-    const totalGain = hasConfig ? pedidos.reduce((s,p) => s + resellerGainOf(p), 0) : 0;
-    const totalFac  = pedidos.reduce((s,p) => s + totalFinalRevendedor(p), 0);
+    const pendientesAprobar = pedidos.filter(p => p.estado === 'pendiente').length;
 
-    const totalInvStats = pedidos.reduce((s,p) => s + totalInversionRevendedor(p), 0);
     html += `<div class="kpi-grid">
         <div class="kpi"><div class="kpi-lbl">Total pedidos</div><div class="kpi-val">${totalPeds}</div></div>
-        <div class="kpi"><div class="kpi-lbl">Aprobados</div><div class="kpi-val" style="color:var(--green)">${aprobados}</div></div>
-        <div class="kpi"><div class="kpi-lbl">Pendientes</div><div class="kpi-val" style="color:var(--amber)">${pendientes}</div></div>
-        ${hasConfig ? `<div class="kpi"><div class="kpi-lbl">Ganancia total</div><div class="kpi-val" style="color:var(--green)">$${Math.round(totalGain).toLocaleString()}</div></div>` : ''}
-        <div class="kpi"><div class="kpi-lbl">Facturación a clientes</div><div class="kpi-val">$${Math.round(totalFac).toLocaleString()}</div></div>
-        <div class="kpi"><div class="kpi-lbl">Facturación mayorista</div><div class="kpi-val" style="color:var(--blue)">$${Math.round(totalInvStats).toLocaleString()}</div></div>
+        <div class="kpi"><div class="kpi-lbl">Sin aprobar</div><div class="kpi-val" style="color:var(--amber)">${pendientesAprobar}</div></div>
+        <div class="kpi"><div class="kpi-lbl">Pendientes de confirmar</div><div class="kpi-val" style="color:var(--amber)">${enEtapa.pendiente.length}</div></div>
+        <div class="kpi"><div class="kpi-lbl">Confirmados sin pagar</div><div class="kpi-val" style="color:var(--blue)">${enEtapa.confirmado.length}</div></div>
+        <div class="kpi"><div class="kpi-lbl">Pagados</div><div class="kpi-val" style="color:var(--green)">${enEtapa.pagado.length}</div></div>
+        ${hasConfig ? `<div class="kpi"><div class="kpi-lbl">Ganancia oficial (pagada)</div><div class="kpi-val" style="color:var(--green)">$${Math.round(getGananciasOficiales().reduce((s,g) => s + Number(g.ganancia||0), 0)).toLocaleString()}</div></div>` : ''}
+        <div class="kpi"><div class="kpi-lbl">Facturación a clientes</div><div class="kpi-val">$${Math.round(pedidos.reduce((s,p) => s + totalFinalRevendedor(p), 0)).toLocaleString()}</div></div>
+        <div class="kpi"><div class="kpi-lbl">Facturación mayorista</div><div class="kpi-val" style="color:var(--blue)">$${Math.round(pedidos.reduce((s,p) => s + totalInversionRevendedor(p), 0)).toLocaleString()}</div></div>
     </div>`;
+
+    // Ganancia estimada de lo confirmado pero todavía sin pagar — se aclara
+    // bien que es estimado, para no confundirlo con la ganancia oficial.
+    if (hasConfig && enEtapa.confirmado.length) {
+        const gananciaEstimadaConfirmados = enEtapa.confirmado.reduce((s,p) => s + resellerGainOf(p), 0);
+        html += `<div class="section-block">
+            <div class="chart-card" style="border-left:3px solid var(--blue)">
+                <h4 style="margin:0 0 4px">💳 Ganancia estimada de lo confirmado (sin pagar todavía)</h4>
+                <div style="font-size:22px;font-weight:800;color:var(--blue)">$${Math.round(gananciaEstimadaConfirmados).toLocaleString()}</div>
+                <p style="font-size:12px;color:var(--text3);margin:6px 0 0">Se va a sumar a tu ganancia oficial recién cuando pagues este lote con "Enviar a precio mayorista".</p>
+            </div>
+        </div>`;
+    }
 
     // Crecimiento de pedidos
     html += `<div class="section-block"><h2 class="section-title">Crecimiento de pedidos</h2><div class="mini-list">`;
@@ -4390,12 +4488,17 @@ function renderStatsView() {
     });
     html += `</div></div>`;
 
-    // Ganancia por período
+    // Ganancia por período — 🔧 FIX: ahora se arma SOLO con lo efectivamente
+    // pagado (getGananciasOficiales, con fechaPago real), no con todos los
+    // pedidos aprobados. Así "se arman todas las estadísticas de ganancias"
+    // recién cuando se genera el pago, tal como corresponde.
     if (hasConfig) {
-        html += `<div class="section-block"><h2 class="section-title">Mi ganancia por período</h2><div class="mini-list">`;
+        const oficiales = getGananciasOficiales();
+        const secsDe = g => Math.floor(new Date(g.fechaPago).getTime() / 1000) || 0;
+        html += `<div class="section-block"><h2 class="section-title">Mi ganancia por período (pagada)</h2><div class="mini-list">`;
         periods.forEach((pr, i) => {
-            const cur  = pedidos.filter(p => inWindow(p.fechaCreacion?.seconds, pr.d)).reduce((s,p) => s + resellerGainOf(p), 0);
-            const prev = pedidos.filter(p => inPrevWindow(p.fechaCreacion?.seconds, pr.d)).reduce((s,p) => s + resellerGainOf(p), 0);
+            const cur  = oficiales.filter(g => inWindow(secsDe(g), pr.d)).reduce((s,g) => s + Number(g.ganancia||0), 0);
+            const prev = oficiales.filter(g => inPrevWindow(secsDe(g), pr.d)).reduce((s,g) => s + Number(g.ganancia||0), 0);
             const delta = prev ? ((cur-prev)/prev)*100 : (cur ? 100 : 0);
             const sign = delta >= 0 ? '+' : '';
             html += miniRibbon(`sg-gain-${i}`, `Ganancia ${pr.l.toLowerCase()}`,
@@ -4723,23 +4826,33 @@ function renderRankingView() {
     clientes.sort((a, b) => (b.weeklyAvg - a.weeklyAvg) || (b.compras - a.compras));
 
     // ── Cliente del mes (top por frecuencia del mes actual) ──
+    // 🔧 FIX: antes se calculaba con TODOS los pedidos aprobados, sin
+    // importar si ya se habían pagado o no — un cliente podía aparecer
+    // como "Cliente del mes" con pedidos todavía sin confirmar ni pagar.
+    // Ahora se arma únicamente con pagos oficiales (getGananciasOficiales)
+    // de este mes; si todavía no hay ninguno, se muestra como Pendiente
+    // en vez de mostrar datos que no son definitivos.
     const now = new Date();
-    const mesIni = new Date(now.getFullYear(), now.getMonth(), 1).getTime() / 1000;
-    const mesPedidos = pedidos.filter(p => (p.fechaCreacion?.seconds || 0) >= mesIni);
+    const mesIniDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    const oficialesDelMes = getGananciasOficiales().filter(g => new Date(g.fechaPago) >= mesIniDate);
     const mesMap = {};
-    mesPedidos.forEach(p => {
-        const env = p.envio || p.cliente || {};
-        const nombre = fullName(env) || p._clienteName || 'Cliente anónimo';
+    oficialesDelMes.forEach(g => {
+        const env = g.cliente || {};
+        const nombre = fullName(env) || 'Cliente anónimo';
         const tel = env.telefono || '';
         const key = (nombre + '|' + tel).toLowerCase().trim();
         if (!mesMap[key]) mesMap[key] = { nombre, telefono: tel, compras: 0, totalFinal: 0 };
         mesMap[key].compras++;
-        mesMap[key].totalFinal += totalFinalRevendedor(p);
+        mesMap[key].totalFinal += Number(g.total || 0);
     });
     const mesClientes = Object.values(mesMap).sort((a,b) => b.compras - a.compras || b.totalFinal - a.totalFinal);
     const topMes = mesClientes[0];
     const giftMax = Number(localStorage.getItem(GIFT_KEY) || 0);
     const mesLabel = now.toLocaleString('es-AR', { month:'long', year:'numeric' });
+
+    // Cuántos pedidos están confirmados-sin-pagar este mes, para avisar que
+    // el/la próxima Cliente del mes puede estar esperando ese pago.
+    const confirmadosDelMesSinPagar = pedidos.filter(p => getPedidoStage(p) === 'confirmado' && (p.fechaCreacion?.seconds || 0) >= (mesIniDate.getTime()/1000)).length;
 
     let html = '';
     if (topMes) {
@@ -4749,13 +4862,24 @@ function renderRankingView() {
                 <div class="cliente-mes-title">Cliente del mes · ${mesLabel}</div>
                 <div class="cliente-mes-name">${esc(topMes.nombre)}</div>
                 <div class="cliente-mes-meta">
-                    ${topMes.compras} compra${topMes.compras!==1?'s':''} este mes
+                    ${topMes.compras} compra${topMes.compras!==1?'s':''} pagada${topMes.compras!==1?'s':''} este mes
                     ${topMes.telefono ? ` · 📞 ${esc(topMes.telefono)}` : ''}
                 </div>
             </div>
             <div class="cliente-mes-gift">
                 <div class="cliente-mes-gift-lbl">Regalo de hasta</div>
                 <div class="cliente-mes-gift-val">${giftMax > 0 ? '$'+giftMax.toLocaleString() : 'Sin configurar'}</div>
+            </div>
+        </div>`;
+    } else {
+        html += `<div class="cliente-mes-card" style="opacity:.75">
+            <div class="cliente-mes-medal">⏳</div>
+            <div class="cliente-mes-body">
+                <div class="cliente-mes-title">Cliente del mes · ${mesLabel}</div>
+                <div class="cliente-mes-name">Pendiente</div>
+                <div class="cliente-mes-meta">
+                    Todavía no se pagó ningún pedido este mes${confirmadosDelMesSinPagar ? ` — hay ${confirmadosDelMesSinPagar} confirmado${confirmadosDelMesSinPagar!==1?'s':''} esperando el pago` : ''}.
+                </div>
             </div>
         </div>`;
     }
@@ -4980,36 +5104,39 @@ function _shadeHex(hex, percent) {
 function _applyCustomColorsV2(colors) {
     const root = document.documentElement.style;
     const isLight = document.body.classList.contains('light-theme');
+    // Se aplica con prioridad "important" para blindar el cambio contra
+    // cualquier regla de CSS con más especificidad que pudiera pisarlo.
+    const setVar = (name, value) => root.setProperty(name, value, 'important');
 
     // Color de Fondo — se derivan los 5 tonos de fondo que usa el panel a
     // partir de un solo color base elegido por el revendedor.
     if (colors.bg) {
         const pasos = isLight ? [0, -3, -6, 3, -1] : [0, 3, 6, 9, 13];
-        root.setProperty('--bg',       _shadeHex(colors.bg, pasos[0]));
-        root.setProperty('--bg2',      _shadeHex(colors.bg, pasos[1]));
-        root.setProperty('--bg3',      _shadeHex(colors.bg, pasos[2]));
-        root.setProperty('--surface',  _shadeHex(colors.bg, pasos[3]));
-        root.setProperty('--surface2', _shadeHex(colors.bg, pasos[4]));
+        setVar('--bg',       _shadeHex(colors.bg, pasos[0]));
+        setVar('--bg2',      _shadeHex(colors.bg, pasos[1]));
+        setVar('--bg3',      _shadeHex(colors.bg, pasos[2]));
+        setVar('--surface',  _shadeHex(colors.bg, pasos[3]));
+        setVar('--surface2', _shadeHex(colors.bg, pasos[4]));
     }
 
     // Color de bordes — bordes de tarjetas/botones/separadores.
     if (colors.border) {
-        root.setProperty('--border',  _hexToRgba(colors.border, isLight ? .35 : .35));
-        root.setProperty('--border2', _hexToRgba(colors.border, isLight ? .55 : .55));
+        setVar('--border',  _hexToRgba(colors.border, isLight ? .35 : .35));
+        setVar('--border2', _hexToRgba(colors.border, isLight ? .55 : .55));
     }
 
     // Color de botones — acento principal (botones, links, elementos activos).
     if (colors.btn) {
-        root.setProperty('--blue', colors.btn);
-        root.setProperty('--blue-dim', _shadeHex(colors.btn, -12));
-        root.setProperty('--blue-pale', _hexToRgba(colors.btn, .12));
-        root.setProperty('--blue-glow', _hexToRgba(colors.btn, .25));
+        setVar('--blue', colors.btn);
+        setVar('--blue-dim', _shadeHex(colors.btn, -12));
+        setVar('--blue-pale', _hexToRgba(colors.btn, .12));
+        setVar('--blue-glow', _hexToRgba(colors.btn, .25));
     }
 
     // Luz general — brillos y luces ambiente del panel (resplandor detrás
     // del contenido, no confundir con el color de los botones).
     if (colors.glow) {
-        root.setProperty('--luz-general', _hexToRgba(colors.glow, .14));
+        setVar('--luz-general', _hexToRgba(colors.glow, .14));
     }
 
     // Reflejar el color elegido en cada input de texto/picker.
