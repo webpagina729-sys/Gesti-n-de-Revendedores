@@ -362,6 +362,14 @@
         .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 14px; }
         .kpi-lbl { font-size: 10px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: .4px; }
         .kpi-val { font-size: 20px; font-weight: 700; color: var(--text); margin-top: 2px; }
+
+        /* 🔧 NUEVO: variante compacta — número al lado del texto en vez de
+           abajo, letras más chicas, tarjetas más chicas. Se usa en el grid
+           de arriba de Estadísticas y en "Por categoría". */
+        .kpi-grid-compact { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 6px; margin-bottom: 16px; }
+        .kpi-compact { display: flex; align-items: center; justify-content: space-between; gap: 6px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 7px 9px; min-width: 0; }
+        .kpi-compact .kpi-lbl { font-size: 9.5px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: .3px; margin: 0; line-height: 1.25; word-break: break-word; }
+        .kpi-compact .kpi-val { font-size: 13.5px; font-weight: 800; color: var(--text); margin: 0; flex-shrink: 0; white-space: nowrap; padding-left: 6px; }
         .kpi-delta { font-size: 11px; font-weight: 700; margin-top: 4px; color: var(--text3); }
         .kpi-delta.up { color: var(--green); }
         .kpi-delta.dn { color: var(--red); }
@@ -396,6 +404,18 @@
         .mini-row strong { color: var(--text); font-weight: 700; text-align: right; }
         .mini-chart-btn { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 6px; border: 1px solid var(--blue-glow); background: var(--blue-pale); color: var(--blue); cursor: pointer; font-family: var(--font); transition: all .15s; margin-left: 6px; }
         .mini-chart-btn:hover { background: var(--blue); color: white; }
+
+        /* ── CINTA COLAPSABLE DE SECCIÓN COMPLETA (Crecimiento, Facturación
+           por período, Productos por categoría, etc.) — mismo criterio
+           visual que los mini-ribbons, pero envolviendo TODA la sección. ── */
+        .section-ribbon { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 10px; transition: border-color .18s; }
+        .section-ribbon:hover { border-color: var(--border2); }
+        .section-ribbon-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; cursor: pointer; user-select: none; background: var(--bg2); }
+        .section-ribbon-title { font-size: 13.5px; font-weight: 800; color: var(--text); }
+        .section-ribbon.expanded .mini-caret { transform: rotate(180deg); }
+        .section-ribbon-body { max-height: 0; overflow: hidden; transition: max-height .35s ease; }
+        .section-ribbon.expanded .section-ribbon-body { max-height: 4000px; }
+        .section-ribbon-content { padding: 12px 14px 14px; border-top: 1px solid var(--border); }
 
         /* ── RANKING ── */
         .rank-row { display: flex; align-items: center; padding: 14px 18px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 8px; gap: 14px; }
@@ -530,22 +550,18 @@
         .btn-customize { display: inline-flex; align-items: center; gap: 6px; }
         .btn-customize svg { width: 14px; height: 14px; flex-shrink: 0; }
         #custom-box { width: 100%; }
-        .color-bar-wrap { margin-bottom: 26px; }
-        .color-bar-wrap:last-of-type { margin-bottom: 8px; }
-        .color-bar-label { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; gap: 10px; }
-        .cbl-name { font-size: 12.5px; font-weight: 700; color: var(--text); }
-        .cbl-sub { font-size: 10.5px; color: var(--text3); margin-top: 2px; }
-        .color-bar-swatch { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--border2); box-shadow: 0 2px 8px rgba(0,0,0,.3), inset 0 0 0 2px rgba(255,255,255,.08); flex-shrink: 0; transition: background .1s; }
-        .color-range { -webkit-appearance: none; appearance: none; width: 100%; height: 8px; border-radius: 20px; outline: none; cursor: pointer; box-shadow: inset 0 1px 3px rgba(0,0,0,.35), 0 1px 0 rgba(255,255,255,.04); }
-        .color-range::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; border-radius: 50%; background: #fff; border: 3px solid var(--bg2); box-shadow: 0 2px 8px rgba(0,0,0,.45), 0 0 0 1px rgba(0,0,0,.18); cursor: pointer; transition: transform .15s; margin-top: -6px; }
-        .color-range::-webkit-slider-thumb:hover { transform: scale(1.15); }
-        .color-range::-webkit-slider-thumb:active { transform: scale(1.05); }
-        .color-range::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: #fff; border: 3px solid var(--bg2); box-shadow: 0 2px 8px rgba(0,0,0,.45); cursor: pointer; }
-        .color-range::-moz-range-track { height: 8px; border-radius: 20px; background: transparent; }
-        .color-range-code { background: linear-gradient(to right, hsl(0,82%,55%), hsl(60,82%,55%), hsl(120,82%,55%), hsl(180,82%,55%), hsl(240,82%,55%), hsl(300,82%,55%), hsl(360,82%,55%)); }
-        .color-range-btn  { background: linear-gradient(to right, hsl(0,55%,62%), hsl(60,55%,62%), hsl(120,55%,62%), hsl(180,55%,62%), hsl(240,55%,62%), hsl(300,55%,62%), hsl(360,55%,62%)); }
-        .color-range-bg   { background: linear-gradient(to right, hsl(0,45%,18%), hsl(60,45%,18%), hsl(120,45%,18%), hsl(180,45%,18%), hsl(240,45%,18%), hsl(300,45%,18%), hsl(360,45%,18%)); }
-        body.light-theme .color-range-bg { background: linear-gradient(to right, hsl(0,55%,92%), hsl(60,55%,92%), hsl(120,55%,92%), hsl(180,55%,92%), hsl(240,55%,92%), hsl(300,55%,92%), hsl(360,55%,92%)); }
+        .color-bar-wrap { margin-bottom: 18px; }
+        .color-bar-wrap:last-of-type { margin-bottom: 4px; }
+        .color-bar-label { margin-bottom: 8px; }
+        .cbl-name { font-size: 12px; font-weight: 700; color: var(--text); }
+        .hue-slider-row { display: flex; align-items: center; gap: 10px; }
+        .hue-swatch { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border2); box-shadow: 0 1px 4px rgba(0,0,0,.25); flex-shrink: 0; }
+        .hue-slider { -webkit-appearance: none; appearance: none; flex: 1; min-width: 0; height: 6px; border-radius: 20px; outline: none; cursor: pointer; background: linear-gradient(to right, hsl(0,80%,55%), hsl(60,80%,55%), hsl(120,80%,55%), hsl(180,80%,55%), hsl(240,80%,55%), hsl(300,80%,55%), hsl(360,80%,55%)); }
+        .hue-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #fff; border: 2px solid var(--bg2); box-shadow: 0 1px 5px rgba(0,0,0,.4); cursor: pointer; transition: transform .15s; }
+        .hue-slider::-webkit-slider-thumb:hover { transform: scale(1.15); }
+        .hue-slider::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: #fff; border: 2px solid var(--bg2); box-shadow: 0 1px 5px rgba(0,0,0,.4); cursor: pointer; }
+        .hue-slider::-moz-range-track { height: 6px; border-radius: 20px; }
+        .hue-hex { width: 76px; flex-shrink: 0; padding: 5px 7px; border: 1px solid var(--border2); border-radius: 6px; font-size: 11px; font-family: monospace; background: var(--bg2); color: var(--text); text-align: center; }
 
         /* ── BTN REGALO ── */
         .btn-gift { background:linear-gradient(135deg,#f59e0b,#f43f5e)!important;color:#fff!important;border:0!important;width:38px;padding:0!important;display:inline-flex;align-items:center;justify-content:center;border-radius:9px;box-shadow:0 2px 10px rgba(245,158,11,.35);transition:transform .18s,box-shadow .18s; }
@@ -1145,53 +1161,45 @@
 
         <div class="color-bar-wrap">
             <div class="color-bar-label">
-                <div>
-                    <div class="cbl-name">Color de Fondo</div>
-                    <div class="cbl-sub">Fondo general del panel — claro en tema claro, oscuro en tema oscuro</div>
-                </div>
+                <div class="cbl-name">Color de Fondo</div>
             </div>
-            <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
-                <input type="color" id="cpick-bg" value="#0d1117" oninput="onColorPickerInput('bg', this.value)" style="width:38px;height:38px;border:none;border-radius:8px;cursor:pointer;background:none;padding:0;flex-shrink:0;">
-                <input type="text" id="ctext-bg" placeholder="#0D1117" oninput="onColorTextInput('bg', this.value)" style="flex:1;padding:8px 10px;border:1px solid var(--border2);border-radius:8px;font-size:13px;font-family:monospace;background:var(--bg2);color:var(--text);">
+            <div class="hue-slider-row">
+                <span class="hue-swatch" id="cswatch-bg"></span>
+                <input type="range" class="hue-slider" id="chue-bg" min="0" max="360" value="220" oninput="onHueSliderInput('bg', this.value)">
+                <input type="text" class="hue-hex" id="ctext-bg" placeholder="#0D1117" oninput="onColorTextInput('bg', this.value)">
             </div>
         </div>
 
         <div class="color-bar-wrap">
             <div class="color-bar-label">
-                <div>
-                    <div class="cbl-name">Color de bordes</div>
-                    <div class="cbl-sub">Bordes de tarjetas, botones y separadores — colores vivos</div>
-                </div>
+                <div class="cbl-name">Color de bordes</div>
             </div>
-            <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
-                <input type="color" id="cpick-border" value="#3968f6" oninput="onColorPickerInput('border', this.value)" style="width:38px;height:38px;border:none;border-radius:8px;cursor:pointer;background:none;padding:0;flex-shrink:0;">
-                <input type="text" id="ctext-border" placeholder="#3968F6" oninput="onColorTextInput('border', this.value)" style="flex:1;padding:8px 10px;border:1px solid var(--border2);border-radius:8px;font-size:13px;font-family:monospace;background:var(--bg2);color:var(--text);">
+            <div class="hue-slider-row">
+                <span class="hue-swatch" id="cswatch-border"></span>
+                <input type="range" class="hue-slider" id="chue-border" min="0" max="360" value="220" oninput="onHueSliderInput('border', this.value)">
+                <input type="text" class="hue-hex" id="ctext-border" placeholder="#3968F6" oninput="onColorTextInput('border', this.value)">
             </div>
         </div>
 
         <div class="color-bar-wrap">
             <div class="color-bar-label">
-                <div>
-                    <div class="cbl-name">Color de botones</div>
-                    <div class="cbl-sub">Botones principales y acentos — colores vivos</div>
-                </div>
+                <div class="cbl-name">Color de botones</div>
             </div>
-            <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
-                <input type="color" id="cpick-btn" value="#0a47de" oninput="onColorPickerInput('btn', this.value)" style="width:38px;height:38px;border:none;border-radius:8px;cursor:pointer;background:none;padding:0;flex-shrink:0;">
-                <input type="text" id="ctext-btn" placeholder="#0A47DE" oninput="onColorTextInput('btn', this.value)" style="flex:1;padding:8px 10px;border:1px solid var(--border2);border-radius:8px;font-size:13px;font-family:monospace;background:var(--bg2);color:var(--text);">
+            <div class="hue-slider-row">
+                <span class="hue-swatch" id="cswatch-btn"></span>
+                <input type="range" class="hue-slider" id="chue-btn" min="0" max="360" value="222" oninput="onHueSliderInput('btn', this.value)">
+                <input type="text" class="hue-hex" id="ctext-btn" placeholder="#0A47DE" oninput="onColorTextInput('btn', this.value)">
             </div>
         </div>
 
         <div class="color-bar-wrap">
             <div class="color-bar-label">
-                <div>
-                    <div class="cbl-name">Luz general</div>
-                    <div class="cbl-sub">Brillos y luces ambiente del panel — colores claros</div>
-                </div>
+                <div class="cbl-name">Luz general</div>
             </div>
-            <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
-                <input type="color" id="cpick-glow" value="#66a3ff" oninput="onColorPickerInput('glow', this.value)" style="width:38px;height:38px;border:none;border-radius:8px;cursor:pointer;background:none;padding:0;flex-shrink:0;">
-                <input type="text" id="ctext-glow" placeholder="#66A3FF" oninput="onColorTextInput('glow', this.value)" style="flex:1;padding:8px 10px;border:1px solid var(--border2);border-radius:8px;font-size:13px;font-family:monospace;background:var(--bg2);color:var(--text);">
+            <div class="hue-slider-row">
+                <span class="hue-swatch" id="cswatch-glow"></span>
+                <input type="range" class="hue-slider" id="chue-glow" min="0" max="360" value="213" oninput="onHueSliderInput('glow', this.value)">
+                <input type="text" class="hue-hex" id="ctext-glow" placeholder="#66A3FF" oninput="onColorTextInput('glow', this.value)">
             </div>
         </div>
 
@@ -4218,6 +4226,21 @@ function miniRibbon(id, title, value, sub, rows, cls, chartKey) {
 }
 function toggleMini(id) { document.getElementById(id)?.classList.toggle('expanded'); }
 
+// 🔧 NUEVO: cinta colapsable para secciones ENTERAS (Crecimiento de
+// pedidos, Facturación por período, Productos por categoría, etc.) — el
+// título se toca para desplegar/cerrar todo el contenido de la sección,
+// mismo criterio visual que los mini-ribbons de cada período.
+function sectionRibbon(id, title, innerHtml) {
+    return `<div class="section-ribbon" id="${id}">
+        <div class="section-ribbon-head" onclick="toggleSectionRibbon('${id}')">
+            <span class="section-ribbon-title">${title}</span>
+            <svg class="mini-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="section-ribbon-body"><div class="section-ribbon-content">${innerHtml}</div></div>
+    </div>`;
+}
+function toggleSectionRibbon(id) { document.getElementById(id)?.classList.toggle('expanded'); }
+
 // ═══════════════════════════════════════════════════════════
 // DATOS PARA GRÁFICOS (últimas 8 semanas)
 // ═══════════════════════════════════════════════════════════
@@ -4449,15 +4472,16 @@ function renderStatsView() {
     const totalPeds = pedidos.length;
     const pendientesAprobar = pedidos.filter(p => p.estado === 'pendiente').length;
 
-    html += `<div class="kpi-grid">
-        <div class="kpi"><div class="kpi-lbl">Total pedidos</div><div class="kpi-val">${totalPeds}</div></div>
-        <div class="kpi"><div class="kpi-lbl">Sin aprobar</div><div class="kpi-val" style="color:var(--amber)">${pendientesAprobar}</div></div>
-        <div class="kpi"><div class="kpi-lbl">Pendientes de confirmar</div><div class="kpi-val" style="color:var(--amber)">${enEtapa.pendiente.length}</div></div>
-        <div class="kpi"><div class="kpi-lbl">Confirmados sin pagar</div><div class="kpi-val" style="color:var(--blue)">${enEtapa.confirmado.length}</div></div>
-        <div class="kpi"><div class="kpi-lbl">Pagados</div><div class="kpi-val" style="color:var(--green)">${enEtapa.pagado.length}</div></div>
-        ${hasConfig ? `<div class="kpi"><div class="kpi-lbl">Ganancia oficial (pagada)</div><div class="kpi-val" style="color:var(--green)">$${Math.round(getGananciasOficiales().reduce((s,g) => s + Number(g.ganancia||0), 0)).toLocaleString()}</div></div>` : ''}
-        <div class="kpi"><div class="kpi-lbl">Facturación a clientes</div><div class="kpi-val">$${Math.round(pedidos.reduce((s,p) => s + totalFinalRevendedor(p), 0)).toLocaleString()}</div></div>
-        <div class="kpi"><div class="kpi-lbl">Facturación mayorista</div><div class="kpi-val" style="color:var(--blue)">$${Math.round(pedidos.reduce((s,p) => s + totalInversionRevendedor(p), 0)).toLocaleString()}</div></div>
+    html += `<div class="kpi-grid-compact">
+        <div class="kpi-compact"><div class="kpi-lbl">Total pedidos</div><div class="kpi-val">${totalPeds}</div></div>
+        <div class="kpi-compact"><div class="kpi-lbl">Sin aprobar</div><div class="kpi-val" style="color:var(--amber)">${pendientesAprobar}</div></div>
+        <div class="kpi-compact"><div class="kpi-lbl">Pend. de confirmar</div><div class="kpi-val" style="color:var(--amber)">${enEtapa.pendiente.length}</div></div>
+        <div class="kpi-compact"><div class="kpi-lbl">Confirm. sin pagar</div><div class="kpi-val" style="color:var(--blue)">${enEtapa.confirmado.length}</div></div>
+        <div class="kpi-compact"><div class="kpi-lbl">Pagados</div><div class="kpi-val" style="color:var(--green)">${enEtapa.pagado.length}</div></div>
+        ${hasConfig ? `<div class="kpi-compact"><div class="kpi-lbl">Ganancia oficial</div><div class="kpi-val" style="color:var(--green)">$${Math.round(getGananciasOficiales().reduce((s,g) => s + Number(g.ganancia||0), 0)).toLocaleString()}</div></div>` : ''}
+        <div class="kpi-compact"><div class="kpi-lbl">Fact. a clientes</div><div class="kpi-val">$${Math.round(pedidos.reduce((s,p) => s + totalFinalRevendedor(p), 0)).toLocaleString()}</div></div>
+        <div class="kpi-compact"><div class="kpi-lbl">Fact. mayorista</div><div class="kpi-val" style="color:var(--blue)">$${Math.round(pedidos.reduce((s,p) => s + totalInversionRevendedor(p), 0)).toLocaleString()}</div></div>
+        ${hasConfig ? `<div class="kpi-compact"><div class="kpi-lbl">Ganancia</div><div class="kpi-val" style="color:var(--green)">$${Math.round(pedidos.reduce((s,p) => s + resellerGainOf(p), 0)).toLocaleString()}</div></div>` : ''}
     </div>`;
 
     // Ganancia estimada de lo confirmado pero todavía sin pagar — se aclara
@@ -4474,19 +4498,21 @@ function renderStatsView() {
     }
 
     // Crecimiento de pedidos
-    html += `<div class="section-block"><h2 class="section-title">Crecimiento de pedidos</h2><div class="mini-list">`;
+    let crecHtml = `<div class="mini-list">`;
     periods.forEach((pr, i) => {
         const cur  = pedidos.filter(p => inWindow(p.fechaCreacion?.seconds, pr.d)).length;
         const prev = pedidos.filter(p => inPrevWindow(p.fechaCreacion?.seconds, pr.d)).length;
         const delta = prev ? ((cur-prev)/prev)*100 : (cur ? 100 : 0);
         const sign = delta >= 0 ? '+' : '';
-        html += miniRibbon(`sg-${i}`, pr.l, cur, `${sign}${delta.toFixed(1)}% vs período anterior`, [
+        crecHtml += miniRibbon(`sg-${i}`, pr.l, cur, `${sign}${delta.toFixed(1)}% vs período anterior`, [
             ['Pedidos del período', cur],
             ['Período anterior', prev],
             ['Variación', `${sign}${delta.toFixed(1)}%`]
         ], delta >= 0 ? 'green' : 'amber', `pedidos-semanas`);
     });
-    html += `</div></div>`;
+    crecHtml += `</div>`;
+    html += `<div class="section-block"><h2 class="section-title">Actividad y ganancias por período</h2>`;
+    html += sectionRibbon('sr-crecimiento', 'Crecimiento de pedidos', crecHtml);
 
     // Ganancia por período — 🔧 FIX: ahora se arma SOLO con lo efectivamente
     // pagado (getGananciasOficiales, con fechaPago real), no con todos los
@@ -4495,13 +4521,13 @@ function renderStatsView() {
     if (hasConfig) {
         const oficiales = getGananciasOficiales();
         const secsDe = g => Math.floor(new Date(g.fechaPago).getTime() / 1000) || 0;
-        html += `<div class="section-block"><h2 class="section-title">Mi ganancia por período (pagada)</h2><div class="mini-list">`;
+        let ganHtml = `<div class="mini-list">`;
         periods.forEach((pr, i) => {
             const cur  = oficiales.filter(g => inWindow(secsDe(g), pr.d)).reduce((s,g) => s + Number(g.ganancia||0), 0);
             const prev = oficiales.filter(g => inPrevWindow(secsDe(g), pr.d)).reduce((s,g) => s + Number(g.ganancia||0), 0);
             const delta = prev ? ((cur-prev)/prev)*100 : (cur ? 100 : 0);
             const sign = delta >= 0 ? '+' : '';
-            html += miniRibbon(`sg-gain-${i}`, `Ganancia ${pr.l.toLowerCase()}`,
+            ganHtml += miniRibbon(`sg-gain-${i}`, `Ganancia ${pr.l.toLowerCase()}`,
                 `$${Math.round(cur).toLocaleString()}`,
                 `${sign}${delta.toFixed(1)}% vs período anterior`,
                 [
@@ -4510,17 +4536,18 @@ function renderStatsView() {
                     ['Variación', `${sign}${delta.toFixed(1)}%`]
                 ], delta >= 0 ? 'green' : 'amber', `ganancia-semanas`);
         });
-        html += `</div></div>`;
+        ganHtml += `</div>`;
+        html += sectionRibbon('sr-ganancia', 'Mi ganancia por período (pagada)', ganHtml);
     }
 
     // Facturación por período
-    html += `<div class="section-block"><h2 class="section-title">Facturación a clientes por período</h2><div class="mini-list">`;
+    let facHtml = `<div class="mini-list">`;
     periods.forEach((pr, i) => {
         const cur  = pedidos.filter(p => inWindow(p.fechaCreacion?.seconds, pr.d)).reduce((s,p) => s + totalFinalRevendedor(p), 0);
         const prev = pedidos.filter(p => inPrevWindow(p.fechaCreacion?.seconds, pr.d)).reduce((s,p) => s + totalFinalRevendedor(p), 0);
         const delta = prev ? ((cur-prev)/prev)*100 : (cur ? 100 : 0);
         const sign = delta >= 0 ? '+' : '';
-        html += miniRibbon(`sg-fac-${i}`, `Facturación ${pr.l.toLowerCase()}`,
+        facHtml += miniRibbon(`sg-fac-${i}`, `Facturación ${pr.l.toLowerCase()}`,
             `$${Math.round(cur).toLocaleString()}`,
             `${sign}${delta.toFixed(1)}% vs período anterior`,
             [
@@ -4529,16 +4556,17 @@ function renderStatsView() {
                 ['Variación', `${sign}${delta.toFixed(1)}%`]
             ], delta >= 0 ? 'blue' : 'amber', `facturacion-semanas`);
     });
-    html += `</div></div>`;
+    facHtml += `</div>`;
+    html += sectionRibbon('sr-facturacion', 'Facturación a clientes por período', facHtml);
 
     // Facturación mayorista por período
-    html += `<div class="section-block"><h2 class="section-title">Facturación mayorista (mi inversión) por período</h2><div class="mini-list">`;
+    let mayHtml = `<div class="mini-list">`;
     periods.forEach((pr, i) => {
         const cur  = pedidos.filter(p => inWindow(p.fechaCreacion?.seconds, pr.d)).reduce((s,p) => s + totalInversionRevendedor(p), 0);
         const prev = pedidos.filter(p => inPrevWindow(p.fechaCreacion?.seconds, pr.d)).reduce((s,p) => s + totalInversionRevendedor(p), 0);
         const delta = prev ? ((cur-prev)/prev)*100 : (cur ? 100 : 0);
         const sign = delta >= 0 ? '+' : '';
-        html += miniRibbon(`sg-may-${i}`, `Facturación mayorista ${pr.l.toLowerCase()}`,
+        mayHtml += miniRibbon(`sg-may-${i}`, `Facturación mayorista ${pr.l.toLowerCase()}`,
             `$${Math.round(cur).toLocaleString()}`,
             `${sign}${delta.toFixed(1)}% vs período anterior`,
             [
@@ -4547,7 +4575,9 @@ function renderStatsView() {
                 ['Variación', `${sign}${delta.toFixed(1)}%`]
             ], delta >= 0 ? 'blue' : 'amber', null);
     });
-    html += `</div></div>`;
+    mayHtml += `</div>`;
+    html += sectionRibbon('sr-mayorista', 'Facturación mayorista (mi inversión) por período', mayHtml);
+    html += `</div>`;
 
     // Distribución por nicho
     const byNicho = { perfumes: 0, calzados: 0, belleza: 0, bazar: 0, jugueteria: 0, libreria: 0, multishop: 0 };
@@ -4565,41 +4595,47 @@ function renderStatsView() {
     });
 
     const nichoLabels = { calzados:'Calzados Importados', perfumes:'Perfumería', belleza:'Belleza y Cuidado Personal', bazar:'Bazar', jugueteria:'Juguetería', libreria:'Librería', multishop:'Multishop' };
+    // Nombres cortos para el grid compacto — se ven completos igual, solo
+    // más breves para que quepan sin cortarse en tarjetas chicas.
+    const nichoLabelsCortos = { calzados:'Calzados Imp.', perfumes:'Perfumería', belleza:'Belleza y C.P.', bazar:'Bazar', jugueteria:'Juguetería', libreria:'Librería', multishop:'Multishop' };
     let catHtml = `<div class="section-block"><h2 class="section-title">Por categoría</h2>
-        <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(110px,1fr))">
-            <div class="kpi"><div class="kpi-lbl">Calzados Importados</div><div class="kpi-val">${byNicho.calzados || 0}</div></div>
-            <div class="kpi"><div class="kpi-lbl">Perfumería</div><div class="kpi-val">${byNicho.perfumes || 0}</div></div>
-            <div class="kpi"><div class="kpi-lbl">Belleza y Cuidado Personal</div><div class="kpi-val">${byNicho.belleza || 0}</div></div>
-            <div class="kpi"><div class="kpi-lbl">Bazar</div><div class="kpi-val">${byNicho.bazar || 0}</div></div>
-            <div class="kpi"><div class="kpi-lbl">Juguetería</div><div class="kpi-val">${byNicho.jugueteria || 0}</div></div>
-            <div class="kpi"><div class="kpi-lbl">Librería</div><div class="kpi-val">${byNicho.libreria || 0}</div></div>
-            <div class="kpi"><div class="kpi-lbl">Multishop</div><div class="kpi-val">${byNicho.multishop || 0}</div></div>
+        <div class="kpi-grid-compact">
+            <div class="kpi-compact"><div class="kpi-lbl">${nichoLabelsCortos.calzados}</div><div class="kpi-val">${byNicho.calzados || 0}</div></div>
+            <div class="kpi-compact"><div class="kpi-lbl">${nichoLabelsCortos.perfumes}</div><div class="kpi-val">${byNicho.perfumes || 0}</div></div>
+            <div class="kpi-compact"><div class="kpi-lbl">${nichoLabelsCortos.belleza}</div><div class="kpi-val">${byNicho.belleza || 0}</div></div>
+            <div class="kpi-compact"><div class="kpi-lbl">${nichoLabelsCortos.bazar}</div><div class="kpi-val">${byNicho.bazar || 0}</div></div>
+            <div class="kpi-compact"><div class="kpi-lbl">${nichoLabelsCortos.jugueteria}</div><div class="kpi-val">${byNicho.jugueteria || 0}</div></div>
+            <div class="kpi-compact"><div class="kpi-lbl">${nichoLabelsCortos.libreria}</div><div class="kpi-val">${byNicho.libreria || 0}</div></div>
+            <div class="kpi-compact"><div class="kpi-lbl">${nichoLabelsCortos.multishop}</div><div class="kpi-val">${byNicho.multishop || 0}</div></div>
         </div>
     </div>`;
 
-    // Productos más frecuentes por categoría
+    // Productos más frecuentes por categoría — 🔧 FIX: el nombre no tenía
+    // flex:1/min-width:0, así que con nombres largos la fila entera se
+    // apretaba y "unid." terminaba partido en su propio renglón, debajo
+    // del número. Ahora el nombre puede pasar a 2 líneas sin empujar ni
+    // partir el contador de unidades, que siempre queda en una sola línea
+    // al lado. Cada categoría ahora es su propia cinta colapsable.
     catHtml += `<div class="section-block"><h2 class="section-title">Productos más pedidos por categoría</h2>`;
     ['calzados','perfumes','belleza','bazar','jugueteria','libreria','multishop'].forEach(c => {
         const freq = freqMap[c];
         if (!freq || !Object.keys(freq).length) return;
         const sorted = Object.entries(freq).sort((a,b) => b[1]-a[1]).slice(0, 10);
-        catHtml += `<div class="chart-card" style="margin-bottom:12px">
-            <h4>${nichoLabels[c]}</h4>
-            <div style="display:flex;flex-direction:column;gap:6px">
+        let inner = `<div style="display:flex;flex-direction:column;gap:8px">
             ${sorted.map(([nombre, qty], i) => {
                 const pct = Math.round((qty / sorted[0][1]) * 100);
                 return `<div>
-                    <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
-                        <span style="color:var(--text);font-weight:600">${esc(nombre)}</span>
-                        <span style="color:var(--blue);font-weight:700">${qty} unid.</span>
+                    <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:11px;margin-bottom:3px">
+                        <span style="color:var(--text);font-weight:600;flex:1;min-width:0;overflow-wrap:break-word;line-height:1.3">${esc(nombre)}</span>
+                        <span style="color:var(--blue);font-weight:700;white-space:nowrap;flex-shrink:0">${qty} unid.</span>
                     </div>
                     <div style="background:var(--surface2);border-radius:4px;height:6px">
                         <div style="background:var(--blue);border-radius:4px;height:6px;width:${pct}%;transition:width .4s"></div>
                     </div>
                 </div>`;
             }).join('')}
-            </div>
-        </div>`;
+            </div>`;
+        catHtml += sectionRibbon(`sr-prod-${c}`, nichoLabels[c], inner);
     });
     catHtml += `</div>`;
 
@@ -4711,7 +4747,7 @@ function renderGananciasView() {
     const hasConfig = Object.keys(configTienda).length > 0;
 
     if (!hasConfig) {
-        el.innerHTML = `<div class="empty"><div class="empty-icon">⚙️</div><h3>Configurá tu tienda</h3><p>Para ver tus ganancias, debés configurar los porcentajes de tu tienda en el panel principal del revendedor (index).</p></div>`;
+        el.innerHTML = `<div class="empty"><div class="empty-icon">⚙️</div><h3>Configurá tu tienda</h3><p>Debés configurar los porcentajes de tu tienda en el panel principal del revendedor. Acá vas a ver tu ganancia de los pedidos que ya hayan sido ejecutados.</p></div>`;
         return;
     }
 
@@ -5077,6 +5113,24 @@ function _hslToHex(h, s, l) {
     const toHex = x => Math.round(255 * x).toString(16).padStart(2, '0');
     return `#${toHex(f(0))}${toHex(f(8))}${toHex(f(4))}`;
 }
+// Conversión inversa — para ubicar el control deslizable en el tono (hue)
+// correcto cuando se carga un color guardado (o tipeado a mano por código).
+function _hexToHue(hex) {
+    let v = (hex || '').replace('#', '');
+    if (v.length === 3) v = v.split('').map(c => c + c).join('');
+    const r = parseInt(v.substring(0, 2), 16) / 255;
+    const g = parseInt(v.substring(2, 4), 16) / 255;
+    const b = parseInt(v.substring(4, 6), 16) / 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    const d = max - min;
+    if (d === 0) return 0;
+    let h;
+    if (max === r) h = ((g - b) / d) % 6;
+    else if (max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h = Math.round(h * 60);
+    return h < 0 ? h + 360 : h;
+}
 function _hexToRgba(hex, alpha) {
     const v = hex.replace('#', '');
     const r = parseInt(v.substring(0, 2), 16);
@@ -5139,12 +5193,14 @@ function _applyCustomColorsV2(colors) {
         setVar('--luz-general', _hexToRgba(colors.glow, .14));
     }
 
-    // Reflejar el color elegido en cada input de texto/picker.
+    // Reflejar el color elegido en el slider/swatch/texto correspondiente.
     ['bg', 'border', 'btn', 'glow'].forEach(k => {
         if (!colors[k]) return;
-        const pick = document.getElementById('cpick-' + k);
+        const slider = document.getElementById('chue-' + k);
+        const swatch = document.getElementById('cswatch-' + k);
         const text = document.getElementById('ctext-' + k);
-        if (pick) pick.value = colors[k];
+        if (slider) slider.value = _hexToHue(colors[k]);
+        if (swatch) swatch.style.background = colors[k];
         if (text) text.value = colors[k].toUpperCase();
     });
 }
@@ -5169,19 +5225,49 @@ function applySavedCustomColors() {
     }
 }
 
+// Saturación/luminosidad fija por campo — el control deslizable solo
+// mueve el TONO (hue); esto alcanza para elegir cualquier color base de
+// forma rápida y prolija, y el código de texto sigue disponible para
+// quien quiera un color exacto puntual.
+const HUE_FIELD_SL = {
+    bg:     null, // depende del tema, se resuelve aparte
+    border: { s: 78, l: 55 },
+    btn:    { s: 82, l: 45 },
+    glow:   { s: 70, l: 68 },
+};
+
+function _hueSlToHexParaCampo(which, hue) {
+    if (which === 'bg') {
+        const isLight = document.body.classList.contains('light-theme');
+        return isLight ? _hslToHex(hue, 35, 95) : _hslToHex(hue, 30, 9);
+    }
+    const sl = HUE_FIELD_SL[which];
+    return _hslToHex(hue, sl.s, sl.l);
+}
+
+function _actualizarControlesDesdeHex(which, hex) {
+    const hue = _hexToHue(hex);
+    const slider = document.getElementById('chue-' + which);
+    const swatch = document.getElementById('cswatch-' + which);
+    const text = document.getElementById('ctext-' + which);
+    if (slider) slider.value = hue;
+    if (swatch) swatch.style.background = hex;
+    if (text) text.value = hex.toUpperCase();
+}
+
 function openCustomPanel() {
     const saved = _loadCustomColors();
     _customColorsDraft = Object.assign({}, saved);
-    const cs = getComputedStyle(document.documentElement);
     const isLight = document.body.classList.contains('light-theme');
-    document.getElementById('cpick-bg').value     = saved.bg     || (isLight ? '#f7f8fb' : '#0d1117');
-    document.getElementById('ctext-bg').value     = (saved.bg    || (isLight ? '#F7F8FB' : '#0D1117')).toUpperCase();
-    document.getElementById('cpick-border').value = saved.border || '#3968f6';
-    document.getElementById('ctext-border').value = (saved.border|| '#3968F6').toUpperCase();
-    document.getElementById('cpick-btn').value    = saved.btn    || '#0a47de';
-    document.getElementById('ctext-btn').value    = (saved.btn   || '#0A47DE').toUpperCase();
-    document.getElementById('cpick-glow').value   = saved.glow   || '#66a3ff';
-    document.getElementById('ctext-glow').value   = (saved.glow  || '#66A3FF').toUpperCase();
+    const defaults = {
+        bg: isLight ? '#f7f8fb' : '#0d1117',
+        border: '#3968f6',
+        btn: '#0a47de',
+        glow: '#66a3ff',
+    };
+    ['bg', 'border', 'btn', 'glow'].forEach(k => {
+        _actualizarControlesDesdeHex(k, saved[k] || defaults[k]);
+    });
     document.getElementById('custom-modal').classList.add('show');
 }
 
@@ -5191,19 +5277,30 @@ function closeCustomPanel() {
     applySavedCustomColors();
 }
 
-function onColorPickerInput(which, value) {
-    _customColorsDraft[which] = value;
-    document.getElementById('ctext-' + which).value = value.toUpperCase();
+// Mover el control deslizable de tono — convierte a hex con la
+// saturación/luminosidad fija de ese campo y aplica en vivo.
+function onHueSliderInput(which, hueValue) {
+    const hex = _hueSlToHexParaCampo(which, Number(hueValue));
+    _customColorsDraft[which] = hex;
+    const swatch = document.getElementById('cswatch-' + which);
+    const text = document.getElementById('ctext-' + which);
+    if (swatch) swatch.style.background = hex;
+    if (text) text.value = hex.toUpperCase();
     _applyCustomColorsV2(_customColorsDraft);
 }
 
+// Escribir un código de color a mano — sigue disponible para quien
+// quiera un tono exacto puntual, y mueve el control deslizable a la
+// posición correspondiente para que quede todo sincronizado.
 function onColorTextInput(which, value) {
     const v = value.trim();
     if (!/^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/.test(v)) return; // esperar código válido
-    _customColorsDraft[which] = v;
-    document.getElementById('cpick-' + which).value = v.length === 4
-        ? '#' + v.slice(1).split('').map(c => c + c).join('')
-        : v;
+    const hex = v.length === 4 ? '#' + v.slice(1).split('').map(c => c + c).join('') : v;
+    _customColorsDraft[which] = hex;
+    const slider = document.getElementById('chue-' + which);
+    const swatch = document.getElementById('cswatch-' + which);
+    if (slider) slider.value = _hexToHue(hex);
+    if (swatch) swatch.style.background = hex;
     _applyCustomColorsV2(_customColorsDraft);
 }
 
@@ -5219,14 +5316,13 @@ function resetCustomColors() {
         .forEach(p => document.documentElement.style.removeProperty(p));
     localStorage.removeItem(CUSTOM_COLOR_KEY);
     const isLight = document.body.classList.contains('light-theme');
-    document.getElementById('cpick-bg').value     = isLight ? '#f7f8fb' : '#0d1117';
-    document.getElementById('ctext-bg').value     = (isLight ? '#F7F8FB' : '#0D1117');
-    document.getElementById('cpick-border').value = '#3968f6';
-    document.getElementById('ctext-border').value = '#3968F6';
-    document.getElementById('cpick-btn').value    = '#0a47de';
-    document.getElementById('ctext-btn').value    = '#0A47DE';
-    document.getElementById('cpick-glow').value   = '#66a3ff';
-    document.getElementById('ctext-glow').value   = '#66A3FF';
+    const defaults = {
+        bg: isLight ? '#f7f8fb' : '#0d1117',
+        border: '#3968f6',
+        btn: '#0a47de',
+        glow: '#66a3ff',
+    };
+    ['bg', 'border', 'btn', 'glow'].forEach(k => _actualizarControlesDesdeHex(k, defaults[k]));
     toast('Colores restablecidos', true);
 }
 
