@@ -1918,7 +1918,22 @@ function toastRich(ganancia, costo, headTxt) {
 // factura al toque y "Compartir" (usa el share nativo del celular si
 // está disponible; si no, copia el enlace temporal).
 // ═══════════════════════════════════════════════════════════
-function _entregarFacturaPDF(doc, filename) {
+// 🔧 NUEVO: marca de agua "PENDIENTE DE PAGO" para facturas de pedidos que
+// todavía no se pagaron (aprobados sin confirmar, confirmados sin pagar).
+// Evita que alguien reclame con una factura como si ya estuviera ejecutada
+// cuando en realidad el pago todavía no se generó.
+function _agregarMarcaPendiente(doc, W, H) {
+    doc.saveGraphicsState?.();
+    doc.setTextColor(230, 60, 60);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(46);
+    try { doc.setGState(new doc.GState({ opacity: 0.16 })); } catch(_e) {}
+    doc.text('PENDIENTE DE PAGO', W / 2, H / 2, { align: 'center', angle: 35 });
+    try { doc.setGState(new doc.GState({ opacity: 1 })); } catch(_e) {}
+    doc.restoreGraphicsState?.();
+}
+
+function _entregarFacturaPDF(doc, filename, esPagado) {
     doc.save(filename);
     const blob = doc.output('blob');
     const url = URL.createObjectURL(blob);
@@ -1926,16 +1941,24 @@ function _entregarFacturaPDF(doc, filename) {
     if (!m) {
         m = document.createElement('div');
         m.id = 'factura-lista-modal';
-        m.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:10001;background:var(--bg2);border:1px solid var(--border2);border-radius:12px;box-shadow:0 8px 28px rgba(0,0,0,.4);padding:14px 16px;display:flex;align-items:center;gap:12px;max-width:92vw;';
+        m.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:10001;background:var(--bg2);border:1px solid var(--border2);border-radius:12px;box-shadow:0 8px 28px rgba(0,0,0,.4);padding:14px 16px;display:flex;align-items:center;gap:10px;max-width:94vw;flex-wrap:wrap;justify-content:center';
         document.body.appendChild(m);
     }
+    const avisoPendiente = esPagado === false
+        ? `<div style="width:100%;text-align:center;font-size:11px;color:var(--amber);font-weight:700;margin-bottom:2px">⚠️ Esta es una factura PENDIENTE — el pedido todavía no fue pagado</div>`
+        : '';
     m.innerHTML = `
+        ${avisoPendiente}
         <div style="display:flex;align-items:center;gap:8px;color:var(--text);font-size:13px;font-weight:600;white-space:nowrap">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#0ac97a" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
             Factura descargada
         </div>
         <button onclick="window.open('${url}', '_blank')" style="background:var(--blue);color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap">Ver</button>
         <button id="factura-compartir-btn" style="background:var(--surface2);color:var(--text);border:1px solid var(--border2);border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap">Compartir</button>
+        <button id="factura-whatsapp-btn" style="background:#25D366;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:5px">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21h.005c5.46 0 9.9-4.45 9.9-9.91 0-2.65-1.03-5.13-2.9-7C17.17 3.03 14.69 2 12.04 2m0 1.67c2.2 0 4.27.86 5.82 2.42a8.2 8.2 0 0 1 2.42 5.82c0 4.54-3.7 8.23-8.24 8.23-1.4 0-2.77-.35-4-1.02l-.28-.16-2.98.78.8-2.9-.18-.3a8.18 8.18 0 0 1-1.13-4.14c0-4.54 3.7-8.23 8.23-8.23m-4.53 4.7c-.16 0-.42.06-.64.3-.22.24-.85.83-.85 2.02 0 1.19.87 2.34.99 2.5.12.16 1.7 2.7 4.2 3.68 2.07.82 2.49.66 2.94.62.45-.04 1.44-.59 1.64-1.16.2-.57.2-1.05.14-1.16-.06-.1-.22-.16-.46-.28-.24-.12-1.44-.71-1.66-.79-.22-.08-.38-.12-.55.12-.16.24-.62.79-.76.95-.14.16-.28.18-.52.06-.24-.12-1.02-.38-1.94-1.2-.72-.64-1.2-1.44-1.34-1.68-.14-.24-.02-.37.1-.49.11-.11.24-.28.36-.42.11-.14.15-.24.23-.4.08-.16.04-.3-.02-.42-.06-.12-.55-1.34-.76-1.83-.2-.48-.4-.42-.55-.42h-.47Z"/></svg>
+            WhatsApp
+        </button>
         <button onclick="document.getElementById('factura-lista-modal').remove()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:18px;line-height:1;padding:0 2px">×</button>
     `;
     document.getElementById('factura-compartir-btn').onclick = async () => {
@@ -1949,7 +1972,24 @@ function _entregarFacturaPDF(doc, filename) {
             }
         } catch (e) { /* el usuario canceló el share — no hacer nada */ }
     };
-    setTimeout(() => { const el = document.getElementById('factura-lista-modal'); if (el) el.remove(); }, 12000);
+    document.getElementById('factura-whatsapp-btn').onclick = async () => {
+        const mensaje = esPagado === false
+            ? 'Te comparto la factura pendiente (todavía sin pagar) de tu pedido.'
+            : 'Te comparto tu factura.';
+        try {
+            const file = new File([blob], filename, { type: 'application/pdf' });
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({ files: [file], title: filename, text: mensaje });
+                return;
+            }
+        } catch (e) { return; /* canceló */ }
+        // Fallback: WhatsApp Web no puede adjuntar archivos por URL — se
+        // abre el chat con el mensaje y se avisa que hay que adjuntar el
+        // PDF ya descargado a mano.
+        window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank');
+        toast('Se abrió WhatsApp — adjuntá el PDF ya descargado', true);
+    };
+    setTimeout(() => { const el = document.getElementById('factura-lista-modal'); if (el) el.remove(); }, 14000);
 }
 
 function invoiceNumericId(pedidoId) {
@@ -1980,6 +2020,12 @@ function openInvoicesModal() {
                     </div>
                     <button onclick="closeInvoicesModal()" style="background:transparent;border:0;color:var(--text2);font-size:24px;cursor:pointer;line-height:1">×</button>
                 </div>
+                <div style="padding:12px 18px 0">
+                    <div style="position:relative">
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="var(--text3)" stroke-width="2" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);pointer-events:none"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        <input type="text" id="inv-search" placeholder="Buscar por nombre, apellido o teléfono..." oninput="renderInvoicesList()" style="width:100%;padding:9px 12px 9px 32px;border:1px solid var(--border2);border-radius:9px;font-size:13px;background:var(--surface);color:var(--text);box-sizing:border-box">
+                    </div>
+                </div>
                 <div id="invoices-list" style="overflow-y:auto;padding:14px 18px;flex:1"></div>
             </div>`;
         m.addEventListener('click', e => { if (e.target === m) closeInvoicesModal(); });
@@ -2002,9 +2048,26 @@ function renderInvoicesList() {
     // (incluso sin aprobar). Ahora solo se muestran los que ya tienen un
     // pago oficial registrado (getGananciasOficiales).
     const pagadosIds = new Set(getGananciasOficiales().map(g => g.id));
-    const pedidosPagados = pedidos.filter(p => pagadosIds.has(p.id));
+    let pedidosPagados = pedidos.filter(p => pagadosIds.has(p.id));
+
+    // 🔧 NUEVO: buscador inteligente por nombre, apellido o teléfono.
+    const termino = (document.getElementById('inv-search')?.value || '').trim().toLowerCase();
+    if (termino) {
+        pedidosPagados = pedidosPagados.filter(p => {
+            const env = p.envio || p.cliente || {};
+            const nombre = (env.nombre || '').toLowerCase();
+            const apellido = (env.apellido || '').toLowerCase();
+            const nombreCompleto = (p._clienteName || '').toLowerCase();
+            const telefono = (env.telefono || '').toLowerCase();
+            return nombre.includes(termino) || apellido.includes(termino) ||
+                   nombreCompleto.includes(termino) || telefono.includes(termino);
+        });
+    }
+
     if (!pedidosPagados.length) {
-        el.innerHTML = '<div style="text-align:center;color:var(--text3);padding:40px 0">Todavía no hay pedidos pagados — las facturas van a aparecer acá una vez que generes el pago.</div>';
+        el.innerHTML = termino
+            ? '<div style="text-align:center;color:var(--text3);padding:40px 0">No se encontraron facturas para esa búsqueda.</div>'
+            : '<div style="text-align:center;color:var(--text3);padding:40px 0">Todavía no hay pedidos pagados — las facturas van a aparecer acá una vez que generes el pago.</div>';
         return;
     }
     const revName = [currentVendorNombre, currentVendorApellido].filter(Boolean).join(' ') || 'Revendedor';
@@ -2060,6 +2123,10 @@ function downloadClientInvoicePDF(id) {
     const nichoKey = cat(p);
     const items = p.items || [];
     const totalFin = totalFinalRevendedor(p);
+    // 🔧 NUEVO: si el pedido todavía no está pagado, la factura se marca
+    // claramente como PENDIENTE — nunca debe verse como si el pago ya se
+    // hubiera ejecutado.
+    const esPagado = getGananciasOficiales().some(g => g.id === p.id);
 
     const env = p.envio || p.cliente || {};
     const envNombre = fullName(env) || p._clienteName || 'Sin datos';
@@ -2080,9 +2147,9 @@ function downloadClientInvoicePDF(id) {
     doc.text('RW · Revende Ways', 14, 16);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
-    doc.text('Comprobante de Compra', 14, 23);
+    doc.text(esPagado ? 'Comprobante de Compra' : 'Comprobante de Compra (Pendiente de pago)', 14, 23);
     doc.setFontSize(8);
-    doc.text('Documento interno · No constituye factura fiscal (AFIP)', 14, 29);
+    doc.text(esPagado ? 'Documento interno · No constituye factura fiscal (AFIP)' : 'PENDIENTE — el pago de este pedido todavía no fue generado', 14, 29);
 
     doc.setFillColor(255, 255, 255);
     doc.roundedRect(W - 66, 8, 52, 22, 2, 2, 'F');
@@ -2206,7 +2273,8 @@ function downloadClientInvoicePDF(id) {
     doc.setTextColor(...GRAY);
     doc.text('Generado: ' + ba(new Date()), W - 14, footerY + 14, { align: 'right' });
 
-    _entregarFacturaPDF(doc, `Factura_Cliente_${nroFact}.pdf`);
+    if (!esPagado) _agregarMarcaPendiente(doc, W, H);
+    _entregarFacturaPDF(doc, `Factura_Cliente_${nroFact}.pdf`, esPagado);
     toast('Factura del cliente descargada', true);
 }
 
@@ -2235,6 +2303,8 @@ function downloadInvoicePDF(id) {
     const totalFin = totalFinalRevendedor(p);
     const ganancia = resellerGainOf(p);
     const pctAplicado = totalInv > 0 ? ((ganancia / totalInv) * 100) : 0;
+    // 🔧 NUEVO: misma marca de "pendiente" que la factura de cliente.
+    const esPagado = getGananciasOficiales().some(g => g.id === p.id);
 
     const env = p.envio || p.cliente || {};
     const cli = p.cliente || p.envio || {};
@@ -2256,9 +2326,9 @@ function downloadInvoicePDF(id) {
     doc.text('RW · Revende Ways', 14, 16);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
-    doc.text('Comprobante de Compra y Venta', 14, 23);
+    doc.text(esPagado ? 'Comprobante de Compra y Venta' : 'Comprobante de Compra y Venta (Pendiente de pago)', 14, 23);
     doc.setFontSize(8);
-    doc.text('Documento interno · No constituye factura fiscal (AFIP)', 14, 29);
+    doc.text(esPagado ? 'Documento interno · No constituye factura fiscal (AFIP)' : 'PENDIENTE — el pago de este pedido todavía no fue generado', 14, 29);
 
     // Caja del N° de factura
     doc.setFillColor(255, 255, 255);
@@ -2432,7 +2502,8 @@ function downloadInvoicePDF(id) {
     doc.setTextColor(...GRAY);
     doc.text('Generado: ' + ba(new Date()), W - 14, footerY + 14, { align: 'right' });
 
-    _entregarFacturaPDF(doc, `Factura_Revendedor_${nroFact}.pdf`);
+    if (!esPagado) _agregarMarcaPendiente(doc, W, H);
+    _entregarFacturaPDF(doc, `Factura_Revendedor_${nroFact}.pdf`, esPagado);
     toast('Factura descargada', true);
 }
 function toast(m, type) {
