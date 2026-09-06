@@ -905,9 +905,9 @@
 <div class="modal-overlay" id="historial-modal" onclick="if(event.target===this)closeHistorialModal()">
     <div class="modal-box" style="max-width:600px;max-height:86vh;overflow-y:auto;padding:22px 20px;text-align:left">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-            <div style="display:flex;align-items:center;gap:9px">
-                <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="#0b0d12" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15l2 2 4-4"/></svg>
-                <h3 style="margin:0">Historial de pedidos realizados</h3>
+            <div style="display:flex;align-items:center;gap:8px;min-width:0;flex:1">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#0b0d12" stroke-width="2" style="flex-shrink:0"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15l2 2 4-4"/></svg>
+                <h3 style="margin:0;font-size:clamp(12px,4vw,17px);white-space:nowrap;min-width:0">Historial de pedidos realizados</h3>
             </div>
             <button onclick="closeHistorialModal()" style="background:none;border:none;cursor:pointer;color:var(--text3);padding:4px" aria-label="Cerrar">
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -1911,6 +1911,47 @@ function toastRich(ganancia, costo, headTxt) {
 // Reemplaza al código del revendedor en las facturas.
 // La factura del revendedor y la del cliente comparten el mismo ID.
 // ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+// 🔧 NUEVO: entrega de la factura — antes doc.save() descargaba el
+// archivo sin ningún aviso visible (parecía que no había pasado nada).
+// Ahora, además de descargarlo, se abre un blob para poder "Ver" la
+// factura al toque y "Compartir" (usa el share nativo del celular si
+// está disponible; si no, copia el enlace temporal).
+// ═══════════════════════════════════════════════════════════
+function _entregarFacturaPDF(doc, filename) {
+    doc.save(filename);
+    const blob = doc.output('blob');
+    const url = URL.createObjectURL(blob);
+    let m = document.getElementById('factura-lista-modal');
+    if (!m) {
+        m = document.createElement('div');
+        m.id = 'factura-lista-modal';
+        m.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:10001;background:var(--bg2);border:1px solid var(--border2);border-radius:12px;box-shadow:0 8px 28px rgba(0,0,0,.4);padding:14px 16px;display:flex;align-items:center;gap:12px;max-width:92vw;';
+        document.body.appendChild(m);
+    }
+    m.innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px;color:var(--text);font-size:13px;font-weight:600;white-space:nowrap">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#0ac97a" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            Factura descargada
+        </div>
+        <button onclick="window.open('${url}', '_blank')" style="background:var(--blue);color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap">Ver</button>
+        <button id="factura-compartir-btn" style="background:var(--surface2);color:var(--text);border:1px solid var(--border2);border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap">Compartir</button>
+        <button onclick="document.getElementById('factura-lista-modal').remove()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:18px;line-height:1;padding:0 2px">×</button>
+    `;
+    document.getElementById('factura-compartir-btn').onclick = async () => {
+        try {
+            const file = new File([blob], filename, { type: 'application/pdf' });
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({ files: [file], title: filename });
+            } else {
+                window.open(url, '_blank');
+                toast('Se abrió la factura para compartir manualmente', true);
+            }
+        } catch (e) { /* el usuario canceló el share — no hacer nada */ }
+    };
+    setTimeout(() => { const el = document.getElementById('factura-lista-modal'); if (el) el.remove(); }, 12000);
+}
+
 function invoiceNumericId(pedidoId) {
     if (!pedidoId) return '0000000000';
     const digits = String(pedidoId).replace(/\D/g, '');
@@ -1956,12 +1997,18 @@ function closeInvoicesModal() {
 function renderInvoicesList() {
     const el = document.getElementById('invoices-list');
     if (!el) return;
-    if (!pedidos.length) {
-        el.innerHTML = '<div style="text-align:center;color:var(--text3);padding:40px 0">Sin facturas todavía</div>';
+    // 🔧 FIX: "las facturas del panel de Facturas deben ser de las facturas
+    // con el pago ya realizado" — antes se listaban TODOS los pedidos
+    // (incluso sin aprobar). Ahora solo se muestran los que ya tienen un
+    // pago oficial registrado (getGananciasOficiales).
+    const pagadosIds = new Set(getGananciasOficiales().map(g => g.id));
+    const pedidosPagados = pedidos.filter(p => pagadosIds.has(p.id));
+    if (!pedidosPagados.length) {
+        el.innerHTML = '<div style="text-align:center;color:var(--text3);padding:40px 0">Todavía no hay pedidos pagados — las facturas van a aparecer acá una vez que generes el pago.</div>';
         return;
     }
     const revName = [currentVendorNombre, currentVendorApellido].filter(Boolean).join(' ') || 'Revendedor';
-    const ordenados = pedidos.slice().sort((a,b) => (b.fechaCreacion?.seconds||0) - (a.fechaCreacion?.seconds||0));
+    const ordenados = pedidosPagados.slice().sort((a,b) => (b.fechaCreacion?.seconds||0) - (a.fechaCreacion?.seconds||0));
     el.innerHTML = ordenados.map(p => {
         const fRaw = new Date((p.fechaCreacion?.seconds||0) * 1000);
         const fecha = ba(fRaw);
@@ -1969,13 +2016,12 @@ function renderInvoicesList() {
         const totalFin = totalFinalRevendedor(p);
         const ganancia = resellerGainOf(p);
         const cli = p._clienteName || [p.cliente?.nombre, p.cliente?.apellido].filter(Boolean).join(' ') || 'Cliente';
-        const estado = p.estado === 'pagado' ? 'Aprobado' : 'Pendiente';
         return `<div class="ribbon" style="margin-bottom:10px">
             <div class="ribbon-head" style="cursor:default;flex-direction:column;align-items:stretch;gap:10px">
                 <div class="ribbon-main" style="flex-direction:column;align-items:flex-start;gap:4px">
                     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
                         <span class="r-name">Factura #${nro}</span>
-                        <span class="status-chip s-${p.estado}">${estado}</span>
+                        <span class="status-chip s-pagado">Pagado</span>
                     </div>
                     <div style="font-size:12px;color:var(--text2)">${esc(revName)} · ${esc(cli)} · ${fecha}</div>
                     <div style="font-size:12px;color:var(--text3)">Total cliente: <strong style="color:var(--text)">$${Math.round(totalFin).toLocaleString()}</strong> · Ganancia: <strong style="color:#0a8a52">+$${Math.round(ganancia).toLocaleString()}</strong></div>
@@ -2160,7 +2206,7 @@ function downloadClientInvoicePDF(id) {
     doc.setTextColor(...GRAY);
     doc.text('Generado: ' + ba(new Date()), W - 14, footerY + 14, { align: 'right' });
 
-    doc.save(`Factura_Cliente_${nroFact}.pdf`);
+    _entregarFacturaPDF(doc, `Factura_Cliente_${nroFact}.pdf`);
     toast('Factura del cliente descargada', true);
 }
 
@@ -2386,7 +2432,7 @@ function downloadInvoicePDF(id) {
     doc.setTextColor(...GRAY);
     doc.text('Generado: ' + ba(new Date()), W - 14, footerY + 14, { align: 'right' });
 
-    doc.save(`Factura_Revendedor_${nroFact}.pdf`);
+    _entregarFacturaPDF(doc, `Factura_Revendedor_${nroFact}.pdf`);
     toast('Factura descargada', true);
 }
 function toast(m, type) {
@@ -4089,7 +4135,9 @@ function renderPedidoListaView() {
             <div class="ribbon-head" style="cursor:default;flex-direction:column;align-items:stretch;gap:6px">
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
                     <span class="r-name" style="white-space:normal;overflow:visible;text-overflow:clip">${esc(p.cliente || 'Cliente')}</span>
-                    <button onclick="quitarDePedidoLista('${p.id}')" style="flex-shrink:0;background:var(--red-pale);border:1px solid rgba(244,63,94,.2);color:var(--red);border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font)">Quitar</button>
+                    <button onclick="quitarDePedidoLista('${p.id}')" title="Quitar de confirmados" aria-label="Quitar de confirmados" style="flex-shrink:0;background:var(--red-pale);border:1px solid rgba(244,63,94,.2);color:var(--red);border-radius:8px;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0">
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                    </button>
                 </div>
                 <div style="display:flex;align-items:center;gap:10px">
                     <span class="r-code" style="font-size:10.5px">📅 ${fecha}</span>
@@ -4257,6 +4305,21 @@ function _gananciaOficialEnRango(startSecs, endSecs) {
     }).reduce((sum, g) => sum + Number(g.ganancia || 0), 0);
 }
 
+// Ganancia de pedidos CONFIRMADOS o PAGADOS (no solo lo oficialmente
+// pagado) dentro de un rango — la usa el gráfico de "Mi ganancia por
+// período" en Estadísticas, que debe coincidir con esa sección (basada en
+// confirmados), a diferencia del gráfico dentro de la pestaña Ganancias,
+// que sí debe ser estrictamente lo pagado.
+function _gananciaConfirmadaEnRango(startSecs, endSecs) {
+    return pedidos.filter(p => {
+        if (p.estado !== 'pagado') return false;
+        const st = getPedidoStage(p);
+        if (st === 'pendiente' || !st) return false;
+        const s = p.fechaCreacion?.seconds || 0;
+        return s >= startSecs && s < endSecs;
+    }).reduce((sum, p) => sum + resellerGainOf(p), 0);
+}
+
 function getWeeklyData(metric) {
     // metric: 'pedidos' | 'ganancia' | 'facturacion'
     const weeks = [];
@@ -4272,7 +4335,8 @@ function getWeeklyData(metric) {
         const label = weekDate.toLocaleString('es-AR', { month:'short', day:'numeric' });
         let val = 0;
         if (metric === 'pedidos') val = ps.length;
-        else if (metric === 'ganancia') val = Math.round(_gananciaOficialEnRango(start, end));
+        else if (metric === 'ganancia') val = Math.round(_gananciaConfirmadaEnRango(start, end));
+        else if (metric === 'ganancia-oficial') val = Math.round(_gananciaOficialEnRango(start, end));
         else if (metric === 'facturacion') val = Math.round(ps.reduce((s,p) => s + totalFinalRevendedor(p), 0));
         weeks.push({ label, val });
     }
@@ -4294,7 +4358,8 @@ function getBiweeklyData(metric) {
         const label = fin.toLocaleString('es-AR', { month:'short', day:'numeric' });
         let val = 0;
         if (metric === 'pedidos') val = ps.length;
-        else if (metric === 'ganancia') val = Math.round(_gananciaOficialEnRango(start, end));
+        else if (metric === 'ganancia') val = Math.round(_gananciaConfirmadaEnRango(start, end));
+        else if (metric === 'ganancia-oficial') val = Math.round(_gananciaOficialEnRango(start, end));
         else if (metric === 'facturacion') val = Math.round(ps.reduce((s,p) => s + totalFinalRevendedor(p), 0));
         bloques.push({ label, val });
     }
@@ -4314,7 +4379,8 @@ function getMonthlyData(metric) {
         const label = d.toLocaleString('es-AR', { month:'short', year:'2-digit' });
         let val = 0;
         if (metric === 'pedidos') val = ps.length;
-        else if (metric === 'ganancia') val = Math.round(_gananciaOficialEnRango(d.getTime()/1000, dEnd.getTime()/1000));
+        else if (metric === 'ganancia') val = Math.round(_gananciaConfirmadaEnRango(d.getTime()/1000, dEnd.getTime()/1000));
+        else if (metric === 'ganancia-oficial') val = Math.round(_gananciaOficialEnRango(d.getTime()/1000, dEnd.getTime()/1000));
         else if (metric === 'facturacion') val = Math.round(ps.reduce((s,p) => s + totalFinalRevendedor(p), 0));
         months.push({ label, val });
     }
@@ -4334,7 +4400,8 @@ function getYearlyData(metric) {
         });
         let val = 0;
         if (metric === 'pedidos') val = ps.length;
-        else if (metric === 'ganancia') val = Math.round(_gananciaOficialEnRango(new Date(y,0,1).getTime()/1000, new Date(y+1,0,1).getTime()/1000));
+        else if (metric === 'ganancia') val = Math.round(_gananciaConfirmadaEnRango(new Date(y,0,1).getTime()/1000, new Date(y+1,0,1).getTime()/1000));
+        else if (metric === 'ganancia-oficial') val = Math.round(_gananciaOficialEnRango(new Date(y,0,1).getTime()/1000, new Date(y+1,0,1).getTime()/1000));
         else if (metric === 'facturacion') val = Math.round(ps.reduce((s,p) => s + totalFinalRevendedor(p), 0));
         years.push({ label: String(y), val });
     }
@@ -4357,6 +4424,13 @@ const CHART_METRICS = {
     'pedidos-anios':      { metric:'pedidos',       fn: getYearlyData,   label:'Pedidos',      color:'rgba(0,102,255,' },
     'ganancia-anios':     { metric:'ganancia',      fn: getYearlyData,   label:'Ganancia ($)', color:'rgba(0,201,110,' },
     'facturacion-anios':  { metric:'facturacion',   fn: getYearlyData,   label:'Facturación ($)', color:'rgba(245,158,11,' },
+    // 🔧 NUEVO: gráfico de ganancia OFICIAL (solo lo pagado), exclusivo de
+    // la pestaña Ganancias — distinto del "ganancia-*" de arriba, que en
+    // Estadísticas refleja confirmados+pagados.
+    'ganancia-oficial-semanas':   { metric:'ganancia-oficial', fn: getWeeklyData,   label:'Ganancia pagada ($)', color:'rgba(0,201,110,' },
+    'ganancia-oficial-quincenas': { metric:'ganancia-oficial', fn: getBiweeklyData, label:'Ganancia pagada ($)', color:'rgba(0,201,110,' },
+    'ganancia-oficial-meses':     { metric:'ganancia-oficial', fn: getMonthlyData,  label:'Ganancia pagada ($)', color:'rgba(0,201,110,' },
+    'ganancia-oficial-anios':     { metric:'ganancia-oficial', fn: getYearlyData,   label:'Ganancia pagada ($)', color:'rgba(0,201,110,' },
 };
 
 let _chartKey = '';
@@ -4365,7 +4439,12 @@ function openChart(key, titleBase) {
     _chartKey = key;
 
     // Tabs: semanas / quincenas / meses / años
-    const base = key.split('-')[0];
+    // 🔧 FIX: antes tomaba solo la primera palabra como base (key.split('-')[0]),
+    // lo que rompía claves con guion propio como "ganancia-oficial-semanas"
+    // (quedaba "ganancia" en vez de "ganancia-oficial"). Ahora se saca solo
+    // el último segmento (el período), sea cual sea el largo del resto.
+    const partes = key.split('-');
+    const base = partes.slice(0, -1).join('-');
     document.getElementById('chart-modal-tabs').innerHTML = `
         <button class="chart-tab ${key.includes('semanas')?'active':''}" onclick="switchChartTab('${base}-semanas','${titleBase}')">Semana</button>
         <button class="chart-tab ${key.includes('quincenas')?'active':''}" onclick="switchChartTab('${base}-quincenas','${titleBase}')">Quincena</button>
@@ -4379,7 +4458,7 @@ function openChart(key, titleBase) {
 
 function switchChartTab(key, titleBase) {
     _chartKey = key;
-    const suf = key.split('-')[1];
+    const suf = key.split('-').pop();
     document.querySelectorAll('#chart-modal-tabs .chart-tab').forEach((b,i) => {
         const orden = ['semanas','quincenas','meses','anios'];
         b.classList.toggle('active', orden[i] === suf);
@@ -4472,36 +4551,32 @@ function renderStatsView() {
     const totalPeds = pedidos.length;
     const pendientesAprobar = pedidos.filter(p => p.estado === 'pendiente').length;
 
+    // 🔧 NUEVO: "todas las estadísticas deben funcionar con los pedidos
+    // confirmados" — a partir de acá, todo cálculo de dinero/frecuencia de
+    // esta vista (Ganancia, Facturación, Inversión, Por categoría,
+    // Productos más pedidos, Crecimiento) usa SOLO pedidos que ya estén
+    // confirmados o pagados. Los que están "aprobados" pero todavía sin
+    // confirmar (recién llegados a Pedidos Recibidos) quedan afuera de
+    // estos cálculos — solo se los cuenta en el KPI "Pendientes de
+    // confirmar" de arriba, como aviso de que están esperando acción.
+    const pedidosConfirmadosOPagados = [...enEtapa.confirmado, ...enEtapa.pagado];
+
     html += `<div class="kpi-grid-compact">
         <div class="kpi-compact"><div class="kpi-lbl">Total pedidos</div><div class="kpi-val">${totalPeds}</div></div>
         <div class="kpi-compact"><div class="kpi-lbl">Sin aprobar</div><div class="kpi-val" style="color:var(--amber)">${pendientesAprobar}</div></div>
         <div class="kpi-compact"><div class="kpi-lbl">Pend. de confirmar</div><div class="kpi-val" style="color:var(--amber)">${enEtapa.pendiente.length}</div></div>
         <div class="kpi-compact"><div class="kpi-lbl">Confirm. sin pagar</div><div class="kpi-val" style="color:var(--blue)">${enEtapa.confirmado.length}</div></div>
         <div class="kpi-compact"><div class="kpi-lbl">Pagados</div><div class="kpi-val" style="color:var(--green)">${enEtapa.pagado.length}</div></div>
-        ${hasConfig ? `<div class="kpi-compact"><div class="kpi-lbl">Ganancia oficial</div><div class="kpi-val" style="color:var(--green)">$${Math.round(getGananciasOficiales().reduce((s,g) => s + Number(g.ganancia||0), 0)).toLocaleString()}</div></div>` : ''}
-        <div class="kpi-compact"><div class="kpi-lbl">Fact. a clientes</div><div class="kpi-val">$${Math.round(pedidos.reduce((s,p) => s + totalFinalRevendedor(p), 0)).toLocaleString()}</div></div>
-        <div class="kpi-compact"><div class="kpi-lbl">Fact. mayorista</div><div class="kpi-val" style="color:var(--blue)">$${Math.round(pedidos.reduce((s,p) => s + totalInversionRevendedor(p), 0)).toLocaleString()}</div></div>
-        ${hasConfig ? `<div class="kpi-compact"><div class="kpi-lbl">Ganancia</div><div class="kpi-val" style="color:var(--green)">$${Math.round(pedidos.reduce((s,p) => s + resellerGainOf(p), 0)).toLocaleString()}</div></div>` : ''}
+        <div class="kpi-compact"><div class="kpi-lbl">Fact. a clientes</div><div class="kpi-val">$${Math.round(pedidosConfirmadosOPagados.reduce((s,p) => s + totalFinalRevendedor(p), 0)).toLocaleString()}</div></div>
+        <div class="kpi-compact"><div class="kpi-lbl">Fact. mayorista</div><div class="kpi-val" style="color:var(--blue)">$${Math.round(pedidosConfirmadosOPagados.reduce((s,p) => s + totalInversionRevendedor(p), 0)).toLocaleString()}</div></div>
+        <div class="kpi-compact"><div class="kpi-lbl">Ganancia</div><div class="kpi-val" style="color:var(--green)">$${Math.round(pedidosConfirmadosOPagados.reduce((s,p) => s + resellerGainOf(p), 0)).toLocaleString()}</div></div>
     </div>`;
-
-    // Ganancia estimada de lo confirmado pero todavía sin pagar — se aclara
-    // bien que es estimado, para no confundirlo con la ganancia oficial.
-    if (hasConfig && enEtapa.confirmado.length) {
-        const gananciaEstimadaConfirmados = enEtapa.confirmado.reduce((s,p) => s + resellerGainOf(p), 0);
-        html += `<div class="section-block">
-            <div class="chart-card" style="border-left:3px solid var(--blue)">
-                <h4 style="margin:0 0 4px">💳 Ganancia estimada de lo confirmado (sin pagar todavía)</h4>
-                <div style="font-size:22px;font-weight:800;color:var(--blue)">$${Math.round(gananciaEstimadaConfirmados).toLocaleString()}</div>
-                <p style="font-size:12px;color:var(--text3);margin:6px 0 0">Se va a sumar a tu ganancia oficial recién cuando pagues este lote con "Enviar a precio mayorista".</p>
-            </div>
-        </div>`;
-    }
 
     // Crecimiento de pedidos
     let crecHtml = `<div class="mini-list">`;
     periods.forEach((pr, i) => {
-        const cur  = pedidos.filter(p => inWindow(p.fechaCreacion?.seconds, pr.d)).length;
-        const prev = pedidos.filter(p => inPrevWindow(p.fechaCreacion?.seconds, pr.d)).length;
+        const cur  = pedidosConfirmadosOPagados.filter(p => inWindow(p.fechaCreacion?.seconds, pr.d)).length;
+        const prev = pedidosConfirmadosOPagados.filter(p => inPrevWindow(p.fechaCreacion?.seconds, pr.d)).length;
         const delta = prev ? ((cur-prev)/prev)*100 : (cur ? 100 : 0);
         const sign = delta >= 0 ? '+' : '';
         crecHtml += miniRibbon(`sg-${i}`, pr.l, cur, `${sign}${delta.toFixed(1)}% vs período anterior`, [
@@ -4514,17 +4589,18 @@ function renderStatsView() {
     html += `<div class="section-block"><h2 class="section-title">Actividad y ganancias por período</h2>`;
     html += sectionRibbon('sr-crecimiento', 'Crecimiento de pedidos', crecHtml);
 
-    // Ganancia por período — 🔧 FIX: ahora se arma SOLO con lo efectivamente
-    // pagado (getGananciasOficiales, con fechaPago real), no con todos los
-    // pedidos aprobados. Así "se arman todas las estadísticas de ganancias"
-    // recién cuando se genera el pago, tal como corresponde.
+    // Mi ganancia por período — 🔧 FIX: "todas las estadísticas deben
+    // funcionar con los pedidos confirmados". Antes esta sección solo
+    // miraba lo YA PAGADO (getGananciasOficiales); ahora usa los mismos
+    // pedidos confirmados/pagados que el resto de Estadísticas, para que
+    // el revendedor vea su ganancia apenas confirma, sin esperar el pago.
+    // (La ganancia OFICIAL, atada 100% al pago, vive en la pestaña
+    // "Ganancias", separada de esta.)
     if (hasConfig) {
-        const oficiales = getGananciasOficiales();
-        const secsDe = g => Math.floor(new Date(g.fechaPago).getTime() / 1000) || 0;
         let ganHtml = `<div class="mini-list">`;
         periods.forEach((pr, i) => {
-            const cur  = oficiales.filter(g => inWindow(secsDe(g), pr.d)).reduce((s,g) => s + Number(g.ganancia||0), 0);
-            const prev = oficiales.filter(g => inPrevWindow(secsDe(g), pr.d)).reduce((s,g) => s + Number(g.ganancia||0), 0);
+            const cur  = pedidosConfirmadosOPagados.filter(p => inWindow(p.fechaCreacion?.seconds, pr.d)).reduce((s,p) => s + resellerGainOf(p), 0);
+            const prev = pedidosConfirmadosOPagados.filter(p => inPrevWindow(p.fechaCreacion?.seconds, pr.d)).reduce((s,p) => s + resellerGainOf(p), 0);
             const delta = prev ? ((cur-prev)/prev)*100 : (cur ? 100 : 0);
             const sign = delta >= 0 ? '+' : '';
             ganHtml += miniRibbon(`sg-gain-${i}`, `Ganancia ${pr.l.toLowerCase()}`,
@@ -4537,14 +4613,14 @@ function renderStatsView() {
                 ], delta >= 0 ? 'green' : 'amber', `ganancia-semanas`);
         });
         ganHtml += `</div>`;
-        html += sectionRibbon('sr-ganancia', 'Mi ganancia por período (pagada)', ganHtml);
+        html += sectionRibbon('sr-ganancia', 'Mi ganancia por período', ganHtml);
     }
 
     // Facturación por período
     let facHtml = `<div class="mini-list">`;
     periods.forEach((pr, i) => {
-        const cur  = pedidos.filter(p => inWindow(p.fechaCreacion?.seconds, pr.d)).reduce((s,p) => s + totalFinalRevendedor(p), 0);
-        const prev = pedidos.filter(p => inPrevWindow(p.fechaCreacion?.seconds, pr.d)).reduce((s,p) => s + totalFinalRevendedor(p), 0);
+        const cur  = pedidosConfirmadosOPagados.filter(p => inWindow(p.fechaCreacion?.seconds, pr.d)).reduce((s,p) => s + totalFinalRevendedor(p), 0);
+        const prev = pedidosConfirmadosOPagados.filter(p => inPrevWindow(p.fechaCreacion?.seconds, pr.d)).reduce((s,p) => s + totalFinalRevendedor(p), 0);
         const delta = prev ? ((cur-prev)/prev)*100 : (cur ? 100 : 0);
         const sign = delta >= 0 ? '+' : '';
         facHtml += miniRibbon(`sg-fac-${i}`, `Facturación ${pr.l.toLowerCase()}`,
@@ -4559,14 +4635,16 @@ function renderStatsView() {
     facHtml += `</div>`;
     html += sectionRibbon('sr-facturacion', 'Facturación a clientes por período', facHtml);
 
-    // Facturación mayorista por período
+    // Mi inversión por período — 🔧 antes decía "Facturación mayorista (mi
+    // inversión) por período"; ahora solo "Mi inversión por período", y
+    // también usa la base de confirmados/pagados.
     let mayHtml = `<div class="mini-list">`;
     periods.forEach((pr, i) => {
-        const cur  = pedidos.filter(p => inWindow(p.fechaCreacion?.seconds, pr.d)).reduce((s,p) => s + totalInversionRevendedor(p), 0);
-        const prev = pedidos.filter(p => inPrevWindow(p.fechaCreacion?.seconds, pr.d)).reduce((s,p) => s + totalInversionRevendedor(p), 0);
+        const cur  = pedidosConfirmadosOPagados.filter(p => inWindow(p.fechaCreacion?.seconds, pr.d)).reduce((s,p) => s + totalInversionRevendedor(p), 0);
+        const prev = pedidosConfirmadosOPagados.filter(p => inPrevWindow(p.fechaCreacion?.seconds, pr.d)).reduce((s,p) => s + totalInversionRevendedor(p), 0);
         const delta = prev ? ((cur-prev)/prev)*100 : (cur ? 100 : 0);
         const sign = delta >= 0 ? '+' : '';
-        mayHtml += miniRibbon(`sg-may-${i}`, `Facturación mayorista ${pr.l.toLowerCase()}`,
+        mayHtml += miniRibbon(`sg-may-${i}`, `Inversión ${pr.l.toLowerCase()}`,
             `$${Math.round(cur).toLocaleString()}`,
             `${sign}${delta.toFixed(1)}% vs período anterior`,
             [
@@ -4576,16 +4654,16 @@ function renderStatsView() {
             ], delta >= 0 ? 'blue' : 'amber', null);
     });
     mayHtml += `</div>`;
-    html += sectionRibbon('sr-mayorista', 'Facturación mayorista (mi inversión) por período', mayHtml);
+    html += sectionRibbon('sr-mayorista', 'Mi inversión por período', mayHtml);
     html += `</div>`;
 
-    // Distribución por nicho
+    // Distribución por nicho — 🔧 usa solo confirmados/pagados
     const byNicho = { perfumes: 0, calzados: 0, belleza: 0, bazar: 0, jugueteria: 0, libreria: 0, multishop: 0 };
-    pedidos.forEach(p => { const c = cat(p); if (byNicho[c] !== undefined) byNicho[c]++; });
+    pedidosConfirmadosOPagados.forEach(p => { const c = cat(p); if (byNicho[c] !== undefined) byNicho[c]++; });
 
-    // Frecuencia de productos por categoría
+    // Frecuencia de productos por categoría — 🔧 usa solo confirmados/pagados
     const freqMap = {};
-    pedidos.forEach(p => {
+    pedidosConfirmadosOPagados.forEach(p => {
         const c = cat(p) || 'otros';
         if (!freqMap[c]) freqMap[c] = {};
         (p.items || []).forEach(it => {
@@ -4752,62 +4830,212 @@ function renderGananciasView() {
     }
 
     const historial = getGananciasOficiales();
+    const hayDatos = historial.length > 0;
+    const periods = [
+        { l:'Semana',   d:7   },
+        { l:'Quincena', d:15  },
+        { l:'Mes',      d:30  },
+        { l:'Año',      d:365 }
+    ];
+    const secsDe = h => Math.floor(new Date(h.fechaPago).getTime() / 1000) || 0;
 
-    if (!historial.length) {
-        el.innerHTML = `<div class="empty"><div class="empty-icon">💳</div><h3>Sin ganancias confirmadas todavía</h3><p>Las ganancias oficiales se registran acá recién cuando confirmás pedidos y pagás el total vía Mercado Pago con "Enviar a precio mayorista". Mientras tanto, mirá la inversión y ganancia estimada de tus pedidos sin enviar en el cuadro "Inv/gan" de la vista Pedidos.</p></div>`;
-        return;
+    let html = `<h2 class="section-title">Mis ganancias</h2>`;
+
+    // 🔧 NUEVO: el panel queda SIEMPRE armado con esta misma estructura —
+    // cuando todavía no hay ningún pago, se ve en $0 con el aviso de que
+    // acá va a aparecer la ganancia; apenas se paga el primer lote, estas
+    // mismas secciones se llenan solas con los datos reales, sin cambiar
+    // de forma.
+    if (!hayDatos) {
+        html += `<div class="empty" style="margin-bottom:18px"><div class="empty-icon">💳</div><p>Acá vas a ver las estadísticas de tu ganancia luego de pagar los pedidos.</p></div>`;
+    } else {
+        const totalGainAll = historial.reduce((s,h) => s + (h.ganancia || 0), 0);
+        const totalFacAll  = historial.reduce((s,h) => s + (h.total || 0), 0);
+        const totalInvAll  = historial.reduce((s,h) => s + (h.totalMayorista || 0), 0);
+        html += `<div class="kpi-grid-compact">
+            <div class="kpi-compact"><div class="kpi-lbl">Ganancia confirmada</div><div class="kpi-val" style="color:var(--green)">$${Math.round(totalGainAll).toLocaleString()}</div></div>
+            <div class="kpi-compact"><div class="kpi-lbl">Pedidos pagados</div><div class="kpi-val">${historial.length}</div></div>
+            <div class="kpi-compact"><div class="kpi-lbl">Inversión total</div><div class="kpi-val">$${Math.round(totalInvAll).toLocaleString()}</div></div>
+            <div class="kpi-compact"><div class="kpi-lbl">Fact. a clientes</div><div class="kpi-val">$${Math.round(totalFacAll).toLocaleString()}</div></div>
+        </div>`;
     }
 
-    const totalGainAll = historial.reduce((s,h) => s + (h.ganancia || 0), 0);
-    const totalFacAll  = historial.reduce((s,h) => s + (h.total || 0), 0);
-    const totalInvAll  = historial.reduce((s,h) => s + (h.totalMayorista || 0), 0);
-
-    let html = `<h2 class="section-title">Mis ganancias</h2>
-        <div class="kpi-grid">
-            <div class="kpi"><div class="kpi-lbl">Ganancia confirmada</div><div class="kpi-val" style="color:var(--green)">$${Math.round(totalGainAll).toLocaleString()}</div></div>
-            <div class="kpi"><div class="kpi-lbl">Pedidos pagados</div><div class="kpi-val">${historial.length}</div></div>
-            <div class="kpi"><div class="kpi-lbl">Inversión total</div><div class="kpi-val">$${Math.round(totalInvAll).toLocaleString()}</div></div>
-            <div class="kpi"><div class="kpi-lbl">Facturación a clientes</div><div class="kpi-val">$${Math.round(totalFacAll).toLocaleString()}</div></div>
-        </div>`;
-
-    // Ganancia por nicho (clasificado por los items de cada pedido pagado)
-    html += `<div class="section-block"><h2 class="section-title">Ganancia por categoría</h2><div class="mini-list">`;
-    const nichos = [
-        { k:'perfumes', l:'Perfumería' },
-        { k:'belleza', l:'Belleza y Cuidado Personal' },
-        { k:'calzados', l:'Calzados Importados' },
-        { k:'bazar', l:'Bazar' },
-        { k:'jugueteria', l:'Juguetería' },
-        { k:'libreria', l:'Librería' },
-        { k:'multishop', l:'Multishop' }
-    ];
-    nichos.forEach((n, i) => {
-        const hs = historial.filter(h => cat(h) === n.k);
-        const gain = hs.reduce((s,h) => s + (h.ganancia || 0), 0);
-        const fac  = hs.reduce((s,h) => s + (h.total || 0), 0);
-        if (!hs.length) return;
-        html += miniRibbon(`gain-nic-${i}`, n.l, `$${Math.round(gain).toLocaleString()}`, `${hs.length} pedido${hs.length!==1?'s':''}`, [
-            ['Pedidos pagados', hs.length],
-            ['Ganancia', `$${Math.round(gain).toLocaleString()}`],
-            ['Facturación al cliente', `$${Math.round(fac).toLocaleString()}`],
-        ], 'green', `ganancia-semanas`);
-    });
-    html += `</div></div>`;
-
-    // Configuración de márgenes activa
-    html += `<div class="section-block"><h2 class="section-title">Mi configuración de márgenes</h2>`;
-    const cats = ['perfumes','belleza','calzados','bazar','jugueteria','libreria','multishop','general'];
-    cats.forEach(c => {
-        const cfg = configTienda[c];
-        if (!cfg || !Array.isArray(cfg.rangos) || !cfg.rangos.length) return;
-        html += `<div class="chart-card" style="margin-bottom:10px">
-            <h4 style="text-transform:capitalize">${c}</h4>
-            ${cfg.rangos.map(r => `<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2);margin-bottom:4px"><span>De $${Number(r.de||0).toLocaleString()} hasta $${Number(r.hasta).toLocaleString()}</span><strong style="color:var(--green)">+${r.porcentaje}%</strong></div>`).join('')}
+    // ── "Ganancia por período": Semana / Quincena / Mes / Año ──
+    // Siempre presente, con la MISMA lógica de ventana de tiempo que el
+    // resto del panel — solo que basada 100% en lo pagado oficialmente.
+    let ganPerHtml = `<div class="mini-list">`;
+    periods.forEach((pr, i) => {
+        const cur = _gananciaOficialEnRango(Math.floor(Date.now()/1000) - pr.d*86400, Math.floor(Date.now()/1000) + 86400);
+        ganPerHtml += `<div class="mini-ribbon" style="cursor:default">
+            <div class="mini-head" style="cursor:pointer" onclick="toggleMini('gp-${i}')">
+                <div class="mini-title"><span>${pr.l}</span></div>
+                <div style="display:flex;align-items:center;gap:10px">
+                    <div class="mini-value green">$${Math.round(cur).toLocaleString()}</div>
+                    <svg class="mini-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+            </div>
+            <div class="mini-body" id="gp-${i}"><div class="mini-content">
+                <div class="mini-row"><span>Ganancia pagada del período</span><strong>$${Math.round(cur).toLocaleString()}</strong></div>
+                <div style="margin-top:8px"><button class="mini-chart-btn" onclick="event.stopPropagation();openChart('ganancia-oficial-semanas','Ganancia pagada')">Ver gráfico</button></div>
+            </div></div>
         </div>`;
     });
+    ganPerHtml += `</div>`;
+    html += `<div class="section-block"><h2 class="section-title">Ganancia por período</h2>${ganPerHtml}</div>`;
+
+    // ── "Productos con más ganancia" — por MARGEN real, no por cantidad
+    // vendida. Un producto vendido 1 sola vez con margen alto puede superar
+    // a otro vendido muchas veces con margen bajo — se sigue exactamente
+    // esa lógica acá, sumando la ganancia real de cada línea de producto
+    // (mismo cálculo de márgenes que usa todo el resto del panel). ──
+    html += `<div class="section-block"><h2 class="section-title">Productos con más ganancia</h2>`;
+    if (!hayDatos) {
+        html += `<div class="empty"><p style="margin:0;font-size:13px">Todavía no hay pagos registrados — acá vas a ver qué productos te dejan más ganancia real, no solo los más vendidos.</p></div>`;
+    } else {
+        const gananciaPorProducto = {};
+        historial.forEach(h => {
+            const nichoKey = cat(h);
+            (h.items || []).forEach(it => {
+                const nombre = (it.nombre || '—').trim();
+                const gain = resellerGainForItem(it, nichoKey);
+                gananciaPorProducto[nombre] = (gananciaPorProducto[nombre] || 0) + gain;
+            });
+        });
+        const rankingProductos = Object.entries(gananciaPorProducto)
+            .filter(([, g]) => g > 0)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10);
+        if (!rankingProductos.length) {
+            html += `<div class="empty"><p style="margin:0;font-size:13px">Sin datos de ganancia por producto todavía.</p></div>`;
+        } else {
+            const maxGain = rankingProductos[0][1];
+            html += `<div class="chart-card"><div style="display:flex;flex-direction:column;gap:8px">`;
+            html += rankingProductos.map(([nombre, gain]) => {
+                const pct = Math.round((gain / maxGain) * 100);
+                return `<div>
+                    <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:11px;margin-bottom:3px">
+                        <span style="color:var(--text);font-weight:600;flex:1;min-width:0;overflow-wrap:break-word;line-height:1.3">${esc(nombre)}</span>
+                        <span style="color:var(--green);font-weight:700;white-space:nowrap;flex-shrink:0">$${Math.round(gain).toLocaleString()}</span>
+                    </div>
+                    <div style="background:var(--surface2);border-radius:4px;height:6px">
+                        <div style="background:var(--green);border-radius:4px;height:6px;width:${pct}%;transition:width .4s"></div>
+                    </div>
+                </div>`;
+            }).join('');
+            html += `</div></div>`;
+        }
+    }
     html += `</div>`;
 
+    // Ganancia por nicho (clasificado por los items de cada pedido pagado)
+    if (hayDatos) {
+        html += `<div class="section-block"><h2 class="section-title">Ganancia por categoría</h2><div class="mini-list">`;
+        const nichos = [
+            { k:'perfumes', l:'Perfumería' },
+            { k:'belleza', l:'Belleza y Cuidado Personal' },
+            { k:'calzados', l:'Calzados Importados' },
+            { k:'bazar', l:'Bazar' },
+            { k:'jugueteria', l:'Juguetería' },
+            { k:'libreria', l:'Librería' },
+            { k:'multishop', l:'Multishop' }
+        ];
+        nichos.forEach((n, i) => {
+            const hs = historial.filter(h => cat(h) === n.k);
+            const gain = hs.reduce((s,h) => s + (h.ganancia || 0), 0);
+            const fac  = hs.reduce((s,h) => s + (h.total || 0), 0);
+            if (!hs.length) return;
+            html += miniRibbon(`gain-nic-${i}`, n.l, `$${Math.round(gain).toLocaleString()}`, `${hs.length} pedido${hs.length!==1?'s':''}`, [
+                ['Pedidos pagados', hs.length],
+                ['Ganancia', `$${Math.round(gain).toLocaleString()}`],
+                ['Facturación al cliente', `$${Math.round(fac).toLocaleString()}`],
+            ], 'green', null);
+        });
+        html += `</div></div>`;
+
+        // Configuración de márgenes activa
+        html += `<div class="section-block"><h2 class="section-title">Mi configuración de márgenes</h2>`;
+        const cats = ['perfumes','belleza','calzados','bazar','jugueteria','libreria','multishop','general'];
+        cats.forEach(c => {
+            const cfg = configTienda[c];
+            if (!cfg || !Array.isArray(cfg.rangos) || !cfg.rangos.length) return;
+            html += `<div class="chart-card" style="margin-bottom:10px">
+                <h4 style="text-transform:capitalize">${c}</h4>
+                ${cfg.rangos.map(r => `<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2);margin-bottom:4px"><span>De $${Number(r.de||0).toLocaleString()} hasta $${Number(r.hasta).toLocaleString()}</span><strong style="color:var(--green)">+${r.porcentaje}%</strong></div>`).join('')}
+            </div>`;
+        });
+        html += `</div>`;
+    }
+
+    // ── Gráfico de ganancias al final, con Semana/Quincena/Mes/Año ──
+    // Siempre presente (aunque esté todo en $0), para que el panel ya
+    // quede armado desde antes del primer pago.
+    html += `<div class="section-block"><h2 class="section-title">Gráfico de mis ganancias</h2>
+        <div class="chart-card">
+            <div class="chart-tabs">
+                <button class="chart-tab active" id="gan-chart-tab-sem" onclick="switchGananciaChartPeriod('semanas')" style="border-color:var(--border)">Semana</button>
+                <button class="chart-tab" id="gan-chart-tab-qui" onclick="switchGananciaChartPeriod('quincenas')">Quincena</button>
+                <button class="chart-tab" id="gan-chart-tab-mes" onclick="switchGananciaChartPeriod('meses')">Mes</button>
+                <button class="chart-tab" id="gan-chart-tab-anio" onclick="switchGananciaChartPeriod('anios')">Año</button>
+            </div>
+            <div class="chart-wrap"><canvas id="ganancia-chart-canvas"></canvas></div>
+        </div>
+    </div>`;
+
     el.innerHTML = html;
+
+    setTimeout(() => {
+        window._gananciaChartPeriod = 'semanas';
+        renderGananciaChart();
+    }, 30);
+}
+
+let gananciaChartInst = null;
+function switchGananciaChartPeriod(period) {
+    window._gananciaChartPeriod = period;
+    document.getElementById('gan-chart-tab-sem')?.classList.toggle('active', period === 'semanas');
+    document.getElementById('gan-chart-tab-qui')?.classList.toggle('active', period === 'quincenas');
+    document.getElementById('gan-chart-tab-mes')?.classList.toggle('active', period === 'meses');
+    document.getElementById('gan-chart-tab-anio')?.classList.toggle('active', period === 'anios');
+    renderGananciaChart();
+}
+function renderGananciaChart() {
+    const canvas = document.getElementById('ganancia-chart-canvas');
+    if (!canvas) return;
+    const period = window._gananciaChartPeriod || 'semanas';
+    const fnMap = { semanas: getWeeklyData, quincenas: getBiweeklyData, meses: getMonthlyData, anios: getYearlyData };
+    const pts = fnMap[period]('ganancia-oficial');
+    if (gananciaChartInst) { gananciaChartInst.destroy(); gananciaChartInst = null; }
+    const ctx = canvas.getContext('2d');
+    gananciaChartInst = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: pts.map(p => p.label),
+            datasets: [{
+                label: 'Ganancia pagada ($)',
+                data: pts.map(p => p.val),
+                borderColor: 'rgba(0,201,110,1)',
+                backgroundColor: 'rgba(0,201,110,0.12)',
+                borderWidth: 2.5,
+                tension: 0.4,
+                fill: true,
+                pointBackgroundColor: 'rgba(0,201,110,1)',
+                pointRadius: 3.5,
+                pointHoverRadius: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: ctx => `$${ctx.parsed.y.toLocaleString()}` } }
+            },
+            scales: {
+                x: { ticks: { color: '#9aa0b4', font:{ size:11 } }, grid: { color:'rgba(255,255,255,.04)' } },
+                y: { ticks: { color: '#9aa0b4', font:{ size:11 }, callback: v => '$'+v.toLocaleString() }, grid: { color:'rgba(255,255,255,.04)' }, beginAtZero: true }
+            }
+        }
+    });
 }
 
 // ═══════════════════════════════════════════════════════════
