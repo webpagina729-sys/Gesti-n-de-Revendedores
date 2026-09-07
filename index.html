@@ -278,7 +278,7 @@
         .r-caret { width: 14px; height: 14px; color: var(--text3); transition: transform .25s; flex-shrink: 0; }
         .ribbon.expanded .r-caret { transform: rotate(180deg); }
         .ribbon-body { max-height: 0; overflow: hidden; transition: max-height .3s ease; }
-        .ribbon.expanded .ribbon-body { max-height: 1200px; }
+        .ribbon.expanded .ribbon-body { max-height: 3000px; }
         .ribbon-inner { padding: 16px 18px; border-top: 1px solid var(--border); overflow-x: hidden; }
 
         /* status chip — pequeño, en la esquina superior derecha del head */
@@ -342,6 +342,12 @@
 
         /* ── MODAL ── */
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.7); backdrop-filter: blur(6px); z-index: 9000; display: none; align-items: center; justify-content: center; padding: 16px; }
+        /* 🔧 FIX: "send-all-modal" (confirmación de pago) es un modal que
+           puede abrirse ARRIBA de otro modal ya abierto (Pedidos
+           Confirmados) — antes, al compartir el mismo z-index, el orden en
+           el HTML decidía cuál pintaba encima, y terminaba quedando atrás.
+           Ahora siempre pinta por encima de cualquier otro modal-overlay. */
+        #send-all-modal { z-index: 9500; }
         .modal-overlay.show { display: flex; }
         .modal-box { background: var(--bg2); border: 1px solid var(--border2); border-radius: 14px; width: 100%; max-width: 380px; padding: 24px; box-shadow: var(--shadow-lg); }
         .modal-icon { width: 42px; height: 42px; border-radius: 10px; background: var(--red-pale); display: flex; align-items: center; justify-content: center; margin-bottom: 14px; }
@@ -3829,6 +3835,23 @@ async function confirmSendPedido() {
 // ═══════════════════════════════════════════════════════════
 const PEDIDO_LIST_KEY = 'rw_pedido_list_v1';
 
+// 🔧 NUEVO: montos mínimos por categoría para poder enviar el lote
+// confirmado a "precio mayorista". Calzados se mide en UNIDADES (pares),
+// el resto en pesos ($ mayorista acumulado del lote de esa categoría).
+const MINIMO_POR_CATEGORIA = {
+    perfumes:    { tipo: 'monto', valor: 150000 },
+    belleza:     { tipo: 'monto', valor: 200000 },
+    calzados:    { tipo: 'unidades', valor: 12 },
+    bazar:       { tipo: 'monto', valor: 150000 },
+    jugueteria:  { tipo: 'monto', valor: 150000 },
+    libreria:    { tipo: 'monto', valor: 150000 },
+    multishop:   { tipo: 'monto', valor: 250000 },
+};
+const NICHO_LABEL_PEDLISTA = {
+    perfumes: 'Perfumería', belleza: 'Belleza y Cuidado Personal', calzados: 'Calzados Importados',
+    bazar: 'Bazar', jugueteria: 'Juguetería', libreria: 'Librería', multishop: 'Multishop'
+};
+
 function getPedidoList() {
     try { return JSON.parse(localStorage.getItem(PEDIDO_LIST_KEY) || '[]'); } catch(_) { return []; }
 }
@@ -3882,36 +3905,45 @@ function aprobarPedido(id, btn) {
     }, 900);
 }
 
-async function sendAllPedidos() {
+async function sendAllPedidos(categoria) {
     const pedidoList = getPedidoList();
-    const toSend = pedidoList;
+    // 🔧 NUEVO: si se pasa una categoría, el envío es SOLO de esa
+    // categoría — el resto de los pedidos confirmados de otras categorías
+    // quedan intactos en la lista, esperando su propio envío.
+    const toSend = categoria ? pedidoList.filter(p => (p.nicho || 'multishop') === categoria) : pedidoList;
     if (!toSend.length) { toast('No hay pedidos en la lista "Pedido" para enviar', 'err'); return; }
     const totalMayorista = toSend.reduce((s, p) => s + (p.totalMayorista || 0), 0);
+    window._categoriaEnviandoLote = categoria || null;
+    const label = categoria ? (NICHO_LABEL_PEDLISTA[categoria] || categoria) : 'todas las categorías';
     document.getElementById('send-all-modal').querySelector('p').textContent =
-        `Vas a enviar ${toSend.length} pedido${toSend.length!==1?'s':''} al panel y pagar el total mayorista de $${Math.round(totalMayorista).toLocaleString()} via Mercado Pago.`;
+        `Vas a enviar ${toSend.length} pedido${toSend.length!==1?'s':''} de ${label} al panel y pagar el total mayorista de $${Math.round(totalMayorista).toLocaleString()} via Mercado Pago.`;
     document.getElementById('send-all-modal').classList.add('show');
 }
 
 async function confirmSendAll() {
     document.getElementById('send-all-modal').classList.remove('show');
-    const pedidoList = getPedidoList();
+    const categoria = window._categoriaEnviandoLote || null;
+    const pedidoListCompleta = getPedidoList();
+    const pedidoList = categoria ? pedidoListCompleta.filter(p => (p.nicho || 'multishop') === categoria) : pedidoListCompleta;
     if (!pedidoList.length) return;
 
-    const btn = document.querySelector('.btn-send-all');
+    const btn = event && event.target ? event.target.closest('.btn-send-all') : document.querySelector('.btn-send-all');
     if (btn) { btn.textContent = `Enviando...`; btn.disabled = true; }
 
     const totalMayorista = pedidoList.reduce((s, p) => s + (p.totalMayorista || 0), 0);
 
-    // Aplanar los items de todos los pedidos del lote en una sola lista de
-    // productos, y quedarnos con el nicho predominante (si el lote mezcla
-    // categorías, mandamos 'multishop' para no perder el dato).
+    // Aplanar los items del lote de ESTA categoría en una sola lista de
+    // productos. Ya no hace falta "adivinar" el nicho predominante — el
+    // lote es siempre de una sola categoría por diseño.
     const itemsLote = pedidoList.flatMap(p => (p.items || []).map(it => ({
         nombre: it.nombre,
         cantidad: it.cantidad,
         precio: it.precio
     })));
-    const nichosDelLote = [...new Set(pedidoList.map(p => p.nicho).filter(Boolean))];
-    const nichoLote = nichosDelLote.length === 1 ? nichosDelLote[0] : 'multishop';
+    const nichoLote = categoria || (() => {
+        const nichosDelLote = [...new Set(pedidoList.map(p => p.nicho).filter(Boolean))];
+        return nichosDelLote.length === 1 ? nichosDelLote[0] : 'multishop';
+    })();
 
     // 1) Registrar el lote como pedido PENDIENTE en workerpagos — recién con
     // esto aparece del lado de pedidos.html apenas el revendedor confirma,
@@ -3949,7 +3981,8 @@ async function confirmSendAll() {
         pedidos: pedidoList,
         total: Math.round(totalMayorista),
         pedidoId: pedidoIdReal,
-        fecha: new Date().toISOString()
+        fecha: new Date().toISOString(),
+        categoria: nichoLote
     });
 
     const returnBase = window.location.origin + window.location.pathname;
@@ -4004,8 +4037,12 @@ async function confirmSendAll() {
     }
 
     if (mpRedirectUrl) {
-        // Limpiar lista local "Pedido" — el lote ya viajó como pago pendiente
-        savePedidoList([]);
+        // 🔧 FIX: solo se limpian de la lista los pedidos de ESTA categoría
+        // que se acaban de enviar — el resto de categorías confirmadas
+        // sigue esperando su propio envío, intacto.
+        const idsEnviados = new Set(pedidoList.map(p => p.id));
+        const listaRestante = pedidoListCompleta.filter(p => !idsEnviados.has(p.id));
+        savePedidoList(listaRestante);
         toast(`Redirigiendo a Mercado Pago...`, true);
         setTimeout(() => { window.location.href = mpRedirectUrl; }, 600);
     } else {
@@ -4184,6 +4221,16 @@ function renderPedidoListaView() {
         return;
     }
 
+    // 🔧 NUEVO: se agrupan los pedidos confirmados POR CATEGORÍA — antes se
+    // mezclaban todos en una sola lista y "Enviar a precio mayorista"
+    // mandaba TODO junto en un solo pago, sin importar la categoría.
+    const porCategoria = {};
+    list.forEach(p => {
+        const nicho = p.nicho || 'multishop';
+        if (!porCategoria[nicho]) porCategoria[nicho] = [];
+        porCategoria[nicho].push(p);
+    });
+
     const totalFinalClientes = list.reduce((s, p) => s + (p.total || 0), 0);
     const totalMayorista = list.reduce((s, p) => s + (p.totalMayorista || 0), 0);
     const totalGanancia  = list.reduce((s, p) => s + (p.ganancia || 0), 0);
@@ -4227,39 +4274,51 @@ function renderPedidoListaView() {
         </div>`;
     };
 
-    // Los primeros 2 pedidos siempre visibles.
-    const SIEMPRE_VISIBLES = 2;
-    const primeros = list.slice(0, SIEMPRE_VISIBLES);
-    const resto = list.slice(SIEMPRE_VISIBLES);
+    // ── Una cinta colapsable POR CATEGORÍA, cada una con su propio botón
+    // de "Enviar a precio mayorista", su propio total, y el mínimo que
+    // corresponda a esa categoría puntual. ──
+    Object.keys(porCategoria).forEach(nicho => {
+        const items = porCategoria[nicho];
+        const totalMayoristaCat = items.reduce((s, p) => s + (p.totalMayorista || 0), 0);
+        const unidadesCat = items.reduce((s, p) => s + (p.items || []).reduce((s2, it) => s2 + (Number(it.cantidad) || 1), 0), 0);
+        const min = MINIMO_POR_CATEGORIA[nicho] || { tipo: 'monto', valor: 0 };
+        const valorActual = min.tipo === 'unidades' ? unidadesCat : totalMayoristaCat;
+        const cumple = valorActual >= min.valor;
+        const faltante = Math.max(0, min.valor - valorActual);
+        const label = NICHO_LABEL_PEDLISTA[nicho] || nicho;
+        const ribbonId = 'catlote-' + nicho;
 
-    html += `<div id="pedidolista-primeros">${primeros.map(pedidoCardHtml).join('')}</div>`;
+        const textoEstado = cumple
+            ? `<div style="display:flex;align-items:center;justify-content:center;gap:5px;font-size:11px;font-weight:700;color:var(--green);margin-bottom:6px">
+                   <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                   Tu pedido ya está listo para enviar
+               </div>`
+            : `<div style="text-align:center;font-size:11px;color:var(--text3);margin-bottom:6px">
+                   Falta ${min.tipo === 'unidades' ? faltante + ' unidad' + (faltante!==1?'es':'') : '$' + Math.round(faltante).toLocaleString()} para poder realizar
+               </div>`;
 
-    if (resto.length > 0) {
-        html += `<div id="pedidolista-drawer" class="pedidolista-drawer" style="max-height:0;overflow:hidden;transition:max-height .35s ease">
-            <div id="pedidolista-drawer-inner">${resto.map(p => `<div style="display:none">${pedidoCardHtml(p)}</div>`).join('')}</div>
-        </div>
-        <button type="button" id="pedidolista-vermas-btn" onclick="_pedidolistaVerMas()" style="width:100%;background:none;border:1px dashed var(--line,rgba(255,255,255,.15));color:var(--text2);border-radius:10px;padding:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:16px">
-            Ver más <span id="pedidolista-vermas-arrow" style="display:inline-block;transition:transform .25s ease">▾</span>
-        </button>`;
-    }
-
-    html += `<div style="margin-top:16px">
-        <button class="btn-head btn-send-all" style="width:100%;justify-content:center;padding:14px" onclick="sendAllPedidos()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-            Enviar a precio mayorista ($${Math.round(totalMayorista).toLocaleString()})
-        </button>
-    </div>`;
+        html += `<div class="ribbon" id="${ribbonId}" style="margin-bottom:14px;border:1px solid var(--border)">
+            <div class="ribbon-head" onclick="this.closest('.ribbon').classList.toggle('expanded')" style="cursor:pointer;background:var(--bg2)">
+                <div class="ribbon-main">
+                    <span class="r-name">${label}</span>
+                    <span class="r-code">${items.length} pedido${items.length!==1?'s':''} · $${Math.round(totalMayoristaCat).toLocaleString()} mayorista</span>
+                </div>
+                <svg class="r-caret" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div class="ribbon-body">
+                <div class="ribbon-inner" style="padding:12px 14px">
+                    ${items.map(pedidoCardHtml).join('')}
+                    ${textoEstado}
+                    <button class="btn-head btn-send-all" style="width:100%;justify-content:center;padding:14px" ${cumple ? '' : 'disabled'} onclick="sendAllPedidos('${nicho}')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                        Enviar a precio mayorista ($${Math.round(totalMayoristaCat).toLocaleString()})
+                    </button>
+                </div>
+            </div>
+        </div>`;
+    });
 
     el.innerHTML = html;
-
-    // Reiniciar estado de despliegue cada vez que se re-renderiza
-    window._pedidolistaMostrados = 0;
-
-    // hacer ribbons expandibles
-    el.querySelectorAll('.ribbon .ribbon-head').forEach(h => {
-        h.style.cursor = 'pointer';
-        h.addEventListener('click', () => h.closest('.ribbon').classList.toggle('expanded'));
-    });
 }
 
 // Despliega el resto de los pedidos de a 6 en 6, dentro de una cortina
