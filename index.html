@@ -1285,6 +1285,11 @@
 // ═══════════════════════════════════════════════════════════
 const WORKER_CLIENTE    = 'https://workerwebcliente.tuweb.workers.dev';  // todos los datos del pedido
 const WORKER_MAYORISTA  = 'https://workerpagos.tuweb.workers.dev';       // solo precio mayorista
+// 🔧 NUEVO: registra estados y eliminaciones para que pedidos.html (el
+// panel del dueño de la plataforma) siempre esté sincronizado con lo que
+// pasa acá — sin esto, un pedido eliminado o "no aprobado" acá podía
+// seguir viéndose ahí para siempre.
+const WORKER_ESTADOS    = 'https://panelgestionestados.tuweb.workers.dev';
 const WORKER_PRINCIPAL  = 'https://panelprincipalrw.tuweb.workers.dev';  // panel dueño
 const S_KEY = 'rw_reseller_v1';
 const D_KEY = 'rw_reseller_del_v1';
@@ -2645,6 +2650,17 @@ async function _eliminarPedidoBackend(id) {
             await _db.collection('usuarios').doc(currentUid).collection('pedidos').doc(id).delete();
         } catch(_) {}
     }
+    // 🔧 NUEVO: sin importar si los borrados de arriba tuvieron éxito o
+    // no (workerpagos es un Worker externo que no puedo verificar acá),
+    // esto SIEMPRE se avisa — es la garantía real de que pedidos.html
+    // deje de mostrar este pedido apenas se elimina o no se aprueba.
+    try {
+        await fetch(`${WORKER_ESTADOS}/api/pedido-eliminado`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pedidoId: id, codigoVendedor: currentCode, motivo: 'eliminado_o_no_aprobado' })
+        });
+    } catch(_) {}
 }
 
 // ═══════════════════════════════════════════════════════════
