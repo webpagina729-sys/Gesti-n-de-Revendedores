@@ -331,8 +331,12 @@
         /* ── EMPTY ── */
         .empty { text-align: center; padding: 60px 24px; color: var(--text3); }
         .empty-icon { font-size: 44px; margin-bottom: 14px; }
-        .empty h3 { font-size: 17px; font-weight: 700; color: var(--text2); margin-bottom: 6px; }
-        .empty p { font-size: 13px; }
+        /* 🔧 FIX: esto se usa en TODOS los paneles vacíos de la app — antes
+           el texto podía estirarse tanto que dejaba una sola palabra suelta
+           en el último renglón. Ahora se acota el ancho y se pide un
+           reparto parejo de línea (con soporte moderno de navegador). */
+        .empty h3 { font-size: 17px; font-weight: 700; color: var(--text2); margin: 0 auto 6px; max-width: 380px; text-wrap: balance; }
+        .empty p { font-size: 13px; max-width: 340px; margin: 0 auto; text-wrap: pretty; }
 
         /* ── LOADER ── */
         .loader { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 60px 24px; }
@@ -1076,8 +1080,8 @@
 
             <div class="guide-ribbon" onclick="toggleGuide(this)">
                 <div class="guide-head">
-                    <span class="guide-icon">📦</span>
-                    <span class="guide-title">Pedidos — Pendientes y Aprobados</span>
+                    <span class="guide-icon">📋</span>
+                    <span class="guide-title">Pedidos Aprobados/Pendientes</span>
                     <svg class="guide-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                 </div>
                 <div class="guide-body">
@@ -1089,8 +1093,8 @@
 
             <div class="guide-ribbon" onclick="toggleGuide(this)">
                 <div class="guide-head">
-                    <span class="guide-icon">🗂️</span>
-                    <span class="guide-title">Calzados Importados · Perfumería · Belleza · Bazar · Juguetería · Librería · Multishop</span>
+                    <span class="guide-icon">📁</span>
+                    <span class="guide-title">Categorías</span>
                     <svg class="guide-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                 </div>
                 <div class="guide-body">
@@ -1113,20 +1117,20 @@
 
             <div class="guide-ribbon" onclick="toggleGuide(this)">
                 <div class="guide-head">
-                    <span class="guide-icon">💰</span>
+                    <span class="guide-icon">📈</span>
                     <span class="guide-title">Ganancias</span>
                     <svg class="guide-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                 </div>
                 <div class="guide-body">
-                    <p>Calculá cuánto ganás en cada pedido según los márgenes que configuraste en tu tienda. Muestra la diferencia entre el precio mayorista (lo que vos pagás) y el precio que le cobrás a tus clientes.</p>
-                    <p>Si no ves ganancias, es porque todavía no configuraste los márgenes en tu panel de tienda (index).</p>
+                    <p>Calculá cuánto ganás en cada pedido según los márgenes que configuraste en tu tienda. Muestra las estadísticas de todas tus ganancias.</p>
+                    <p>Si no ves ganancias, es porque todavía no entregaste los pedidos confirmados.</p>
                 </div>
             </div>
 
             <div class="guide-ribbon" onclick="toggleGuide(this)">
                 <div class="guide-head">
-                    <span class="guide-icon">🏆</span>
-                    <span class="guide-title">Clientes — Ranking</span>
+                    <span class="guide-icon">🏅</span>
+                    <span class="guide-title">Ranking</span>
                     <svg class="guide-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                 </div>
                 <div class="guide-body">
@@ -1136,12 +1140,13 @@
 
             <div class="guide-ribbon" onclick="toggleGuide(this)">
                 <div class="guide-head">
-                    <span class="guide-icon">✈️</span>
-                    <span class="guide-title">Botón "Enviar a precio mayorista"</span>
+                    <span class="guide-icon">💳</span>
+                    <span class="guide-title">Pedidos confirmados</span>
                     <svg class="guide-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                 </div>
                 <div class="guide-body">
-                    <p>Envía todos los pedidos pendientes a la plataforma de pagos de una sola vez. Cada pedido también puede enviarse individualmente con el botón "Enviar" dentro de la tarjeta del pedido.</p>
+                    <p>Envía todos los Pedidos Confirmados a la plataforma de pagos. Cada pedido puede enviarse individualmente dentro de la tarjeta del pedido.</p>
+                    <p>Pagas a Precio Mayorista y el resto queda en tu billetera.</p>
                 </div>
             </div>
 
@@ -4217,7 +4222,7 @@ function renderPedidoListaView() {
     _updatePedidoListaBadge();
 
     if (!list.length) {
-        el.innerHTML = `<div class="empty"><div class="empty-icon">🛒</div><h3>No hay pedidos listos para ejecutar</h3><p>Aprobá pedidos desde la vista de Pedidos Aprobados para agregarlos acá.</p></div>`;
+        el.innerHTML = `<div class="empty"><div class="empty-icon">🛒</div><h3>No hay pedidos listos para ejecutar</h3><p>Confirmá los pedidos desde Pedidos Aprobados para agregarlos acá.</p></div>`;
         return;
     }
 
