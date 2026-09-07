@@ -281,6 +281,25 @@
         .ribbon.expanded .ribbon-body { max-height: 3000px; }
         .ribbon-inner { padding: 16px 18px; border-top: 1px solid var(--border); overflow-x: hidden; }
 
+        /* 🔧 NUEVO: los pedidos que se despliegan DENTRO de una categoría
+           (pestañas de Pendientes/Aprobados) o dentro de una cinta de
+           categoría (Pedidos Confirmados) usaban el mismo color que el
+           fondo del panel y que la propia cinta de categoría — quedaban
+           sin diferenciarse. Ahora se ven "encuadrados", con un tono y
+           borde propios que los distinguen con claridad. */
+        .tab-pane .ribbon, .ribbon-body .ribbon {
+            background: var(--surface2);
+            border: 1px solid var(--border2);
+            box-shadow: 0 1px 5px rgba(0,0,0,.22);
+        }
+        .tab-pane .ribbon .ribbon-head, .ribbon-body .ribbon .ribbon-head {
+            background: rgba(255,255,255,.03);
+        }
+        body.light-theme .tab-pane .ribbon .ribbon-head,
+        body.light-theme .ribbon-body .ribbon .ribbon-head {
+            background: rgba(0,0,0,.02);
+        }
+
         /* status chip — pequeño, en la esquina superior derecha del head */
         .status-chip { display: inline-flex; align-items: center; gap: 3px; padding: 2px 7px; border-radius: 20px; font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .3px; line-height: 1.4; }
         .s-pendiente { background: var(--amber-pale); color: var(--amber); border: 1px solid rgba(245,158,11,.2); }
@@ -892,6 +911,25 @@
         <div class="modal-actions">
             <button class="modal-cancel" onclick="document.getElementById('send-all-modal').classList.remove('show')">Cancelar</button>
             <button class="modal-confirm-btn" style="background:var(--green)" onclick="confirmSendAll()">Enviar</button>
+        </div>
+    </div>
+</div>
+
+<!-- ══ MODAL ¿A DÓNDE MOVER EL/LOS PEDIDO(S)? ══ -->
+<!-- 🔧 NUEVO: reemplaza el vaciado/quitado silencioso — un pedido
+     confirmado NUNCA debe desaparecer sin más, así que se pregunta a
+     dónde tiene que volver antes de sacarlo de la lista. -->
+<div class="modal-overlay" id="mover-pedido-modal">
+    <div class="modal-box">
+        <div class="modal-icon" style="background:var(--blue-pale)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2.5"><path d="M9 14l-4-4 4-4"/><path d="M5 10h11a4 4 0 0 1 4 4v1"/></svg>
+        </div>
+        <h3 style="text-wrap:balance">¿A dónde querés mover los pedidos?</h3>
+        <p id="mover-pedido-desc">Este pedido va a salir de la lista de Confirmados.</p>
+        <div class="modal-actions" style="flex-direction:column;gap:8px">
+            <button class="modal-confirm-btn" style="background:var(--amber);width:100%" onclick="_confirmarMoverPedido('pendientes')">Pedidos Pendientes</button>
+            <button class="modal-confirm-btn" style="background:var(--blue);width:100%" onclick="_confirmarMoverPedido('aprobados')">Pedidos Aprobados</button>
+            <button class="modal-cancel" style="width:100%" onclick="document.getElementById('mover-pedido-modal').classList.remove('show')">Cancelar</button>
         </div>
     </div>
 </div>
@@ -1944,7 +1982,21 @@ function _agregarMarcaPendiente(doc, W, H) {
     doc.restoreGraphicsState?.();
 }
 
-function _entregarFacturaPDF(doc, filename, esPagado) {
+// 🔧 NUEVO: marca de agua verde para pedidos ya pagados a precio
+// mayorista (vía "Enviar a precio mayorista") — reemplaza a la roja de
+// "Pendiente de pago" una vez que el pedido está realmente cobrado.
+function _agregarMarcaPagado(doc, W, H) {
+    doc.saveGraphicsState?.();
+    doc.setTextColor(10, 138, 82);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(52);
+    try { doc.setGState(new doc.GState({ opacity: 0.18 })); } catch(_e) {}
+    doc.text('PAGADO', W / 2, H / 2, { align: 'center', angle: 35 });
+    try { doc.setGState(new doc.GState({ opacity: 1 })); } catch(_e) {}
+    doc.restoreGraphicsState?.();
+}
+
+function _entregarFacturaPDF(doc, filename, esPagado, telefonoCliente) {
     doc.save(filename);
     const blob = doc.output('blob');
     const url = URL.createObjectURL(blob);
@@ -1995,9 +2047,14 @@ function _entregarFacturaPDF(doc, filename, esPagado) {
             }
         } catch (e) { return; /* canceló */ }
         // Fallback: WhatsApp Web no puede adjuntar archivos por URL — se
-        // abre el chat con el mensaje y se avisa que hay que adjuntar el
+        // abre directo el chat del CLIENTE correspondiente (si se conoce
+        // su teléfono) con el mensaje, avisando que hay que adjuntar el
         // PDF ya descargado a mano.
-        window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank');
+        const telLimpio = telefonoCliente ? String(telefonoCliente).replace(/\D/g, '') : '';
+        const waUrl = telLimpio
+            ? `https://wa.me/${telLimpio}?text=${encodeURIComponent(mensaje)}`
+            : `https://wa.me/?text=${encodeURIComponent(mensaje)}`;
+        window.open(waUrl, '_blank');
         toast('Se abrió WhatsApp — adjuntá el PDF ya descargado', true);
     };
     setTimeout(() => { const el = document.getElementById('factura-lista-modal'); if (el) el.remove(); }, 14000);
@@ -2134,10 +2191,15 @@ function downloadClientInvoicePDF(id) {
     const nichoKey = cat(p);
     const items = p.items || [];
     const totalFin = totalFinalRevendedor(p);
-    // 🔧 NUEVO: si el pedido todavía no está pagado, la factura se marca
-    // claramente como PENDIENTE — nunca debe verse como si el pago ya se
-    // hubiera ejecutado.
+    // 🔧 NUEVO: la factura ahora distingue 3 estados reales del pedido:
+    //  - "pendiente"  → todavía sin aprobar (Pedidos Pendientes / Recibidos)
+    //  - "aprobado"   → aprobado pero sin pagar a precio mayorista todavía
+    //  - "pagado"     → ya se pagó de verdad con "Enviar a precio mayorista"
     const esPagado = getGananciasOficiales().some(g => g.id === p.id);
+    const estaAprobado = p.estado === 'pagado'; // "pagado" acá históricamente significa "aprobado por el revendedor"
+    const estadoFactura = esPagado ? 'pagado' : (estaAprobado ? 'aprobado' : 'pendiente');
+    const totalMayoristaPedido = totalInversionRevendedor(p);
+    const gananciaPedido = resellerGainOf(p);
 
     const env = p.envio || p.cliente || {};
     const envNombre = fullName(env) || p._clienteName || 'Sin datos';
@@ -2160,7 +2222,7 @@ function downloadClientInvoicePDF(id) {
     doc.setFontSize(10);
     doc.text(esPagado ? 'Comprobante de Compra' : 'Comprobante de Compra (Pendiente de pago)', 14, 23);
     doc.setFontSize(8);
-    doc.text(esPagado ? 'Documento interno · No constituye factura fiscal (AFIP)' : 'PENDIENTE — el pago de este pedido todavía no fue generado', 14, 29);
+    doc.text(esPagado ? 'Documento interno · No constituye factura fiscal (AFIP)' : (estadoFactura === 'pendiente' ? 'PENDIENTE — el pedido todavía no fue aprobado' : 'PENDIENTE — el pago de este pedido todavía no fue generado'), 14, 29);
 
     doc.setFillColor(255, 255, 255);
     doc.roundedRect(W - 66, 8, 52, 22, 2, 2, 'F');
@@ -2246,20 +2308,42 @@ function downloadClientInvoicePDF(id) {
     y = doc.lastAutoTable.finalY + 6;
     if (y > H - 60) { doc.addPage(); y = 20; }
 
-    // SOLO TOTAL (sin costo, sin %, sin ganancia)
-    const boxW = 90;
-    const boxX = W - 14 - boxW;
+    // 🔧 NUEVO: según el estado del pedido, se agrega un segundo cuadro
+    // junto al TOTAL — la "seña" (pendientes) o el "saldo restante a
+    // abonar" (aprobados). Una vez pagado, solo queda el TOTAL solo.
+    const mostrarSegundoBox = estadoFactura !== 'pagado';
+    const boxW = mostrarSegundoBox ? 84 : 90;
+    const gapBoxes = 6;
+    const boxXTotal = mostrarSegundoBox ? (W - 14 - boxW) : (W - 14 - boxW);
+    const boxXSegundo = boxXTotal - boxW - gapBoxes;
+
     doc.setDrawColor(...BLUE);
     doc.setLineWidth(0.4);
-    doc.roundedRect(boxX, y, boxW, 14, 2, 2, 'S');
+    doc.roundedRect(boxXTotal, y, boxW, 14, 2, 2, 'S');
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
     doc.setTextColor(...GRAY);
-    doc.text('TOTAL', boxX + 3, y + 9);
+    doc.text('TOTAL', boxXTotal + 3, y + 9);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(13);
     doc.setTextColor(...DARK);
-    doc.text('$' + Math.round(totalFin).toLocaleString('es-AR'), boxX + boxW - 3, y + 9, { align: 'right' });
+    doc.text('$' + Math.round(totalFin).toLocaleString('es-AR'), boxXTotal + boxW - 3, y + 9, { align: 'right' });
+
+    if (mostrarSegundoBox) {
+        const esPendiente = estadoFactura === 'pendiente';
+        const labelSegundo = esPendiente ? 'SEÑA (mayorista)' : 'SALDO RESTANTE A ABONAR';
+        const valorSegundo = esPendiente ? totalMayoristaPedido : gananciaPedido;
+        doc.setDrawColor(230, 140, 20);
+        doc.roundedRect(boxXSegundo, y, boxW, 14, 2, 2, 'S');
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.5);
+        doc.setTextColor(...GRAY);
+        doc.text(labelSegundo, boxXSegundo + 3, y + 6);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(12);
+        doc.setTextColor(200, 120, 10);
+        doc.text('$' + Math.round(valorSegundo).toLocaleString('es-AR'), boxXSegundo + boxW - 3, y + 11.5, { align: 'right' });
+    }
 
     y += 22;
 
@@ -2284,8 +2368,9 @@ function downloadClientInvoicePDF(id) {
     doc.setTextColor(...GRAY);
     doc.text('Generado: ' + ba(new Date()), W - 14, footerY + 14, { align: 'right' });
 
-    if (!esPagado) _agregarMarcaPendiente(doc, W, H);
-    _entregarFacturaPDF(doc, `Factura_Cliente_${nroFact}.pdf`, esPagado);
+    if (estadoFactura === 'pagado') _agregarMarcaPagado(doc, W, H);
+    else _agregarMarcaPendiente(doc, W, H);
+    _entregarFacturaPDF(doc, `Factura_Cliente_${nroFact}.pdf`, esPagado, env.telefono);
     toast('Factura del cliente descargada', true);
 }
 
@@ -2314,8 +2399,10 @@ function downloadInvoicePDF(id) {
     const totalFin = totalFinalRevendedor(p);
     const ganancia = resellerGainOf(p);
     const pctAplicado = totalInv > 0 ? ((ganancia / totalInv) * 100) : 0;
-    // 🔧 NUEVO: misma marca de "pendiente" que la factura de cliente.
+    // 🔧 NUEVO: misma marca de "pendiente"/"pagado" que la factura de cliente.
     const esPagado = getGananciasOficiales().some(g => g.id === p.id);
+    const estaAprobado = p.estado === 'pagado';
+    const estadoFactura = esPagado ? 'pagado' : (estaAprobado ? 'aprobado' : 'pendiente');
 
     const env = p.envio || p.cliente || {};
     const cli = p.cliente || p.envio || {};
@@ -2513,8 +2600,9 @@ function downloadInvoicePDF(id) {
     doc.setTextColor(...GRAY);
     doc.text('Generado: ' + ba(new Date()), W - 14, footerY + 14, { align: 'right' });
 
-    if (!esPagado) _agregarMarcaPendiente(doc, W, H);
-    _entregarFacturaPDF(doc, `Factura_Revendedor_${nroFact}.pdf`, esPagado);
+    if (estadoFactura === 'pagado') _agregarMarcaPagado(doc, W, H);
+    else _agregarMarcaPendiente(doc, W, H);
+    _entregarFacturaPDF(doc, `Factura_Revendedor_${nroFact}.pdf`, esPagado, env.telefono);
     toast('Factura descargada', true);
 }
 function toast(m, type) {
@@ -4143,6 +4231,7 @@ async function confirmDelete() {
 }
 
 document.getElementById('send-all-modal').addEventListener('click', function(e) { if (e.target === this) this.classList.remove('show'); });
+document.getElementById('mover-pedido-modal').addEventListener('click', function(e) { if (e.target === this) this.classList.remove('show'); });
 document.getElementById('send-confirm-modal').addEventListener('click', function(e) { if (e.target === this) closeSendConfirmModal(); });
 document.getElementById('del-modal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
 document.getElementById('chart-modal').addEventListener('click', function(e) { if (e.target === this) closeChartModal(); });
@@ -4162,6 +4251,9 @@ function switchTab(k) {
     const yaActiva = document.getElementById('tbtn-'+k).classList.contains('active');
     document.querySelectorAll('.tab-pane').forEach(e => e.classList.remove('active'));
     document.querySelectorAll('.cat-ribbon').forEach(e => e.classList.remove('active'));
+    // 🔧 NUEVO: cerrar cualquier pedido que haya quedado desplegado al
+    // cambiar de categoría — cada pestaña debe abrirse siempre limpia.
+    document.querySelectorAll('.ribbon.expanded').forEach(r => r.classList.remove('expanded'));
 
     if (yaActiva) {
         // Tocar de nuevo la misma cinta la cierra, igual que los pedidos.
@@ -4189,6 +4281,11 @@ function toggleCategoriasDrawer(forzarAbierto) {
     drawer.style.maxHeight = abrir ? '6000px' : '0';
 }
 function switchView(v) {
+    // 🔧 NUEVO: las cintas de pedidos individuales quedaban expandidas
+    // aunque se cambiara de sección — al volver a "Pedidos" (o a otra
+    // categoría) aparecían igual abiertas, tapando la cantidad real en el
+    // badge. Ahora se cierran todas al cambiar de vista.
+    document.querySelectorAll('.ribbon.expanded').forEach(r => r.classList.remove('expanded'));
     document.querySelectorAll('.view').forEach(e => e.classList.remove('active'));
     document.getElementById('view-'+v)?.classList.add('active');
     document.querySelectorAll('.menu-btn').forEach(e => e.classList.toggle('active', e.dataset.view === v));
@@ -4298,7 +4395,7 @@ function renderPedidoListaView() {
 
     let html = `<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px">
         <h2 class="section-title" style="margin:0">Pedidos Confirmados <span style="font-size:13px;font-weight:400;color:var(--text3)">(${list.length} pedido${list.length!==1?'s':''})</span></h2>
-        <button class="btn-head" style="background:var(--red-pale);border-color:rgba(244,63,94,.3);color:var(--red)" onclick="if(confirm('¿Vaciar toda la lista de pedidos listos para ejecutar?')){savePedidoList([]);renderPedidoListaView();_updatePedidoListaBadge();}">
+        <button class="btn-head" style="background:var(--red-pale);border-color:rgba(244,63,94,.3);color:var(--red)" onclick="vaciarListaConfirmados()">
             Vaciar lista
         </button>
     </div>
@@ -4330,6 +4427,10 @@ function renderPedidoListaView() {
                         Cliente: <strong style="color:var(--text)">$${Math.round(p.total||0).toLocaleString()}</strong>
                     </div>
                     ${(p.items||[]).map(it => `<div style="font-size:11px;color:var(--text3)">· ${esc(it.nombre)} x${it.cantidad}</div>`).join('')}
+                    <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+                        <button class="btn-act btn-pdf" style="flex:1;min-width:110px;justify-content:center" onclick="event.stopPropagation();downloadInvoicePDF('${p.id}')">Factura revendedor</button>
+                        <button class="btn-act btn-pdf" style="flex:1;min-width:110px;justify-content:center;background:#0a8a52 !important" onclick="event.stopPropagation();downloadClientInvoicePDF('${p.id}')">Factura cliente</button>
+                    </div>
                 </div>
             </div>
         </div>`;
@@ -4382,43 +4483,56 @@ function renderPedidoListaView() {
     el.innerHTML = html;
 }
 
-// Despliega el resto de los pedidos de a 6 en 6, dentro de una cortina
-// deslizable. El botón "Ver más" desaparece cuando ya no queda nada más
-// por mostrar.
-function _pedidolistaVerMas() {
-    const drawer = document.getElementById('pedidolista-drawer');
-    const inner = document.getElementById('pedidolista-drawer-inner');
-    const btn = document.getElementById('pedidolista-vermas-btn');
-    const arrow = document.getElementById('pedidolista-vermas-arrow');
-    if (!drawer || !inner || !btn) return;
-
-    const items = Array.from(inner.children);
-    const PASO = 6;
-    window._pedidolistaMostrados = (window._pedidolistaMostrados || 0) + PASO;
-
-    items.forEach((item, idx) => {
-        item.style.display = idx < window._pedidolistaMostrados ? '' : 'none';
-    });
-
-    drawer.style.maxHeight = drawer.scrollHeight + 'px';
-    if (arrow) arrow.style.transform = 'rotate(180deg)';
-
-    if (window._pedidolistaMostrados >= items.length) {
-        btn.style.display = 'none';
-    }
-
-    // Reajustar la altura del contenedor deslizable si dentro se expande
-    // algún pedido individual (acordeón .ribbon).
-    if (!drawer.dataset.observando) {
-        drawer.dataset.observando = '1';
-        new MutationObserver(() => { drawer.style.maxHeight = drawer.scrollHeight + 'px'; })
-            .observe(inner, { attributes: true, subtree: true, attributeFilter: ['class'] });
-    }
-}
+// 🔧 NUEVO: nunca se borra directo — primero se pregunta a dónde tiene
+// que volver el pedido (o TODOS los de la lista, si viene de "Vaciar
+// lista"). window._pedidosAMover guarda los ids pendientes de resolver.
+window._pedidosAMover = [];
 
 function quitarDePedidoLista(id) {
-    const list = getPedidoList().filter(p => p.id !== id);
+    window._pedidosAMover = [id];
+    document.getElementById('mover-pedido-desc').textContent = 'Este pedido va a salir de la lista de Confirmados.';
+    document.getElementById('mover-pedido-modal').classList.add('show');
+}
+
+function vaciarListaConfirmados() {
+    const list = getPedidoList();
+    if (!list.length) return;
+    window._pedidosAMover = list.map(p => p.id);
+    document.getElementById('mover-pedido-desc').textContent = `Los ${list.length} pedidos de la lista van a salir de Confirmados.`;
+    document.getElementById('mover-pedido-modal').classList.add('show');
+}
+
+async function _confirmarMoverPedido(destino) {
+    const ids = window._pedidosAMover || [];
+    document.getElementById('mover-pedido-modal').classList.remove('show');
+    if (!ids.length) return;
+
+    // En AMBOS destinos, primero se saca de la lista de Confirmados —
+    // la diferencia es qué pasa DESPUÉS con el pedido.
+    const list = getPedidoList().filter(p => !ids.includes(p.id));
     savePedidoList(list);
+
+    if (destino === 'pendientes') {
+        // Vuelve a Pedidos Pendientes / Pedidos Recibidos (index.html):
+        // se marca el pedido como 'pendiente' en workerwebcliente, y acá
+        // desaparece de la vista (ya no está aprobado en este panel).
+        await Promise.all(ids.map(id =>
+            fetch(`${WORKER_CLIENTE}/logistica/estado`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pedidoId: id, codigoVendedor: currentCode, estado: 'pendiente' })
+            }).catch(() => {})
+        ));
+        pedidos = pedidos.filter(p => !ids.includes(p.id));
+        toast(`${ids.length > 1 ? 'Pedidos movidos' : 'Pedido movido'} a Pedidos Pendientes`, true);
+    } else {
+        // Vuelve a Pedidos Aprobados: no hace falta tocar nada más — al
+        // salir de la lista de Confirmados, su propia clasificación
+        // (getPedidoStage) ya lo muestra ahí de nuevo automáticamente.
+        toast(`${ids.length > 1 ? 'Pedidos movidos' : 'Pedido movido'} a Pedidos Aprobados`, true);
+    }
+
+    window._pedidosAMover = [];
     renderPedidoListaView();
     _updatePedidoListaBadge();
     renderAll();
