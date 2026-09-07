@@ -3437,6 +3437,15 @@ function loadData() {
                 } catch(_) {}
             });
 
+            // Igual que arriba, pero con la lista de Pedidos Confirmados —
+            // así aparece igual sin importar desde qué dispositivo se entre.
+            _fsCargarPedidoListaConfirmados().then(() => {
+                try {
+                    const modalAbierto = document.getElementById('confirmados-modal')?.classList.contains('show');
+                    if (modalAbierto) renderPedidoListaView();
+                } catch(_) {}
+            });
+
             // 1. workerwebcliente → FUENTE PRINCIPAL de todos los datos del pedido
             const urlCliente = `${WORKER_CLIENTE}/logistica?codigo=${encodeURIComponent(currentCode)}`;
             let rawPend = [];
@@ -3861,7 +3870,54 @@ function getPedidoList() {
     try { return JSON.parse(localStorage.getItem(PEDIDO_LIST_KEY) || '[]'); } catch(_) { return []; }
 }
 function savePedidoList(list) {
+    // 🔧 NUEVO: antes esta lista vivía ÚNICAMENTE en localStorage — el
+    // dato más importante de todo el panel (pedidos ya confirmados,
+    // esperando pago) no viajaba a la base de datos, así que no aparecía
+    // si el revendedor entraba desde otro celular o una PC. Ahora se
+    // sincroniza con Firestore en cada guardado, sin cambiar en nada el
+    // resto del comportamiento: getPedidoList() sigue siendo instantáneo
+    // (lee de localStorage, que ahora se mantiene igualado a la nube).
+    const anterior = getPedidoList();
     localStorage.setItem(PEDIDO_LIST_KEY, JSON.stringify(list.slice(-500)));
+    if (!currentUid) return; // sin sesión de Firebase todavía: se sincroniza solo local por ahora
+    try {
+        const idsNuevos = new Set(list.map(p => p.id));
+        const idsAnteriores = new Set(anterior.map(p => p.id));
+        const coll = _db.collection('usuarios').doc(currentUid).collection('pedidoListaConfirmados');
+        // Agregar/actualizar lo que está en la lista nueva
+        list.forEach(p => { coll.doc(String(p.id)).set(p).catch(() => {}); });
+        // Borrar de Firestore lo que ya no está (se quitó o se envió a pagar)
+        anterior.forEach(p => {
+            if (!idsNuevos.has(p.id)) coll.doc(String(p.id)).delete().catch(() => {});
+        });
+    } catch(e) {}
+}
+
+// Trae la lista de Pedidos Confirmados desde Firestore — así aparece
+// igual sin importar desde qué dispositivo se entre a la misma cuenta.
+// Mismo criterio que _fsCargarGananciasOficiales(): Firestore es la
+// fuente de verdad; lo local que todavía no llegó a la nube se sube.
+async function _fsCargarPedidoListaConfirmados() {
+    if (!currentUid) return;
+    try {
+        const snap = await _db.collection('usuarios').doc(currentUid).collection('pedidoListaConfirmados').get();
+        const remoto = snap.docs.map(d => d.data());
+        const local = getPedidoList();
+
+        const remotoIds = new Set(remoto.map(p => p.id));
+        const soloLocal = local.filter(p => !remotoIds.has(p.id));
+        soloLocal.forEach(p => {
+            _db.collection('usuarios').doc(currentUid).collection('pedidoListaConfirmados').doc(String(p.id)).set(p).catch(() => {});
+        });
+
+        const merged = new Map();
+        local.forEach(p => merged.set(p.id, p));
+        remoto.forEach(p => merged.set(p.id, p)); // Firestore pisa duplicados locales
+        localStorage.setItem(PEDIDO_LIST_KEY, JSON.stringify(Array.from(merged.values()).slice(-500)));
+        _updatePedidoListaBadge();
+    } catch(e) {
+        console.warn('No se pudo cargar Pedidos Confirmados desde Firestore:', e.message);
+    }
 }
 
 function aprobarPedido(id, btn) {
