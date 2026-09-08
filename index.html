@@ -915,6 +915,75 @@
     </div>
 </div>
 
+<!-- ══ MODAL ¿TUS DATOS SON CORRECTOS? ══ -->
+<!-- 🔧 NUEVO: antes de llegar al pago, se confirman los datos de envío
+     del revendedor (los que pedidos.html usa para "Ejecutar Pedido"). -->
+<div class="modal-overlay" id="datosCorrectosModal">
+    <div class="modal-box">
+        <div class="modal-icon" style="background:var(--blue-pale)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </div>
+        <h3>¿Tus datos son correctos?</h3>
+        <div id="datosCorrectosBody"></div>
+        <div class="modal-actions">
+            <button class="modal-cancel" onclick="abrirCorregirDatos()">Corregir</button>
+            <button class="modal-confirm-btn" style="background:var(--blue)" onclick="aceptarDatosCorrectos()">Aceptar</button>
+        </div>
+    </div>
+</div>
+
+<!-- ══ MODAL CORREGIR DATOS ══ -->
+<div class="modal-overlay" id="corregirDatosModal">
+    <div class="modal-box">
+        <div class="modal-icon" style="background:var(--amber-pale)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </div>
+        <h3>Corregir tus datos</h3>
+        <div style="text-align:left;margin:14px 0;display:flex;flex-direction:column;gap:10px">
+            <div>
+                <label style="display:block;font-size:11.5px;font-weight:700;color:var(--text2);margin-bottom:5px">WhatsApp</label>
+                <input type="tel" id="corregirWhatsapp" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid var(--border2);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;font-family:var(--font)" placeholder="Ej: 5492395123456">
+            </div>
+            <div>
+                <label style="display:block;font-size:11.5px;font-weight:700;color:var(--text2);margin-bottom:5px">Dirección</label>
+                <input type="text" id="corregirDireccion" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid var(--border2);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;font-family:var(--font)" placeholder="Calle y número">
+            </div>
+            <div style="display:flex;gap:8px">
+                <div style="flex:1">
+                    <label style="display:block;font-size:11.5px;font-weight:700;color:var(--text2);margin-bottom:5px">Ciudad</label>
+                    <input type="text" id="corregirCiudad" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid var(--border2);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;font-family:var(--font)">
+                </div>
+                <div style="flex:1">
+                    <label style="display:block;font-size:11.5px;font-weight:700;color:var(--text2);margin-bottom:5px">Provincia</label>
+                    <input type="text" id="corregirProvincia" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid var(--border2);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;font-family:var(--font)">
+                </div>
+            </div>
+            <div>
+                <label style="display:block;font-size:11.5px;font-weight:700;color:var(--text2);margin-bottom:5px">Código Postal</label>
+                <input type="text" id="corregirCP" style="width:120px;box-sizing:border-box;padding:9px 11px;border:1px solid var(--border2);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;font-family:var(--font)">
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button class="modal-cancel" onclick="volverADatosCorrectos()">Volver</button>
+            <button class="modal-confirm-btn" style="background:var(--amber)" onclick="confirmarYActualizarDatos()">Confirmar y Actualizar</button>
+        </div>
+    </div>
+</div>
+
+<!-- ══ MODAL DATOS ACTUALIZADOS ══ -->
+<div class="modal-overlay" id="datosActualizadosModal">
+    <div class="modal-box">
+        <div class="modal-icon" style="background:var(--green-pale)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <h3>Datos Actualizados</h3>
+        <p>Tus datos de envío quedaron guardados — los próximos pedidos van a usar esta información.</p>
+        <div class="modal-actions">
+            <button class="modal-confirm-btn" style="background:var(--green);width:100%" onclick="aceptarDatosActualizados()">Aceptar</button>
+        </div>
+    </div>
+</div>
+
 <!-- ══ MODAL ¿A DÓNDE MOVER EL/LOS PEDIDO(S)? ══ -->
 <!-- 🔧 NUEVO: reemplaza el vaciado/quitado silencioso — un pedido
      confirmado NUNCA debe desaparecer sin más, así que se pregunta a
@@ -1830,6 +1899,10 @@ let currentCode     = '';
 let currentUid      = '';
 let currentVendorNombre   = '';
 let currentVendorApellido = '';
+// 🔧 NUEVO: datos de envío del propio revendedor (los que se usan para
+// "Ejecutar Pedido" en pedidos.html) — se cargan del documento completo
+// en Firestore, ya que hasta ahora solo se guardaban nombre/apellido acá.
+let currentVendorProfile = { whatsappRevendedor: '', direccion: '', ciudad: '', provincia: '', codigoPostal: '' };
 let configTienda    = {};
 let chartModalInst  = null;
 
@@ -3043,6 +3116,13 @@ function _guardarSesion(uid, data, fbUser) {
     currentVendorNombre   = data.nombre || '';
     currentVendorApellido = data.apellido || '';
     configTienda          = data.configTienda || data.config || {};
+    currentVendorProfile  = {
+        whatsappRevendedor: data.whatsappRevendedor || '',
+        direccion:          data.direccion || '',
+        ciudad:             data.ciudad || '',
+        provincia:          data.provincia || '',
+        codigoPostal:       data.codigoPostal || ''
+    };
     const sess = {
         code:     currentCode,
         uid:      uid,
@@ -3056,6 +3136,29 @@ function _guardarSesion(uid, data, fbUser) {
     localStorage.setItem(S_KEY, JSON.stringify(sess));
     localStorage.setItem('rw_code', currentCode);
     localStorage.setItem('rw_uid', uid);
+    // Refrescar el perfil completo desde Firestore (por si "data" venía
+    // de una fuente más liviana, como sessionStorage) — así el modal de
+    // "¿Tus datos son correctos?" siempre parte de lo más actualizado.
+    _refrescarPerfilRevendedor(uid);
+}
+
+// Trae el documento completo del revendedor desde Firestore, para tener
+// siempre sus datos de envío (whatsapp/dirección/ciudad/provincia/CP) al
+// día — necesarios para el modal "¿Tus datos son correctos?".
+async function _refrescarPerfilRevendedor(uid) {
+    if (!uid) return;
+    try {
+        const doc = await _db.collection('usuarios').doc(uid).get();
+        if (!doc.exists) return;
+        const d = doc.data();
+        currentVendorProfile = {
+            whatsappRevendedor: d.whatsappRevendedor || '',
+            direccion:          d.direccion || '',
+            ciudad:             d.ciudad || '',
+            provincia:          d.provincia || '',
+            codigoPostal:       d.codigoPostal || ''
+        };
+    } catch(e) { /* silencioso — el modal igual funciona con lo que ya tenía */ }
 }
 
 // onAuthStateChanged — autologin si Firebase ya tiene sesión
@@ -3084,6 +3187,7 @@ _auth.onAuthStateChanged(async (fbUser) => {
                     currentVendorApellido = d.apellido || '';
                     showMain();
                     loadData();
+                    _refrescarPerfilRevendedor(currentUid);
                     return;
                 }
             } catch(_) {}
@@ -4071,6 +4175,74 @@ function aprobarPedido(id, btn) {
 }
 
 async function sendAllPedidos(categoria) {
+    // 🔧 NUEVO: antes de llegar al modal de pago, se confirma que los
+    // datos de envío del revendedor (los que van a usarse en pedidos.html
+    // para "Ejecutar Pedido") estén correctos.
+    window._categoriaParaConfirmarDatos = categoria || null;
+    abrirModalDatosCorrectos();
+}
+
+function abrirModalDatosCorrectos() {
+    const p = currentVendorProfile;
+    const nombre = [currentVendorNombre, currentVendorApellido].filter(Boolean).join(' ') || 'Revendedor';
+    document.getElementById('datosCorrectosBody').innerHTML = `
+        <div class="ship-block" style="margin:14px 0;text-align:left">
+            <div class="ship-row"><strong>${esc(nombre)}</strong></div>
+            ${p.whatsappRevendedor ? `<div class="ship-row">📞 ${esc(p.whatsappRevendedor)}</div>` : '<div class="ship-row" style="color:var(--red)">📞 Sin WhatsApp cargado</div>'}
+            ${(p.direccion||p.ciudad) ? `<div class="ship-row">📍 ${esc([p.direccion, p.ciudad, p.provincia, p.codigoPostal].filter(Boolean).join(', '))}</div>` : '<div class="ship-row" style="color:var(--red)">📍 Sin dirección cargada</div>'}
+        </div>`;
+    document.getElementById('datosCorrectosModal').classList.add('show');
+}
+
+function aceptarDatosCorrectos() {
+    document.getElementById('datosCorrectosModal').classList.remove('show');
+    _prepararYMostrarConfirmacionPago(window._categoriaParaConfirmarDatos);
+}
+
+function abrirCorregirDatos() {
+    document.getElementById('datosCorrectosModal').classList.remove('show');
+    const p = currentVendorProfile;
+    document.getElementById('corregirWhatsapp').value = p.whatsappRevendedor || '';
+    document.getElementById('corregirDireccion').value = p.direccion || '';
+    document.getElementById('corregirCiudad').value = p.ciudad || '';
+    document.getElementById('corregirProvincia').value = p.provincia || '';
+    document.getElementById('corregirCP').value = p.codigoPostal || '';
+    document.getElementById('corregirDatosModal').classList.add('show');
+}
+
+function volverADatosCorrectos() {
+    document.getElementById('corregirDatosModal').classList.remove('show');
+    abrirModalDatosCorrectos();
+}
+
+// Guarda la corrección tanto localmente como en Firestore — así los
+// próximos pedidos (y lo que ve pedidos.html) ya usan los datos nuevos.
+async function confirmarYActualizarDatos() {
+    const nuevo = {
+        whatsappRevendedor: document.getElementById('corregirWhatsapp').value.trim(),
+        direccion:          document.getElementById('corregirDireccion').value.trim(),
+        ciudad:             document.getElementById('corregirCiudad').value.trim(),
+        provincia:          document.getElementById('corregirProvincia').value.trim(),
+        codigoPostal:       document.getElementById('corregirCP').value.trim(),
+    };
+    currentVendorProfile = nuevo;
+    try {
+        if (currentUid) {
+            await _db.collection('usuarios').doc(currentUid).set(nuevo, { merge: true });
+        }
+    } catch(e) {
+        console.warn('No se pudo actualizar el perfil en Firestore:', e.message);
+    }
+    document.getElementById('corregirDatosModal').classList.remove('show');
+    document.getElementById('datosActualizadosModal').classList.add('show');
+}
+
+function aceptarDatosActualizados() {
+    document.getElementById('datosActualizadosModal').classList.remove('show');
+    _prepararYMostrarConfirmacionPago(window._categoriaParaConfirmarDatos);
+}
+
+async function _prepararYMostrarConfirmacionPago(categoria) {
     const pedidoList = getPedidoList();
     // 🔧 NUEVO: si se pasa una categoría, el envío es SOLO de esa
     // categoría — el resto de los pedidos confirmados de otras categorías
@@ -4247,6 +4419,9 @@ async function confirmDelete() {
 }
 
 document.getElementById('send-all-modal').addEventListener('click', function(e) { if (e.target === this) this.classList.remove('show'); });
+document.getElementById('datosCorrectosModal').addEventListener('click', function(e) { if (e.target === this) this.classList.remove('show'); });
+document.getElementById('corregirDatosModal').addEventListener('click', function(e) { if (e.target === this) this.classList.remove('show'); });
+document.getElementById('datosActualizadosModal').addEventListener('click', function(e) { if (e.target === this) this.classList.remove('show'); });
 document.getElementById('mover-pedido-modal').addEventListener('click', function(e) { if (e.target === this) this.classList.remove('show'); });
 document.getElementById('send-confirm-modal').addEventListener('click', function(e) { if (e.target === this) closeSendConfirmModal(); });
 document.getElementById('del-modal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
