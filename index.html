@@ -1004,19 +1004,9 @@
 </div>
 
 <!-- ══ MODAL CONFIRMAR PEDIDO INDIVIDUAL ══ -->
-<div class="modal-overlay" id="send-confirm-modal">
-    <div class="modal-box">
-        <div class="modal-icon" style="background:var(--green-pale)">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-        </div>
-        <h3>Confirmar pedido</h3>
-        <p id="send-confirm-desc">¿Querés enviar este pedido? Serás redirigido a Mercado Pago para completar el pago.</p>
-        <div class="modal-actions">
-            <button class="modal-cancel" onclick="closeSendConfirmModal()">Cancelar</button>
-            <button class="modal-confirm-btn" id="send-confirm-btn" style="background:var(--green)" onclick="confirmSendPedido()">Enviar y pagar</button>
-        </div>
-    </div>
-</div>
+<!-- 🧹 LIMPIEZA: se eliminó el modal "send-confirm-modal" — quedó
+     huérfano al sacar sendPedido()/confirmSendPedido(), reemplazadas por
+     el envío por categoría (sendAllPedidos). -->
 
 <!-- ══ MODAL HISTORIAL DE PEDIDOS REALIZADOS ══ -->
 <div class="modal-overlay" id="historial-modal" onclick="if(event.target===this)closeHistorialModal()">
@@ -3258,7 +3248,8 @@ async function doEmailLogin() {
         btn.disabled = false; btn.innerHTML = orig;
     }
 }
-async function doLogin() { return doEmailLogin(); }
+// 🧹 LIMPIEZA: se eliminó doLogin() — un alias que solo llamaba a
+// doEmailLogin() (que sigue intacta y activa), sin ningún uso propio.
 
 function loginErr(m) {
     const e = document.getElementById('login-err');
@@ -3942,113 +3933,11 @@ function card(p) {
 
 function toggleRibbon(id) { document.getElementById('oc-'+id)?.classList.toggle('expanded'); }
 
-// ═══════════════════════════════════════════════════════════
-// ENVIAR PEDIDO A workerpagos
-// ═══════════════════════════════════════════════════════════
-// ── Estado temporal para el modal de confirmación de envío individual ──
-let _pendingSendId = null;
-
-function sendPedido(id, btn) {
-    const p = pedidos.find(x => x.id === id);
-    if (!p) return;
-    const totalInv = totalInversionRevendedor(p);
-    _pendingSendId = id;
-    const env = p.envio || p.cliente || {};
-    const nombre = fullName(env) || p._clienteName || 'Cliente';
-    document.getElementById('send-confirm-desc').textContent =
-        `Pedido de ${nombre} · Total a pagar: $${Math.round(totalInv).toLocaleString('es-AR')}. Serás redirigido a Mercado Pago para completar el pago.`;
-    document.getElementById('send-confirm-modal').classList.add('show');
-}
-
-function closeSendConfirmModal() {
-    document.getElementById('send-confirm-modal').classList.remove('show');
-    _pendingSendId = null;
-}
-
-async function confirmSendPedido() {
-    if (!_pendingSendId) return;
-    const id = _pendingSendId;
-    _pendingSendId = null;
-    document.getElementById('send-confirm-modal').classList.remove('show');
-
-    const p = pedidos.find(x => x.id === id);
-    if (!p) return;
-
-    const btn = document.getElementById('send-confirm-btn');
-    if (btn) { btn.textContent = 'Enviando...'; btn.disabled = true; }
-
-    const nichoKey = cat(p);
-    const ganancia = resellerGainOf(p);
-    const totalFin = totalFinalRevendedor(p);
-    const totalInv = totalInversionRevendedor(p);
-
-    // IMPORTANTE: acá viajan los DOS precios de cada ítem, bien separados:
-    //   - precio                 → lo que paga el CLIENTE final (con margen del revendedor)
-    //   - precioCosto            → precio MAYORISTA (costo real del revendedor)
-    //   - costoMayoristaUnitario → mismo dato que precioCosto, con el nombre que
-    //                              espera /api/panel-gestion en workerpagos
-    // Antes acá se mandaba precio = precioMayoristaItem(it), lo que pisaba el
-    // precio del cliente con el mayorista al aprobar el pedido. Por eso al
-    // recargar, "Precio mayorista" mostraba el precio cliente y "Precio
-    // cliente"/"Mi ganancia" quedaban en $0 (no había dato real de cliente
-    // guardado, solo el mayorista repetido en el campo equivocado).
-    const productosCosto = (p.items || []).map(it => {
-        const pCliente   = resellerPriceFinal(it, nichoKey);
-        const pMayorista = precioMayoristaItem(it);
-        return {
-            nombre: it.nombre,
-            cantidad: Number(it.cantidad) || 1,
-            precio: pCliente,                       // precio CLIENTE (lo que cobra el revendedor)
-            precioCosto: pMayorista,                // precio MAYORISTA (costo real)
-            costoMayoristaUnitario: pMayorista       // alias para workerpagos /api/panel-gestion
-        };
-    });
-
-    const cli = p.cliente || p.envio || {};
-    const env = p.envio || p.cliente || {};
-    const direccionFull = [env.direccion, env.ciudad, env.provincia, env.cp]
-        .filter(Boolean).join(', ');
-
-    const payload = {
-        action: 'pedidoAprobado',
-        pedidoId: p.id,
-        uid: p.id,
-        codigoVendedor: currentCode,
-        estado: 'APROBADO',
-        estadoPagoRevendedor: 'APROBADO',
-        nicho: nichoKey,
-        productos: productosCosto,
-        items: productosCosto,
-        total: Math.round(totalInv),
-        totalCosto: Math.round(totalInv),
-        totalGananciaRevendedor: Math.round(ganancia),
-        totalFinalCliente: Math.round(totalFin),
-        cliente: {
-            nombre: (cli.nombre || '') + (cli.apellido ? ' ' + cli.apellido : ''),
-            email: cli.email || env.email || '',
-            telefono: cli.telefono || env.telefono || '',
-            direccion: direccionFull,
-            ciudad: env.ciudad || '',
-            provincia: env.provincia || '',
-            cp: env.cp || ''
-        },
-        envio: p.envio || p.cliente || null,
-        vendedor: {
-            codigo: currentCode,
-            nombre: currentVendorNombre,
-            apellido: currentVendorApellido
-        },
-        configTienda: configTienda,
-        fecha: new Date().toISOString(),
-        _raw: p._raw || null
-    };
-
-    // Sin conexión externa — aprobar localmente
-    p.estado = 'pagado';
-    renderAll();
-    toastRich(ganancia, totalInv, '¡Pedido aprobado!');
-    if (btn) { btn.textContent = 'Enviar y pagar'; btn.disabled = false; }
-}
+// 🧹 LIMPIEZA: se eliminaron sendPedido(), closeSendConfirmModal() y
+// confirmSendPedido() — el envío individual a workerpagos quedó
+// reemplazado por sendAllPedidos() (envío por categoría, desde
+// "Pedidos Confirmados"). Confirmado que _pendingSendId nunca se
+// seteaba desde ningún otro lado, así que todo el trío era inalcanzable.
 
 // ═══════════════════════════════════════════════════════════
 // APROBAR PEDIDO (botón "Aprobar" en cada tarjeta)
@@ -4423,7 +4312,8 @@ document.getElementById('datosCorrectosModal').addEventListener('click', functio
 document.getElementById('corregirDatosModal').addEventListener('click', function(e) { if (e.target === this) this.classList.remove('show'); });
 document.getElementById('datosActualizadosModal').addEventListener('click', function(e) { if (e.target === this) this.classList.remove('show'); });
 document.getElementById('mover-pedido-modal').addEventListener('click', function(e) { if (e.target === this) this.classList.remove('show'); });
-document.getElementById('send-confirm-modal').addEventListener('click', function(e) { if (e.target === this) closeSendConfirmModal(); });
+// 🧹 LIMPIEZA: se eliminó el listener de "send-confirm-modal" (junto con
+// el modal y closeSendConfirmModal(), ya sacados).
 document.getElementById('del-modal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
 document.getElementById('chart-modal').addEventListener('click', function(e) { if (e.target === this) closeChartModal(); });
 
@@ -5693,98 +5583,18 @@ async function renderRevendedoresView() {
     return;
 }
 
-function renderRevendedoresLista(el, revendedores) {
-    let html = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-        <h2 class="section-title" style="margin:0">Revendedores</h2>
-        <span style="font-size:12px;color:var(--text3)">${revendedores.length} en total</span>
-    </div>
-    <div class="rv-list">`;
-
-    revendedores.forEach((rv, i) => {
-        const nombre = [rv.nombre, rv.apellido].filter(Boolean).join(' ') || rv.codigoVendedor || rv.codigo || 'Revendedor';
-        const codigo = rv.codigoVendedor || rv.codigo || '';
-        const pedidosCount = Array.isArray(rv.pedidos) ? rv.pedidos.length :
-                             (rv.totalPedidos || rv.pedidos_count || 0);
-        const aprobados = Array.isArray(rv.pedidos)
-            ? rv.pedidos.filter(p => (p.estadoPago||p.estado||'').toUpperCase().includes('APROBAD') || (p.estadoPago||p.estado||'').toUpperCase().includes('PAGADO')).length
-            : (rv.aprobados || 0);
-        const ganancia = rv.gananciaTotal || rv.ganancia || 0;
-
-        html += `<div class="rv-ribbon" onclick="selectRevendedor('${codigo}')">
-            <div class="rv-avatar">${nombre.charAt(0).toUpperCase()}</div>
-            <div class="rv-info">
-                <div class="rv-name">${esc(nombre)}</div>
-                <div class="rv-meta">
-                    ${codigo ? `<span class="r-code">${esc(codigo)}</span>` : ''}
-                    <span style="font-size:11px;color:var(--text3)">${pedidosCount} pedido${pedidosCount!==1?'s':''}</span>
-                    ${aprobados ? `<span style="font-size:11px;color:var(--green)">✓ ${aprobados} aprobado${aprobados!==1?'s':''}</span>` : ''}
-                </div>
-            </div>
-            <div class="rv-right">
-                ${ganancia ? `<div style="font-size:14px;font-weight:800;color:var(--green)">$${Math.round(ganancia).toLocaleString()}</div>` : ''}
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" style="color:var(--text3)"><polyline points="9 18 15 12 9 6"/></svg>
-            </div>
-        </div>`;
-    });
-
-    html += `</div>`;
-    el.innerHTML = html;
-}
+// 🧹 LIMPIEZA: se eliminó renderRevendedoresLista() — usaba el
+// esquema de datos viejo, reemplazada por renderRevendedoresView().
+// Sin ningún llamado real.
 
 function selectRevendedor(codigo) {
     activeRevendedor = codigo;
     renderRevendedoresView();
 }
 
-function renderRevendedorDetalle(el, rv, todos) {
-    const nombre = [rv.nombre, rv.apellido].filter(Boolean).join(' ') || rv.codigoVendedor || 'Revendedor';
-    const codigo = rv.codigoVendedor || rv.codigo || '';
-    const peds = Array.isArray(rv.pedidos) ? rv.pedidos : [];
-    const aprobados = peds.filter(p => (p.estadoPago||p.estado||'').toUpperCase().includes('APROBAD') || (p.estadoPago||p.estado||'').toUpperCase().includes('PAGADO')).length;
-    const pendientes = peds.length - aprobados;
-    const ganancia = rv.gananciaTotal || rv.ganancia || 0;
-    const facturacion = rv.facturacionTotal || rv.facturacion || 0;
-
-    let html = `
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
-        <button class="btn-head" style="flex-shrink:0" onclick="activeRevendedor=null;renderRevendedoresView()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="15 18 9 12 15 6"/></svg>
-            Volver
-        </button>
-        <div class="rv-avatar rv-avatar-lg">${nombre.charAt(0).toUpperCase()}</div>
-        <div>
-            <div style="font-size:17px;font-weight:700">${esc(nombre)}</div>
-            ${codigo ? `<div style="font-size:12px;color:var(--blue);font-weight:600">Cód: ${esc(codigo)}</div>` : ''}
-        </div>
-    </div>
-    <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);margin-bottom:20px">
-        <div class="kpi"><div class="kpi-lbl">Total pedidos</div><div class="kpi-val">${peds.length}</div></div>
-        <div class="kpi"><div class="kpi-lbl">Aprobados</div><div class="kpi-val" style="color:var(--green)">${aprobados}</div></div>
-        <div class="kpi"><div class="kpi-lbl">Pendientes</div><div class="kpi-val" style="color:var(--amber)">${pendientes}</div></div>
-        ${ganancia ? `<div class="kpi"><div class="kpi-lbl">Ganancia</div><div class="kpi-val" style="color:var(--green)">$${Math.round(ganancia).toLocaleString()}</div></div>` : ''}
-        ${facturacion ? `<div class="kpi"><div class="kpi-lbl">Facturación</div><div class="kpi-val">$${Math.round(facturacion).toLocaleString()}</div></div>` : ''}
-        ${rv.email ? `<div class="kpi"><div class="kpi-lbl">Email</div><div class="kpi-val" style="font-size:12px;word-break:break-all">${esc(rv.email)}</div></div>` : ''}
-    </div>`;
-
-    // Nichos
-    const nichos = { perfumes:0, belleza:0, calzados:0, bazar:0, jugueteria:0, libreria:0, multishop:0 };
-    peds.forEach(p => { const c = cat(p); if (nichos[c] !== undefined) nichos[c]++; });
-    const totalNicho = peds.length || 1;
-    if (peds.length) {
-        html += `<div class="section-block"><h2 class="section-title">Distribución por categoría</h2>
-        <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(110px,1fr))">
-            <div class="kpi"><div class="kpi-lbl">Calzados Importados</div><div class="kpi-val">${nichos.calzados}</div></div>
-            <div class="kpi"><div class="kpi-lbl">Perfumería</div><div class="kpi-val">${nichos.perfumes}</div></div>
-            <div class="kpi"><div class="kpi-lbl">Belleza y Cuidado Personal</div><div class="kpi-val">${nichos.belleza}</div></div>
-            <div class="kpi"><div class="kpi-lbl">Bazar</div><div class="kpi-val">${nichos.bazar}</div></div>
-            <div class="kpi"><div class="kpi-lbl">Juguetería</div><div class="kpi-val">${nichos.jugueteria}</div></div>
-            <div class="kpi"><div class="kpi-lbl">Librería</div><div class="kpi-val">${nichos.libreria}</div></div>
-            <div class="kpi"><div class="kpi-lbl">Multishop</div><div class="kpi-val">${nichos.multishop}</div></div>
-        </div></div>`;
-    }
-
-    el.innerHTML = html;
-}
+// 🧹 LIMPIEZA: se eliminó renderRevendedorDetalle() — usaba el
+// esquema de datos viejo (p.estadoPago, rv.pedidos array), reemplazada
+// por renderRevendedoresView(). Sin ningún llamado real.
 
 // Sin Firebase — autenticación desactivada en modo demo/local
 
