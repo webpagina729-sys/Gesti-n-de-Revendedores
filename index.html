@@ -829,8 +829,8 @@
                 </button>
                 <div class="cat-confirm-drawer" id="cat-confirm-drawer">
                     <div class="cat-group">
-                        <button class="cat-ribbon active" id="tbtn-calzados" onclick="switchTab('calzados')">Calzados Importados <span class="cat-ribbon-badge" id="pill-calzados">0</span></button>
-                        <div class="tab-pane active" id="pane-calzados">
+                        <button class="cat-ribbon" id="tbtn-calzados" onclick="switchTab('calzados')">Calzados Importados <span class="cat-ribbon-badge" id="pill-calzados">0</span></button>
+                        <div class="tab-pane" id="pane-calzados">
                             <div class="stats-row" id="stats-calzados"></div>
                             <div id="list-calzados"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
                         </div>
@@ -1892,7 +1892,7 @@ function precioMayoristaItem(item) {
 }
 
 let pedidos         = [];
-let activeTab       = 'calzados';
+let activeTab       = null;
 let activeStatus    = 'pendiente';
 let deleteTarget    = null;
 let currentCode     = '';
