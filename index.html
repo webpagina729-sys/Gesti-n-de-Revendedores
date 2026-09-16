@@ -371,6 +371,12 @@
            el HTML decidía cuál pintaba encima, y terminaba quedando atrás.
            Ahora siempre pinta por encima de cualquier otro modal-overlay. */
         #send-all-modal { z-index: 9500; }
+        /* 🔧 FIX: mismo problema que send-all-modal — "mover-pedido-modal"
+           (el modal de "¿A dónde enviar los pedidos?" al vaciar la lista)
+           se abre ARRIBA del modal de Pedidos Confirmados, y al compartir
+           el mismo z-index base quedaba tapado detrás, dando la sensación
+           de que el botón "Vaciar lista" no hacía nada. */
+        #mover-pedido-modal { z-index: 9500; }
         .modal-overlay.show { display: flex; }
         .modal-box { background: var(--bg2); border: 1px solid var(--border2); border-radius: 14px; width: 100%; max-width: 380px; padding: 24px; box-shadow: var(--shadow-lg); }
         .modal-icon { width: 42px; height: 42px; border-radius: 10px; background: var(--red-pale); display: flex; align-items: center; justify-content: center; margin-bottom: 14px; }
