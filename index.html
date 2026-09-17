@@ -877,6 +877,13 @@
                         </div>
                     </div>
                     <div class="cat-group">
+                        <button class="cat-ribbon" id="tbtn-lenceria" onclick="switchTab('lenceria')">Conjuntos/Lencería <span class="cat-ribbon-badge" id="pill-lenceria">0</span></button>
+                        <div class="tab-pane" id="pane-lenceria">
+                            <div class="stats-row" id="stats-lenceria"></div>
+                            <div id="list-lenceria"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
+                        </div>
+                    </div>
+                    <div class="cat-group">
                         <button class="cat-ribbon" id="tbtn-multishop" onclick="switchTab('multishop')">Multishop <span class="cat-ribbon-badge" id="pill-multishop">0</span></button>
                         <div class="tab-pane" id="pane-multishop">
                             <div class="stats-row" id="stats-multishop"></div>
@@ -2821,6 +2828,7 @@ function cat(p) {
         if (n === 'bazar') return 'bazar';
         if (n === 'jugueteria' || n === 'juguetería') return 'jugueteria';
         if (n === 'libreria' || n === 'librería') return 'libreria';
+        if (n === 'lenceria' || n === 'lencería' || n.includes('lencer') || n.includes('conjunto')) return 'lenceria';
         if (n === 'multishop') return 'multishop';
     }
     const items = p.items || [];
@@ -3615,13 +3623,13 @@ async function _fetchPedidosFirestoreUsuario() {
 }
 
 function loadData() {
-    ['perfumes','belleza','calzados','bazar','jugueteria','libreria','multishop'].forEach(k => {
+    ['perfumes','belleza','calzados','bazar','jugueteria','libreria','lenceria','multishop'].forEach(k => {
         document.getElementById('list-'+k).innerHTML =
             '<div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div>';
     });
 
     if (!currentCode) {
-        ['perfumes','belleza','calzados','bazar','jugueteria','libreria','multishop'].forEach(k => {
+        ['perfumes','belleza','calzados','bazar','jugueteria','libreria','lenceria','multishop'].forEach(k => {
             document.getElementById('list-'+k).innerHTML =
                 `<div class="empty"><div class="empty-icon">⚠️</div><h3>Sin sesión</h3><p>No hay código de revendedor activo.</p></div>`;
         });
@@ -3737,7 +3745,7 @@ function loadData() {
         } catch(e) {
             console.error('loadData error:', e);
             toast('Error al cargar: ' + e.message, 'err');
-            ['perfumes','belleza','calzados','bazar','jugueteria','libreria','multishop'].forEach(k => {
+            ['perfumes','belleza','calzados','bazar','jugueteria','libreria','lenceria','multishop'].forEach(k => {
                 document.getElementById('list-'+k).innerHTML =
                     `<div class="empty"><div class="empty-icon">⚠️</div><h3>Error</h3><p>${esc(e.message)}</p></div>`;
             });
@@ -3784,7 +3792,7 @@ function renderAll() {
     actualizarContadoresEstado();
 
     let totalTodas = 0;
-    ['perfumes','belleza','calzados','bazar','jugueteria','libreria','multishop'].forEach(k => {
+    ['perfumes','belleza','calzados','bazar','jugueteria','libreria','lenceria','multishop'].forEach(k => {
         const n = cats[k].length;
         totalTodas += n;
         const badge = document.getElementById('pill-'+k);
@@ -5088,7 +5096,7 @@ function renderStatsView() {
     // partir el contador de unidades, que siempre queda en una sola línea
     // al lado. Cada categoría ahora es su propia cinta colapsable.
     catHtml += `<div class="section-block"><h2 class="section-title">Productos más pedidos por categoría</h2>`;
-    ['calzados','perfumes','belleza','bazar','jugueteria','libreria','multishop'].forEach(c => {
+    ['calzados','perfumes','belleza','bazar','jugueteria','libreria','lenceria','multishop'].forEach(c => {
         const freq = freqMap[c];
         if (!freq || !Object.keys(freq).length) return;
         const sorted = Object.entries(freq).sort((a,b) => b[1]-a[1]).slice(0, 10);
@@ -5330,6 +5338,7 @@ function renderGananciasView() {
             { k:'bazar', l:'Bazar' },
             { k:'jugueteria', l:'Juguetería' },
             { k:'libreria', l:'Librería' },
+            { k:'lenceria', l:'Conjuntos/Lencería' },
             { k:'multishop', l:'Multishop' }
         ];
         nichos.forEach((n, i) => {
@@ -5347,7 +5356,7 @@ function renderGananciasView() {
 
         // Configuración de márgenes activa
         html += `<div class="section-block"><h2 class="section-title">Mi configuración de márgenes</h2>`;
-        const cats = ['perfumes','belleza','calzados','bazar','jugueteria','libreria','multishop','general'];
+        const cats = ['perfumes','belleza','calzados','bazar','jugueteria','libreria','lenceria','multishop','general'];
         cats.forEach(c => {
             const cfg = configTienda[c];
             if (!cfg || !Array.isArray(cfg.rangos) || !cfg.rangos.length) return;
