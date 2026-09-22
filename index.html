@@ -940,6 +940,7 @@
     <div class="modal-box">
         <h3 id="avisoModalTitulo"></h3>
         <p id="avisoModalSubtitulo" style="font-weight:600;margin-top:-8px"></p>
+        <img id="avisoModalImagen" src="" alt="" style="display:none;width:100%;border-radius:10px;margin:4px 0;max-height:200px;object-fit:cover;" onerror="this.style.display='none'">
         <p id="avisoModalTexto" style="white-space:pre-wrap"></p>
         <div class="modal-actions" style="flex-direction:column">
             <a id="avisoModalBoton" href="#" target="_blank" rel="noopener" class="modal-confirm-btn" style="background:var(--green);display:none;text-align:center;text-decoration:none;width:100%;box-sizing:border-box" onclick="cerrarAvisoModal()">Ver más</a>
@@ -1825,6 +1826,7 @@ function mostrarAvisoModalSi(aviso) {
 
     const titulo = document.getElementById('avisoModalTitulo');
     const subtitulo = document.getElementById('avisoModalSubtitulo');
+    const imagen = document.getElementById('avisoModalImagen');
     const texto = document.getElementById('avisoModalTexto');
     const boton = document.getElementById('avisoModalBoton');
     const modal = document.getElementById('aviso-modal');
@@ -1833,6 +1835,13 @@ function mostrarAvisoModalSi(aviso) {
     titulo.textContent = aviso.titulo || '';
     subtitulo.textContent = aviso.subtitulo || '';
     subtitulo.style.display = aviso.subtitulo ? 'block' : 'none';
+    if (aviso.imagen) {
+        imagen.src = 'https://raw.githubusercontent.com/webpagina729-sys/Avisos/main/' + aviso.imagen;
+        imagen.alt = aviso.titulo || '';
+        imagen.style.display = 'block';
+    } else {
+        imagen.style.display = 'none';
+    }
     texto.textContent = aviso.texto || '';
     texto.style.display = aviso.texto ? 'block' : 'none';
     if (aviso.enlace && aviso.textoBoton) {
