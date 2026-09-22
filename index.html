@@ -1824,6 +1824,13 @@ function mostrarAvisoModalSi(aviso) {
     try { vistos = JSON.parse(localStorage.getItem('avisosVistos') || '[]'); } catch(e) {}
     if (vistos.includes(aviso.id)) return;
 
+    // 🔧 NUEVO: los avisos son para revendedores ya activos al momento
+    // de publicarse, no para los que se van registrando después.
+    // Cuentas de ANTES de este cambio no tienen fechaAlta guardada
+    // (null) — esas SIEMPRE se consideran activas.
+    const fechaAlta = typeof currentVendorProfile !== 'undefined' && currentVendorProfile && currentVendorProfile.fechaAlta;
+    if (fechaAlta && aviso.timestamp && fechaAlta > aviso.timestamp) return;
+
     const titulo = document.getElementById('avisoModalTitulo');
     const subtitulo = document.getElementById('avisoModalSubtitulo');
     const imagen = document.getElementById('avisoModalImagen');
@@ -3134,7 +3141,8 @@ function _normalizarVendedor(uid, fbUser, data) {
         codigoVendedor: codigo,
         nombre: u.nombre || nombreFallback || '',
         apellido: u.apellido || apellidoFallback || '',
-        configTienda: u.configTienda || u.config || {}
+        configTienda: u.configTienda || u.config || {},
+        fechaAlta: u.fechaAlta || null
     };
 }
 
@@ -3211,7 +3219,8 @@ function _guardarSesion(uid, data, fbUser) {
         direccion:          data.direccion || '',
         ciudad:             data.ciudad || '',
         provincia:          data.provincia || '',
-        codigoPostal:       data.codigoPostal || ''
+        codigoPostal:       data.codigoPostal || '',
+        fechaAlta:          data.fechaAlta || null
     };
     const sess = {
         code:     currentCode,
