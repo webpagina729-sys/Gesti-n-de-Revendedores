@@ -935,6 +935,19 @@
     </div>
 </div>
 
+<!-- ══ MODAL AVISO (publicado desde pedidos.html) ══ -->
+<div class="modal-overlay" id="aviso-modal">
+    <div class="modal-box">
+        <h3 id="avisoModalTitulo"></h3>
+        <p id="avisoModalSubtitulo" style="font-weight:600;margin-top:-8px"></p>
+        <p id="avisoModalTexto" style="white-space:pre-wrap"></p>
+        <div class="modal-actions" style="flex-direction:column">
+            <a id="avisoModalBoton" href="#" target="_blank" rel="noopener" class="modal-confirm-btn" style="background:var(--green);display:none;text-align:center;text-decoration:none;width:100%;box-sizing:border-box" onclick="cerrarAvisoModal()">Ver más</a>
+            <button class="modal-cancel" style="width:100%" onclick="cerrarAvisoModal()">Cerrar</button>
+        </div>
+    </div>
+</div>
+
 <!-- ══ MODAL ¿TUS DATOS SON CORRECTOS? ══ -->
 <!-- 🔧 NUEVO: antes de llegar al pago, se confirman los datos de envío
      del revendedor (los que pedidos.html usa para "Ejecutar Pedido"). -->
@@ -1800,6 +1813,59 @@ const CATALOGO_PRECIOS_REF = {
 // paga a precio mayorista. Este panel calcula la ganancia del REVENDEDOR:
 // precio de la plataforma (acá) contra lo que le cobró al cliente — son dos
 // cuentas totalmente distintas y no deben mezclarse.
+// 🔧 NUEVO: aviso publicado desde pedidos.html → 📢 Avisos. Se muestra
+// una única vez por aviso (guardado por id en localStorage, no un
+// booleano único) — así, aunque el revendedor ya haya cerrado un aviso
+// anterior, uno NUEVO sí se le muestra.
+function mostrarAvisoModalSi(aviso) {
+    if (!aviso || !aviso.publicado || !aviso.id) return;
+    let vistos = [];
+    try { vistos = JSON.parse(localStorage.getItem('avisosVistos') || '[]'); } catch(e) {}
+    if (vistos.includes(aviso.id)) return;
+
+    const titulo = document.getElementById('avisoModalTitulo');
+    const subtitulo = document.getElementById('avisoModalSubtitulo');
+    const texto = document.getElementById('avisoModalTexto');
+    const boton = document.getElementById('avisoModalBoton');
+    const modal = document.getElementById('aviso-modal');
+    if (!modal || !titulo) return;
+
+    titulo.textContent = aviso.titulo || '';
+    subtitulo.textContent = aviso.subtitulo || '';
+    subtitulo.style.display = aviso.subtitulo ? 'block' : 'none';
+    texto.textContent = aviso.texto || '';
+    texto.style.display = aviso.texto ? 'block' : 'none';
+    if (aviso.enlace && aviso.textoBoton) {
+        boton.href = aviso.enlace;
+        boton.textContent = aviso.textoBoton;
+        boton.style.display = 'block';
+    } else {
+        boton.style.display = 'none';
+    }
+    window._avisoActualId = aviso.id;
+    modal.classList.add('show');
+}
+
+function cerrarAvisoModal() {
+    const modal = document.getElementById('aviso-modal');
+    if (modal) modal.classList.remove('show');
+    if (window._avisoActualId) {
+        try {
+            let vistos = [];
+            try { vistos = JSON.parse(localStorage.getItem('avisosVistos') || '[]'); } catch(e) {}
+            if (!vistos.includes(window._avisoActualId)) vistos.push(window._avisoActualId);
+            localStorage.setItem('avisosVistos', JSON.stringify(vistos.slice(-50)));
+        } catch(e) {}
+    }
+}
+
+fetch('https://panelgestionestados.tuweb.workers.dev/api/aviso')
+    .then(r => r.json())
+    .then(data => {
+        if (data && data.ok) mostrarAvisoModalSi(data.aviso);
+    })
+    .catch(() => {});
+
 let CATALOGO_PRECIOS_WORKER = {};
 (function cargarCatalogoPreciosWorker() {
     try {
