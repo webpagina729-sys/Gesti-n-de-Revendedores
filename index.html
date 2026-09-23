@@ -1386,7 +1386,6 @@ const WORKER_MAYORISTA  = 'https://workerpagos.tuweb.workers.dev';       // solo
 // pasa acá — sin esto, un pedido eliminado o "no aprobado" acá podía
 // seguir viéndose ahí para siempre.
 const WORKER_ESTADOS    = 'https://panelgestionestados.tuweb.workers.dev';
-const WORKER_PRINCIPAL  = 'https://panelprincipalrw.tuweb.workers.dev';  // panel dueño
 const S_KEY = 'rw_reseller_v1';
 const D_KEY = 'rw_reseller_del_v1';
 
@@ -3801,30 +3800,15 @@ function loadData() {
                 }
             });
 
-            // Pedidos aprobados que vienen del panel principal (cambiarEstadoPedido en index.html)
-            // El worker guarda el estado pero los DATOS vienen siempre de workerwebcliente.
-            // Aquí solo actualizamos estado si el worker principal indica que fue aprobado.
-            try {
-                const urlApro = `${WORKER_PRINCIPAL}/api/pedidos?codigo=${encodeURIComponent(currentCode)}`;
-                const ctrl2 = new AbortController();
-                const t2 = setTimeout(() => ctrl2.abort(), 6000);
-                const resApro = await fetch(urlApro, { signal: ctrl2.signal });
-                clearTimeout(t2);
-                if (resApro.ok) {
-                    const dataApro = await resApro.json().catch(() => null);
-                    const aprobados = Array.isArray(dataApro?.pedidos) ? dataApro.pedidos
-                                   : Array.isArray(dataApro)           ? dataApro : [];
-                    aprobados.forEach(ap => {
-                        const pid = ap.pedidoId || ap.id;
-                        if (!pid) return;
-                        const idx = seen.get(pid);
-                        if (idx !== undefined) {
-                            // SOLO cambiar estado — preservar todos los datos/precios
-                            pedidos[idx].estado = 'pagado';
-                        }
-                    });
-                }
-            } catch(_) {}
+            // 🔧 FIX: acá había una llamada a panelprincipalrw.tuweb.workers.dev
+            // (un Worker de una versión anterior del sistema) que SIEMPRE
+            // fallaba por CORS — ese Worker nunca tuvo este dominio
+            // autorizado, y no está bajo mantenimiento. Generaba ruido en
+            // la consola en cada carga sin aportar nada: el estado
+            // "pagado"/"aprobado" de cada pedido ya llega correctamente
+            // desde workerwebcliente y desde usuarios/{uid}/pedidos en
+            // Firestore (ambos arriba), que es donde index.html realmente
+            // escribe cuando el dueño aprueba un pedido.
 
             pedidos.sort((a,b) => (b.fechaCreacion?.seconds||0) - (a.fechaCreacion?.seconds||0));
 
