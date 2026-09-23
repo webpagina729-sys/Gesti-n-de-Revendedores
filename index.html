@@ -3884,7 +3884,7 @@ function renderAll() {
     // que todavía están pendientes de confirmar y se genera confusión.
     const confirmadosIds = new Set(getPedidoList().map(x => x.id));
     const filtered = pedidos.filter(p => p.estado === activeStatus && !(p.estado === 'pagado' && confirmadosIds.has(p.id)));
-    const cats = { perfumes:[], belleza:[], calzados:[], bazar:[], jugueteria:[], libreria:[], multishop:[] };
+    const cats = { perfumes:[], belleza:[], calzados:[], bazar:[], jugueteria:[], libreria:[], lenceria:[], suplementos:[], multishop:[] };
     filtered.forEach(p => { const c = cat(p); if (cats[c]) cats[c].push(p); });
     actualizarContadoresEstado();
 
@@ -4068,11 +4068,13 @@ const MINIMO_POR_CATEGORIA = {
     bazar:       { tipo: 'monto', valor: 150000 },
     jugueteria:  { tipo: 'monto', valor: 150000 },
     libreria:    { tipo: 'monto', valor: 150000 },
+    lenceria:    { tipo: 'monto', valor: 150000 },
+    suplementos: { tipo: 'monto', valor: 150000 },
     multishop:   { tipo: 'monto', valor: 250000 },
 };
 const NICHO_LABEL_PEDLISTA = {
     perfumes: 'Perfumería', belleza: 'Belleza y Cuidado Personal', calzados: 'Calzados Importados',
-    bazar: 'Bazar', jugueteria: 'Juguetería', libreria: 'Librería', multishop: 'Multishop'
+    bazar: 'Bazar', jugueteria: 'Juguetería', libreria: 'Librería', lenceria: 'Conjuntos/Lencería', suplementos: 'Salud/Suplementos', multishop: 'Multishop'
 };
 
 function getPedidoList() {
@@ -5156,7 +5158,7 @@ function renderStatsView() {
     html += `</div>`;
 
     // Distribución por nicho — 🔧 usa solo confirmados/pagados
-    const byNicho = { perfumes: 0, calzados: 0, belleza: 0, bazar: 0, jugueteria: 0, libreria: 0, multishop: 0 };
+    const byNicho = { perfumes: 0, calzados: 0, belleza: 0, bazar: 0, jugueteria: 0, libreria: 0, lenceria: 0, suplementos: 0, multishop: 0 };
     pedidosConfirmadosOPagados.forEach(p => { const c = cat(p); if (byNicho[c] !== undefined) byNicho[c]++; });
 
     // Frecuencia de productos por categoría — 🔧 usa solo confirmados/pagados
@@ -5170,10 +5172,10 @@ function renderStatsView() {
         });
     });
 
-    const nichoLabels = { calzados:'Calzados Importados', perfumes:'Perfumería', belleza:'Belleza y Cuidado Personal', bazar:'Bazar', jugueteria:'Juguetería', libreria:'Librería', multishop:'Multishop' };
+    const nichoLabels = { calzados:'Calzados Importados', perfumes:'Perfumería', belleza:'Belleza y Cuidado Personal', bazar:'Bazar', jugueteria:'Juguetería', libreria:'Librería', lenceria:'Conjuntos/Lencería', suplementos:'Salud/Suplementos', multishop:'Multishop' };
     // Nombres cortos para el grid compacto — se ven completos igual, solo
     // más breves para que quepan sin cortarse en tarjetas chicas.
-    const nichoLabelsCortos = { calzados:'Calzados Imp.', perfumes:'Perfumería', belleza:'Belleza y C.P.', bazar:'Bazar', jugueteria:'Juguetería', libreria:'Librería', multishop:'Multishop' };
+    const nichoLabelsCortos = { calzados:'Calzados Imp.', perfumes:'Perfumería', belleza:'Belleza y C.P.', bazar:'Bazar', jugueteria:'Juguetería', libreria:'Librería', lenceria:'Lencería', suplementos:'Suplementos', multishop:'Multishop' };
     let catHtml = `<div class="section-block"><h2 class="section-title">Por categoría</h2>
         <div class="kpi-grid-compact">
             <div class="kpi-compact"><div class="kpi-lbl">${nichoLabelsCortos.calzados}</div><div class="kpi-val">${byNicho.calzados || 0}</div></div>
@@ -5182,6 +5184,8 @@ function renderStatsView() {
             <div class="kpi-compact"><div class="kpi-lbl">${nichoLabelsCortos.bazar}</div><div class="kpi-val">${byNicho.bazar || 0}</div></div>
             <div class="kpi-compact"><div class="kpi-lbl">${nichoLabelsCortos.jugueteria}</div><div class="kpi-val">${byNicho.jugueteria || 0}</div></div>
             <div class="kpi-compact"><div class="kpi-lbl">${nichoLabelsCortos.libreria}</div><div class="kpi-val">${byNicho.libreria || 0}</div></div>
+            <div class="kpi-compact"><div class="kpi-lbl">${nichoLabelsCortos.lenceria}</div><div class="kpi-val">${byNicho.lenceria || 0}</div></div>
+            <div class="kpi-compact"><div class="kpi-lbl">${nichoLabelsCortos.suplementos}</div><div class="kpi-val">${byNicho.suplementos || 0}</div></div>
             <div class="kpi-compact"><div class="kpi-lbl">${nichoLabelsCortos.multishop}</div><div class="kpi-val">${byNicho.multishop || 0}</div></div>
         </div>
     </div>`;
