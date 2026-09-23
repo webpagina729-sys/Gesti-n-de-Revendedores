@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Revende Ways | Cambios y Devoluciones</title>
+<meta name="description" content="Formulario de cambios y devoluciones exclusivo para revendedores de Revende Ways.">
+<link rel="icon" type="image/png" href="logo.png">
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --primary:#0066ff; --primary-light:#0052cc;
+  --black:#0b0b0d; --black-soft:#16171a; --black-line:#26272b;
+  --bg:#f9fafb; --surface:#fff; --text:#1a1a1a; --text-light:#666;
+  --border:#e5e5e5; --gray-light:#f3f4f6; --success:#00a650; --danger:#d93025;
+  --radius:8px; --font:'DM Sans',sans-serif;
+  --shadow:0 1px 3px rgba(0,0,0,.08); --shadow-lg:0 4px 12px rgba(0,0,0,.12);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+a{color:inherit}
+/* HEADER */
+.header{position:sticky;top:0;z-index:900;background:var(--black);border-bottom:1px solid var(--black-line);padding:12px 16px}
+.header-inner{max-width:900px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.logo{font-size:19px;font-weight:700;color:#fff;text-decoration:none;letter-spacing:-.4px}
+.logo span{color:var(--primary)}
+.ghost-btn{background:transparent;color:#fff;border:1px solid var(--black-line);padding:7px 14px;border-radius:var(--radius);cursor:pointer;font-weight:600;font-size:12px;font-family:var(--font);transition:.2s}
+.ghost-btn:hover{border-color:var(--primary);color:var(--primary)}
+/* HERO */
+.hero{background:linear-gradient(135deg,var(--black) 0%,#1b1c20 100%);color:#fff;padding:36px 16px 44px}
+.hero-inner{max-width:900px;margin:0 auto}
+.badge{display:inline-block;background:var(--primary);color:#fff;padding:5px 12px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase}
+.hero h1{font-size:28px;font-weight:700;line-height:1.2;margin:14px 0 8px;letter-spacing:-.6px}
+.hero p{color:#b6b8bd;font-size:14px;max-width:620px}
+/* CARD */
+.wrap{max-width:900px;margin:-24px auto 60px;padding:0 16px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow-lg);padding:24px}
+.section-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--black);margin:26px 0 14px;padding-left:10px;border-left:3px solid var(--primary)}
+.section-title:first-child{margin-top:0}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field.full{grid-column:1/-1}
+label{font-size:13px;font-weight:600;color:var(--text)}
+label .req{color:var(--danger)}
+input,select,textarea{width:100%;padding:11px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);font-size:14px;font-family:var(--font);color:var(--text);transition:.2s}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(0,102,255,.12)}
+textarea{resize:vertical;min-height:90px}
+.hint{font-size:12px;color:var(--text-light)}
+.counter{font-size:12px;color:var(--text-light);text-align:right}
+.counter.warn{color:var(--danger)}
+.drop{border:1.5px dashed var(--border);border-radius:var(--radius);padding:20px;text-align:center;cursor:pointer;background:var(--gray-light);transition:.2s}
+.drop:hover{border-color:var(--primary);background:#f4f8ff}
+.drop strong{color:var(--primary)}
+.thumbs{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+.thumb{position:relative;width:78px;height:78px;border-radius:var(--radius);overflow:hidden;border:1px solid var(--border)}
+.thumb img{width:100%;height:100%;object-fit:cover}
+.thumb button{position:absolute;top:2px;right:2px;width:20px;height:20px;border:none;border-radius:50%;background:rgba(11,11,13,.8);color:#fff;cursor:pointer;font-size:12px;line-height:1}
+.check{display:flex;gap:10px;align-items:flex-start;background:var(--black);color:#e8e9ec;padding:16px;border-radius:var(--radius);font-size:13px;line-height:1.55}
+.check input{width:18px;height:18px;flex-shrink:0;margin-top:2px;accent-color:var(--primary)}
+.submit{width:100%;margin-top:20px;padding:14px;background:var(--primary);color:#fff;border:none;border-radius:var(--radius);font-size:15px;font-weight:700;font-family:var(--font);cursor:pointer;transition:.2s}
+.submit:hover{background:var(--primary-light)}
+.submit:disabled{opacity:.6;cursor:not-allowed}
+.msg{margin-top:14px;padding:12px 14px;border-radius:var(--radius);font-size:14px;display:none}
+.msg.err{display:block;background:#fdecea;color:var(--danger);border:1px solid #f6c9c4}
+.msg.ok{display:block;background:#e8f7ee;color:var(--success);border:1px solid #bfe7cf}
+.success-box{text-align:center;padding:36px 16px}
+.success-box .tick{width:58px;height:58px;border-radius:50%;background:var(--success);color:#fff;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 16px}
+.ticket{display:inline-block;background:var(--black);color:#fff;padding:10px 18px;border-radius:var(--radius);font-weight:700;letter-spacing:1px;margin:10px 0}
+/* ADMIN */
+.filters{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.reclamo{border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:12px;background:var(--surface)}
+.reclamo-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.num{font-weight:700;color:var(--black)}
+.pill{font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;background:var(--gray-light);color:var(--black)}
+.pill.Pendiente{background:#fff4e0;color:#a35b00}
+.pill.Aprobado,.pill.Resuelto{background:#e8f7ee;color:var(--success)}
+.pill.Rechazado{background:#fdecea;color:var(--danger)}
+.dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px 16px;margin:12px 0;font-size:13px}
+.dl div span{display:block;color:var(--text-light);font-size:11px;text-transform:uppercase;letter-spacing:.4px}
+.evid{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.evid img{width:74px;height:74px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:pointer}
+.admin-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.admin-actions select,.admin-actions input{width:auto;flex:1;min-width:150px}
+.small-btn{background:var(--black);color:#fff;border:none;padding:10px 16px;border-radius:var(--radius);font-weight:600;font-size:13px;font-family:var(--font);cursor:pointer}
+.small-btn:hover{background:var(--primary)}
+.hidden{display:none!important}
+@media(max-width:700px){.grid{grid-template-columns:1fr}.filters{grid-template-columns:1fr 1fr}.hero h1{font-size:23px}.card{padding:18px}}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-inner">
+    <a href="/" class="logo">Revende<span>Ways</span></a>
+  </div>
+</header>
+
+<!-- ══════════ FORMULARIO ══════════ -->
+<div id="viewForm">
+  <section class="hero">
+    <div class="hero-inner">
+      <span class="badge">Solo revendedores</span>
+      <h1>Cambios y Devoluciones</h1>
+      <p>Completá el formulario para reportar un problema con productos recibidos en tu pedido. Vas a recibir un número de reclamo para hacer el seguimiento.</p>
+    </div>
+  </section>
+
+  <div class="wrap">
+    <div class="card" id="cardForm">
+      <form id="form" novalidate>
+        <div class="section-title">Datos del pedido</div>
+        <div class="grid">
+          <div class="field">
+            <label>Código de Revendedor <span class="req">*</span></label>
+            <input id="codigo" required autocomplete="off" placeholder="Ej: RW1234">
+            <div class="hint" id="codigoHint">Validamos que el código esté registrado.</div>
+          </div>
+          <div class="field">
+            <label>Número de Pedido <span class="req">*</span></label>
+            <input id="pedido" required autocomplete="off" placeholder="Ej: 10458">
+          </div>
+          <div class="field">
+            <label>Acción <span class="req">*</span></label>
+            <select id="accion" required>
+              <option value="">Seleccioná una opción</option>
+              <option>Cambio</option>
+              <option>Devolución</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Fecha de Recepción del Pedido <span class="req">*</span></label>
+            <input type="date" id="fecha" required>
+          </div>
+        </div>
+
+        <div class="section-title">Producto</div>
+        <div class="grid">
+          <div class="field">
+            <label>Categoría del Producto <span class="req">*</span></label>
+            <select id="categoria" required></select>
+          </div>
+          <div class="field">
+            <label>Cantidad de Unidades Afectadas <span class="req">*</span></label>
+            <input type="number" id="cantidad" min="1" step="1" value="1" required>
+          </div>
+          <div class="field full" id="productosWrap"></div>
+        </div>
+
+        <div class="section-title">Detalle del reclamo</div>
+        <div class="grid">
+          <div class="field full">
+            <label>Motivo del Reclamo <span class="req">*</span></label>
+            <textarea id="motivo" maxlength="150" required placeholder="Resumí el problema en pocas palabras"></textarea>
+            <div class="counter" id="cMotivo">150 caracteres restantes</div>
+          </div>
+          <div class="field full">
+            <label>Descripción Detallada del Reclamo <span class="req">*</span></label>
+            <textarea id="descripcion" maxlength="1000" required style="min-height:130px" placeholder="Contanos todo lo relevante: qué pasó, cuándo lo detectaste, estado del producto, etc."></textarea>
+            <div class="counter" id="cDesc">1000 caracteres restantes</div>
+          </div>
+          <div class="field full">
+            <label>Adjuntar Evidencia</label>
+            <div class="drop" id="drop">
+              <strong>Subí tus fotos</strong><br>
+              <span class="hint">JPG, JPEG, PNG o WEBP · máximo 5 imágenes · hasta 10 MB cada una</span>
+            </div>
+            <input type="file" id="files" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" multiple class="hidden">
+            <div class="thumbs" id="thumbs"></div>
+          </div>
+        </div>
+
+        <div class="section-title">Declaración jurada</div>
+        <label class="check">
+          <input type="checkbox" id="declaracion" required>
+          <span>Declaro que el producto reclamado fue recibido mediante un pedido de Revende Ways y que la información proporcionada es verdadera. Asimismo declaro que el producto se encuentra disponible para verificación y que las evidencias adjuntas corresponden al reclamo realizado.</span>
+        </label>
+        <p style="margin:8px 0 0 30px"><a href="https://politicarevendedor.tuweb.workers.dev/" target="_blank" rel="noopener" style="color:#0066ff;font-weight:600;text-decoration:underline">Leer políticas de devoluciones</a></p>
+
+        <div id="turnstile-reclamo" class="cf-turnstile" data-sitekey="0x4AAAAAAEuP7UTtW1odDnHM" data-size="normal" data-execution="execute" data-callback="onTurnstileReclamoOk" style="margin-top:16px"></div>
+
+        <button type="submit" class="submit" id="btnEnviar">Enviar reclamo</button>
+        <div class="msg" id="msg"></div>
+      </form>
+    </div>
+
+    <div class="card hidden" id="cardOk">
+      <div class="success-box">
+        <div class="tick">✓</div>
+        <h2 style="font-size:20px">Reclamo registrado</h2>
+        <p class="hint">Guardá este número para el seguimiento de tu caso.</p>
+        <div class="ticket" id="okNumero"></div>
+        <p class="hint">Estado inicial: <strong>Pendiente</strong>. Vamos a revisar la información y las evidencias enviadas.</p>
+        <button class="small-btn" style="margin-top:18px" onclick="location.reload()">Cargar otro reclamo</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const WORKER = 'https://datosderevendedor.tuweb.workers.dev';
+const CATEGORIAS = ['Perfumería','Belleza y Cuidado Personal','Lencería','Suplementos','Calzados importados','Bazar','Librería','Juguetería','Multishop'];
+
+const $ = (id) => document.getElementById(id);
+
+// ── Selects
+$('categoria').innerHTML = '<option value="">Seleccioná una categoría</option>' + CATEGORIAS.map(c => `<option>${c}</option>`).join('');
+$('fecha').max = new Date().toISOString().slice(0, 10);
+
+// ── Contadores
+function contador(inputId, labelId, max) {
+  const el = $(inputId), lbl = $(labelId);
+  el.addEventListener('input', () => {
+    const rest = max - el.value.length;
+    lbl.textContent = `${rest} caracteres restantes`;
+    lbl.classList.toggle('warn', rest <= 20);
+  });
+}
+contador('motivo', 'cMotivo', 150);
+contador('descripcion', 'cDesc', 1000);
+
+// ── Evidencias (hasta 5 imágenes, hasta 10MB cada una)
+let archivos = [];
+$('drop').addEventListener('click', () => $('files').click());
+$('files').addEventListener('change', (e) => {
+  const permitidos = ['image/jpeg', 'image/png', 'image/webp'];
+  for (const f of Array.from(e.target.files)) {
+    if (archivos.length >= 5) { error('Podés adjuntar hasta 5 imágenes.'); break; }
+    if (!permitidos.includes(f.type)) { error(`"${f.name}" no es JPG, PNG ni WEBP.`); continue; }
+    if (f.size > 10 * 1024 * 1024) { error(`"${f.name}" supera los 10 MB.`); continue; }
+    archivos.push(f);
+  }
+  e.target.value = '';
+  pintarThumbs();
+});
+function pintarThumbs() {
+  $('thumbs').innerHTML = '';
+  archivos.forEach((f, i) => {
+    const d = document.createElement('div');
+    d.className = 'thumb';
+    const img = document.createElement('img');
+    img.src = URL.createObjectURL(f);
+    const b = document.createElement('button');
+    b.type = 'button'; b.textContent = '×';
+    b.onclick = () => { archivos.splice(i, 1); pintarThumbs(); };
+    d.append(img, b);
+    $('thumbs').appendChild(d);
+  });
+}
+
+// Convierte un File a { base64 (sin el prefijo data:...;base64,), contentType, nombre }
+function archivoABase64(f) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const resultado = reader.result; // "data:image/png;base64,AAAA..."
+      const base64 = resultado.slice(resultado.indexOf(',') + 1);
+      resolve({ base64, contentType: f.type, nombre: f.name });
+    };
+    reader.onerror = () => reject(new Error('No pudimos leer una de las imágenes.'));
+    reader.readAsDataURL(f);
+  });
+}
+
+// ── Mensajes
+function error(t) { const m = $('msg'); m.className = 'msg err'; m.textContent = t; m.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+function limpiar() { $('msg').className = 'msg'; $('msg').textContent = ''; }
+
+// ── Nombres de producto por unidad
+function renderProductos() {
+  const n = Math.max(1, Math.min(50, parseInt($('cantidad').value, 10) || 1));
+  const wrap = $('productosWrap');
+  const previos = [...wrap.querySelectorAll('.prod-input')].map(i => i.value);
+  let html = '<label>Nombre Exacto del Producto <span class="req">*</span></label>';
+  for (let i = 0; i < n; i++) {
+    html += `<input class="prod-input" style="margin-bottom:8px" placeholder="${n > 1 ? 'Unidad ' + (i + 1) + ' — nombre tal cual figura en el catálogo' : 'Copiá el nombre tal cual figura en el catálogo'}" value="${(previos[i] || '').replace(/"/g, '&quot;')}">`;
+  }
+  wrap.innerHTML = html;
+}
+$('cantidad').addEventListener('input', renderProductos);
+renderProductos();
+
+// ── Turnstile
+let resolverTurnstile = null;
+window.onTurnstileReclamoOk = (token) => { if (resolverTurnstile) { resolverTurnstile(token); resolverTurnstile = null; } };
+function obtenerTokenTurnstile() {
+  return new Promise((resolve) => {
+    try {
+      if (typeof turnstile === 'undefined' || !$('turnstile-reclamo')) return resolve('');
+      resolverTurnstile = resolve;
+      turnstile.reset('#turnstile-reclamo');
+      turnstile.execute('#turnstile-reclamo');
+      setTimeout(() => { if (resolverTurnstile) { resolverTurnstile = null; resolve(''); } }, 12000);
+    } catch (e) { resolve(''); }
+  });
+}
+
+// ── Validar código contra el worker
+async function validarCodigo(codigo, turnstileToken) {
+  try {
+    const res = await fetch(`${WORKER}/api/validar-codigo-existe`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ codigo: codigo.trim().replace(/\s+/g, ''), turnstileToken })
+    });
+    if (!res.ok) return false;
+    const data = await res.json();
+    return !!(data && data.valido);
+  } catch (e) { return false; }
+}
+
+// ── Enviar
+$('form').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  limpiar();
+  const v = {
+    codigoRevendedor: $('codigo').value.trim().replace(/\s+/g, ''),
+    numeroPedido: $('pedido').value.trim(),
+    accion: $('accion').value,
+    categoria: $('categoria').value,
+    producto: [...document.querySelectorAll('.prod-input')].map(i => i.value.trim()).filter(Boolean).join(' | '),
+    cantidad: parseInt($('cantidad').value, 10),
+    motivo: $('motivo').value.trim(),
+    descripcion: $('descripcion').value.trim(),
+    fechaRecepcion: $('fecha').value,
+    declaracionJurada: $('declaracion').checked
+  };
+  if (!v.codigoRevendedor) return error('Ingresá tu código de revendedor.');
+  if (!v.numeroPedido) return error('Ingresá el número de pedido.');
+  if (!v.accion) return error('Elegí si es un cambio o una devolución.');
+  if (!v.categoria) return error('Elegí la categoría del producto.');
+  if ([...document.querySelectorAll('.prod-input')].some(i => !i.value.trim())) return error('Completá el nombre exacto de cada unidad.');
+  if (!(v.cantidad >= 1)) return error('La cantidad mínima es 1 unidad.');
+  if (!v.motivo) return error('Contanos el motivo del reclamo.');
+  if (v.motivo.length > 150) return error('El motivo no puede superar los 150 caracteres.');
+  if (!v.descripcion) return error('Completá la descripción detallada.');
+  if (v.descripcion.length > 1000) return error('La descripción no puede superar los 1.000 caracteres.');
+  if (!v.fechaRecepcion) return error('Indicá la fecha de recepción del pedido.');
+  if (!v.declaracionJurada) return error('Tenés que aceptar la declaración jurada.');
+  if (archivos.length === 0) return error('Adjuntá al menos una imagen como evidencia.');
+
+  const btn = $('btnEnviar');
+  btn.disabled = true; btn.textContent = 'Enviando…';
+  try {
+    const token = await obtenerTokenTurnstile();
+    const ok = await validarCodigo(v.codigoRevendedor, token);
+    if (!ok) { btn.disabled = false; btn.textContent = 'Enviar reclamo'; return error('El código de revendedor no está registrado. Revisalo e intentá de nuevo.'); }
+
+    const imagenes = await Promise.all(archivos.map(archivoABase64));
+
+    const res = await fetch(`${WORKER}/api/crear-reclamo`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...v, imagenes })
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data || !data.ok) throw new Error((data && data.error) || 'No pudimos registrar el reclamo. Intentá nuevamente.');
+
+    $('okNumero').textContent = String(data.reclamo.id).slice(-8).toUpperCase();
+    $('cardForm').classList.add('hidden');
+    $('cardOk').classList.remove('hidden');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } catch (e) {
+    error(e.message || 'Ocurrió un error inesperado.');
+    btn.disabled = false; btn.textContent = 'Enviar reclamo';
+  }
+});
+</script>
+</body>
+</html>
