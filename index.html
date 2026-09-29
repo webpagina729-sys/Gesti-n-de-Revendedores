@@ -377,6 +377,13 @@
            el mismo z-index base quedaba tapado detrás, dando la sensación
            de que el botón "Vaciar lista" no hacía nada. */
         #mover-pedido-modal { z-index: 9500; }
+        /* 🔧 FIX: el flujo "¿Tus datos son correctos?" → "Corregir/Completar
+           datos" → "Datos Actualizados" puede dispararse ESTANDO ABIERTO el
+           modal de Pedidos Confirmados (se dispara desde el botón "Enviar a
+           precio mayorista" de esa misma lista) — con el z-index base
+           quedaba tapado detrás de #confirmados-modal. Se deja por encima de
+           TODOS los demás modal-overlay del archivo (incluidos los 9500).*/
+        #datosCorrectosModal, #corregirDatosModal, #datosActualizadosModal { z-index: 9600; }
         .modal-overlay.show { display: flex; }
         .modal-box { background: var(--bg2); border: 1px solid var(--border2); border-radius: 14px; width: 100%; max-width: 380px; padding: 24px; box-shadow: var(--shadow-lg); }
         .modal-icon { width: 42px; height: 42px; border-radius: 10px; background: var(--red-pale); display: flex; align-items: center; justify-content: center; margin-bottom: 14px; }
@@ -624,7 +631,8 @@
         .level-star { width:13px; height:13px; color:#3a3f55; transition:color .3s, transform .3s, filter .3s; }
         .level-star.on { color:#f5b400; filter:drop-shadow(0 0 4px rgba(245,180,0,.6)); }
         .level-bar-wrap { flex:1; min-width:80px; height:5px; background:rgba(255,255,255,.06); border-radius:4px; overflow:hidden; position:relative; }
-        .level-bar-fill { height:100%; width:0%; border-radius:4px; background:linear-gradient(90deg,#f43f5e 0%,#f59e0b 50%,#2d924c 100%); transition:width 1.2s cubic-bezier(.4,0,.2,1); box-shadow:0 0 8px rgba(45,146,76,.4); }
+        .level-bar-fill { height:100%; width:0%; border-radius:4px; background:#2d924c; transition:width 1.2s cubic-bezier(.4,0,.2,1), background .3s ease; box-shadow:0 0 8px rgba(45,146,76,.4); }
+        .level-bar-fill.pendiente-pago { background:#f59e0b; box-shadow:0 0 8px rgba(245,158,11,.4); }
         .level-count { font-size:10px; color:var(--text2); white-space:nowrap; font-weight:600; }
         @media (max-width:780px) { .level-block { padding:7px 10px; gap:8px; max-width:320px; } .level-name { font-size:11px; } .level-avatar { width:30px; height:30px; font-size:12px; } }
         .level-strip { display:flex; justify-content:center; padding:10px 24px 0; }
@@ -691,7 +699,13 @@
     <div class="level-block" id="level-block" style="display:none">
         <div class="level-avatar" id="level-avatar">R</div>
         <div class="level-info">
-            <div class="level-name" id="level-name">Revendedor</div>
+            <div style="display:flex;align-items:center;gap:8px;">
+                <div class="level-name" id="level-name">Revendedor</div>
+                <button onclick="this.blur();window.open('devolucion.html','_blank')" title="Reclamos" aria-label="Reclamos" style="display:inline-flex;align-items:center;gap:3px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:inherit;border-radius:10px;padding:2px 8px;font-size:10px;font-weight:600;cursor:pointer;line-height:1.6;flex-shrink:0;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="10" height="10"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
+                    Reclamos
+                </button>
+            </div>
             <div class="level-row">
                 <div class="level-bar-wrap" title="Progreso al siguiente nivel">
                     <div class="level-bar-fill" id="level-bar-fill"></div>
@@ -770,9 +784,6 @@
                     </button>
                     <button class="btn-guide-icon btn-history" onclick="this.blur();openHistorialModal()" title="Historial de pedidos realizados" aria-label="Historial de pedidos realizados">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15l2 2 4-4"/></svg>
-                    </button>
-                    <button class="btn-guide-icon btn-devoluciones" onclick="this.blur();window.open('devolucion.html','_blank')" title="Devoluciones" aria-label="Devoluciones">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
                     </button>
                     <button onclick="openCustomPanel()" title="Personalizar panel" aria-label="Personalizar panel" style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;background:none;border:none;padding:0;color:var(--text3);cursor:pointer;flex-shrink:0;">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -952,57 +963,77 @@
     </div>
 </div>
 
-<!-- ══ MODAL ¿TUS DATOS SON CORRECTOS? ══ -->
-<!-- 🔧 NUEVO: antes de llegar al pago, se confirman los datos de envío
-     del revendedor (los que pedidos.html usa para "Ejecutar Pedido"). -->
+<!-- ══ MODAL COMPLETA TUS DATOS DE ENVÍO ══ -->
+<!-- 🔧 NUEVO: antes de llegar al pago, se piden los datos de envío
+     del revendedor (los que pedidos.html usa para "Ejecutar Pedido").
+     Una única opción: "Completar Datos", que abre el modal siguiente. -->
 <div class="modal-overlay" id="datosCorrectosModal">
     <div class="modal-box">
         <div class="modal-icon" style="background:var(--blue-pale)">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         </div>
-        <h3>¿Tus datos son correctos?</h3>
+        <h3>Completa tus datos de envío!</h3>
         <div id="datosCorrectosBody"></div>
         <div class="modal-actions">
-            <button class="modal-cancel" onclick="abrirCorregirDatos()">Corregir</button>
-            <button class="modal-confirm-btn" style="background:var(--blue)" onclick="aceptarDatosCorrectos()">Aceptar</button>
+            <button class="modal-confirm-btn" style="background:var(--blue);width:100%" onclick="abrirCorregirDatos()">Completar Datos</button>
         </div>
     </div>
 </div>
 
-<!-- ══ MODAL CORREGIR DATOS ══ -->
+<!-- ══ MODAL COMPLETA TUS DATOS (formulario) ══ -->
 <div class="modal-overlay" id="corregirDatosModal">
     <div class="modal-box">
-        <div class="modal-icon" style="background:var(--amber-pale)">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        <div class="modal-icon" style="background:var(--green-pale)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         </div>
-        <h3>Corregir tus datos</h3>
+        <h3>Completa tus Datos</h3>
         <div style="text-align:left;margin:14px 0;display:flex;flex-direction:column;gap:10px">
             <div>
-                <label style="display:block;font-size:11.5px;font-weight:700;color:var(--text2);margin-bottom:5px">WhatsApp</label>
-                <input type="tel" id="corregirWhatsapp" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid var(--border2);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;font-family:var(--font)" placeholder="Ej: 5492395123456">
+                <label style="display:block;font-size:11.5px;font-weight:700;color:var(--text2);margin-bottom:5px">Nombre y apellido</label>
+                <input type="text" id="corregirNombreApellido" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid var(--border2);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;font-family:var(--font)" placeholder="Ej: Juan Pérez">
             </div>
             <div>
-                <label style="display:block;font-size:11.5px;font-weight:700;color:var(--text2);margin-bottom:5px">Dirección</label>
-                <input type="text" id="corregirDireccion" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid var(--border2);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;font-family:var(--font)" placeholder="Calle y número">
+                <label style="display:block;font-size:11.5px;font-weight:700;color:var(--text2);margin-bottom:5px">Cuit</label>
+                <input type="text" id="corregirCuit" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid var(--border2);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;font-family:var(--font)" placeholder="Ej: 20-12345678-9">
+            </div>
+            <div>
+                <label style="display:block;font-size:11.5px;font-weight:700;color:var(--text2);margin-bottom:5px">Teléfono de contacto</label>
+                <input type="tel" id="corregirWhatsapp" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid var(--border2);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;font-family:var(--font)" placeholder="Ej: 5492395123456">
             </div>
             <div style="display:flex;gap:8px">
-                <div style="flex:1">
-                    <label style="display:block;font-size:11.5px;font-weight:700;color:var(--text2);margin-bottom:5px">Ciudad</label>
-                    <input type="text" id="corregirCiudad" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid var(--border2);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;font-family:var(--font)">
-                </div>
                 <div style="flex:1">
                     <label style="display:block;font-size:11.5px;font-weight:700;color:var(--text2);margin-bottom:5px">Provincia</label>
                     <input type="text" id="corregirProvincia" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid var(--border2);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;font-family:var(--font)">
                 </div>
+                <div style="flex:1">
+                    <label style="display:block;font-size:11.5px;font-weight:700;color:var(--text2);margin-bottom:5px">Localidad/Ciudad</label>
+                    <input type="text" id="corregirCiudad" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid var(--border2);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;font-family:var(--font)">
+                </div>
             </div>
             <div>
-                <label style="display:block;font-size:11.5px;font-weight:700;color:var(--text2);margin-bottom:5px">Código Postal</label>
+                <label style="display:block;font-size:11.5px;font-weight:700;color:var(--text2);margin-bottom:5px">Código postal</label>
                 <input type="text" id="corregirCP" style="width:120px;box-sizing:border-box;padding:9px 11px;border:1px solid var(--border2);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;font-family:var(--font)">
             </div>
+            <div style="display:flex;gap:8px">
+                <div style="flex:2">
+                    <label style="display:block;font-size:11.5px;font-weight:700;color:var(--text2);margin-bottom:5px">Calle</label>
+                    <input type="text" id="corregirCalle" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid var(--border2);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;font-family:var(--font)">
+                </div>
+                <div style="flex:1">
+                    <label style="display:block;font-size:11.5px;font-weight:700;color:var(--text2);margin-bottom:5px">Número</label>
+                    <input type="text" id="corregirNumero" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid var(--border2);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;font-family:var(--font)">
+                </div>
+            </div>
+            <div>
+                <label style="display:block;font-size:11.5px;font-weight:700;color:var(--text2);margin-bottom:5px">Dirección alternativa</label>
+                <input type="text" id="corregirDireccionAlt" style="width:100%;box-sizing:border-box;padding:9px 11px;border:1px solid var(--border2);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;font-family:var(--font)" placeholder="Piso, depto, entre calles, etc. (opcional)">
+            </div>
         </div>
-        <div class="modal-actions">
-            <button class="modal-cancel" onclick="volverADatosCorrectos()">Volver</button>
-            <button class="modal-confirm-btn" style="background:var(--amber)" onclick="confirmarYActualizarDatos()">Confirmar y Actualizar</button>
+        <div class="modal-actions" style="flex-direction:column;gap:8px">
+            <button class="modal-confirm-btn" style="background:var(--green);width:100%;padding:9px;white-space:nowrap" onclick="confirmarYActualizarDatos()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:-2px;margin-right:4px"><polyline points="20 6 9 17 4 12"/></svg>Confirmar y Actualizar
+            </button>
+            <button class="modal-cancel" style="width:100%;padding:9px" onclick="volverADatosCorrectos()">Volver</button>
         </div>
     </div>
 </div>
@@ -1222,6 +1253,7 @@
                     <p>Acá ves todos tus pedidos organizados por estado. Los <strong>Pedidos Pendientes</strong> son los que tus clientes hicieron pero todavía no confirmaste. Los <strong>Pedidos Aprobados</strong> son los que ya aprobaste desde el panel de la tienda (index).</p>
                     <p>Para que un pedido pase de Pendiente a Aprobado, tenés que ir a tu perfil en la tienda → Pedidos recibidos → tocá "Aprobado" en el pedido. Automáticamente aparecerá aquí en Aprobados.</p>
                     <p>Dentro de cada pedido encontrás los productos, datos del cliente, dirección de envío y tus ganancias estimadas.</p>
+                    <p>El botón <strong>Eliminar</strong> saca el pedido definitivamente, tanto de tu panel como del panel del dueño de la plataforma — no vuelve a aparecer en ninguno de los dos lados.</p>
                 </div>
             </div>
 
@@ -1279,8 +1311,9 @@
                     <svg class="guide-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                 </div>
                 <div class="guide-body">
-                    <p>Envía todos los Pedidos Confirmados a la plataforma de pagos. Cada pedido puede enviarse individualmente dentro de la tarjeta del pedido.</p>
-                    <p>Pagas a Precio Mayorista y el resto queda en tu billetera.</p>
+                    <p>Acá se juntan los pedidos que ya confirmaste desde "Pedidos Aprobados", agrupados por categoría. Cada categoría tiene su propio mínimo (en monto o en unidades) para poder enviarse — mientras no lo alcance, el botón "Enviar a precio mayorista" queda deshabilitado y te muestra cuánto falta.</p>
+                    <p>Al tocar "Enviar a precio mayorista" se te pide confirmar tus datos de envío (los que va a usar el dueño de la plataforma para mandarte tu mercadería) y se te redirige a <strong>Mercado Pago</strong> a pagar el total mayorista de esa categoría.</p>
+                    <p>Apenas Mercado Pago aprueba el pago, esos pedidos quedan registrados como pagados y pasan automáticamente a "Confirmados" en el panel del dueño de la plataforma. Si el pago no se completa, los pedidos quedan intactos acá para volver a intentar.</p>
                 </div>
             </div>
 
@@ -1997,7 +2030,7 @@ let currentVendorApellido = '';
 // 🔧 NUEVO: datos de envío del propio revendedor (los que se usan para
 // "Ejecutar Pedido" en pedidos.html) — se cargan del documento completo
 // en Firestore, ya que hasta ahora solo se guardaban nombre/apellido acá.
-let currentVendorProfile = { whatsappRevendedor: '', direccion: '', ciudad: '', provincia: '', codigoPostal: '' };
+let currentVendorProfile = { whatsappRevendedor: '', direccion: '', ciudad: '', provincia: '', codigoPostal: '', cuit: '', direccionAlternativa: '' };
 let configTienda    = {};
 let chartModalInst  = null;
 
@@ -2071,6 +2104,11 @@ function renderLevelBar() {
     const fill = document.getElementById('level-bar-fill');
     // animar con un tick
     requestAnimationFrame(() => { fill.style.width = info.pct + '%'; });
+    // 🔧 NUEVO: la barra se ve del mismo color que "Pendiente" (ámbar)
+    // mientras el revendedor tenga pedidos confirmados sin pagar en su
+    // lote — recién vuelve a verde cuando los paga (o si no tiene
+    // ninguno pendiente de pago todavía).
+    fill.classList.toggle('pendiente-pago', getPedidoList().length > 0);
 
     const countEl = document.getElementById('level-count');
     countEl.textContent = info.max
@@ -3057,8 +3095,21 @@ function _checkMercadoPagoReturn() {
         if ((status === 'approved' || status === 'success') && pending && Array.isArray(pending.pedidos) && pending.pedidos.length) {
             const agregados = registrarPagoConfirmado(pending.pedidos);
             clearMpPendingPayment();
+            // 🔧 FIX: el lote pagado quedaba para siempre en la lista
+            // "Pedido" (nunca se sacaba de ahí tras pagar) — esto hacía
+            // que siguiera contando como "pendiente de pago" indefinidamente
+            // aunque ya estuviera cobrado. Se sacan acá solo los pedidos de
+            // ESTE pago, dejando intacto cualquier otro lote (de otra
+            // categoría) que todavía esté esperando su propio pago.
+            try {
+                const idsPagados = new Set(pending.pedidos.map(p => String(p.id)));
+                const restante = getPedidoList().filter(p => !idsPagados.has(String(p.id)));
+                localStorage.setItem(PEDIDO_LIST_KEY, JSON.stringify(restante));
+            } catch(_) {}
             toast(`✅ Pago aprobado · ${agregados} pedido${agregados!==1?'s':''} confirmado${agregados!==1?'s':''}`, true);
             try { renderGananciasView(); } catch(_) {}
+            try { _updatePedidoListaBadge(); } catch(_) {}
+            try { renderLevelBar(); } catch(_) {}
         } else if (status === 'pending' && pending) {
             toast('⏳ Tu pago está pendiente de aprobación en Mercado Pago', false);
         } else if (status === 'failure' || status === 'rejected') {
@@ -3217,12 +3268,14 @@ function _guardarSesion(uid, data, fbUser) {
     currentVendorApellido = data.apellido || '';
     configTienda          = data.configTienda || data.config || {};
     currentVendorProfile  = {
-        whatsappRevendedor: data.whatsappRevendedor || '',
-        direccion:          data.direccion || '',
-        ciudad:             data.ciudad || '',
-        provincia:          data.provincia || '',
-        codigoPostal:       data.codigoPostal || '',
-        fechaAlta:          data.fechaAlta || null
+        whatsappRevendedor:   data.whatsappRevendedor || '',
+        direccion:            data.direccion || '',
+        ciudad:               data.ciudad || '',
+        provincia:            data.provincia || '',
+        codigoPostal:         data.codigoPostal || '',
+        cuit:                 data.cuit || '',
+        direccionAlternativa: data.direccionAlternativa || '',
+        fechaAlta:            data.fechaAlta || null
     };
     const sess = {
         code:     currentCode,
@@ -3253,11 +3306,13 @@ async function _refrescarPerfilRevendedor(uid) {
         if (!doc.exists) return;
         const d = doc.data();
         currentVendorProfile = {
-            whatsappRevendedor: d.whatsappRevendedor || '',
-            direccion:          d.direccion || '',
-            ciudad:             d.ciudad || '',
-            provincia:          d.provincia || '',
-            codigoPostal:       d.codigoPostal || ''
+            whatsappRevendedor:   d.whatsappRevendedor || '',
+            direccion:            d.direccion || '',
+            ciudad:               d.ciudad || '',
+            provincia:            d.provincia || '',
+            codigoPostal:         d.codigoPostal || '',
+            cuit:                 d.cuit || '',
+            direccionAlternativa: d.direccionAlternativa || ''
         };
     } catch(e) { /* silencioso — el modal igual funciona con lo que ya tenía */ }
 }
@@ -4181,6 +4236,18 @@ async function sendAllPedidos(categoria) {
     // datos de envío del revendedor (los que van a usarse en pedidos.html
     // para "Ejecutar Pedido") estén correctos.
     window._categoriaParaConfirmarDatos = categoria || null;
+    // 🔧 FIX: se guarda acá la referencia real al botón ".btn-send-all"
+    // que se tocó — es el único punto del flujo donde "event" apunta
+    // efectivamente a ese botón. Antes, confirmSendAll() (varios pasos
+    // y modales después) intentaba resolverlo con event.target.closest(
+    // '.btn-send-all'), pero en ese momento "event" es el click del botón
+    // "Enviar" del modal de confirmación de pago, que NO es ni está
+    // dentro de ".btn-send-all" — closest() siempre devolvía null, así
+    // que el botón nunca mostraba "Enviando..." ni se deshabilitaba
+    // mientras se creaba la preferencia de Mercado Pago, dejando la
+    // puerta abierta a un doble click que dispare dos pagos/redirects
+    // en simultáneo para el mismo lote.
+    window._btnEnviandoLote = (event && event.target) ? event.target.closest('.btn-send-all') : null;
     abrirModalDatosCorrectos();
 }
 
@@ -4196,19 +4263,26 @@ function abrirModalDatosCorrectos() {
     document.getElementById('datosCorrectosModal').classList.add('show');
 }
 
-function aceptarDatosCorrectos() {
-    document.getElementById('datosCorrectosModal').classList.remove('show');
-    _prepararYMostrarConfirmacionPago(window._categoriaParaConfirmarDatos);
-}
+// 🧹 LIMPIEZA: se eliminó aceptarDatosCorrectos() — el modal "Completa
+// tus datos de envío!" ahora tiene una única opción ("Completar Datos",
+// abrirCorregirDatos()), ya no existe la rama de aceptar sin completar.
 
 function abrirCorregirDatos() {
     document.getElementById('datosCorrectosModal').classList.remove('show');
     const p = currentVendorProfile;
+    document.getElementById('corregirNombreApellido').value = [currentVendorNombre, currentVendorApellido].filter(Boolean).join(' ');
+    document.getElementById('corregirCuit').value = p.cuit || '';
     document.getElementById('corregirWhatsapp').value = p.whatsappRevendedor || '';
-    document.getElementById('corregirDireccion').value = p.direccion || '';
-    document.getElementById('corregirCiudad').value = p.ciudad || '';
     document.getElementById('corregirProvincia').value = p.provincia || '';
+    document.getElementById('corregirCiudad').value = p.ciudad || '';
     document.getElementById('corregirCP').value = p.codigoPostal || '';
+    // 🔧 "direccion" se guarda como string único ("Calle Número") por
+    // compatibilidad con el resto del archivo (facturas, ship-block, etc.)
+    // — acá se separa en Calle/Número solo para poder editarlos aparte.
+    const dirMatch = String(p.direccion || '').trim().match(/^(.*?)[\s,]+(\S+)$/);
+    document.getElementById('corregirCalle').value  = dirMatch ? dirMatch[1] : (p.direccion || '');
+    document.getElementById('corregirNumero').value = dirMatch ? dirMatch[2] : '';
+    document.getElementById('corregirDireccionAlt').value = p.direccionAlternativa || '';
     document.getElementById('corregirDatosModal').classList.add('show');
 }
 
@@ -4220,14 +4294,29 @@ function volverADatosCorrectos() {
 // Guarda la corrección tanto localmente como en Firestore — así los
 // próximos pedidos (y lo que ve pedidos.html) ya usan los datos nuevos.
 async function confirmarYActualizarDatos() {
+    const nombreApellido = document.getElementById('corregirNombreApellido').value.trim();
+    const partesNombre   = nombreApellido.split(/\s+/).filter(Boolean);
+    const nombre         = partesNombre[0] || '';
+    const apellido       = partesNombre.slice(1).join(' ');
+    const calle          = document.getElementById('corregirCalle').value.trim();
+    const numero         = document.getElementById('corregirNumero').value.trim();
+    // 🔧 se guarda combinado en "direccion" (string único) por
+    // compatibilidad con el resto del archivo, que ya la lee así.
+    const direccion      = [calle, numero].filter(Boolean).join(' ');
     const nuevo = {
-        whatsappRevendedor: document.getElementById('corregirWhatsapp').value.trim(),
-        direccion:          document.getElementById('corregirDireccion').value.trim(),
-        ciudad:             document.getElementById('corregirCiudad').value.trim(),
-        provincia:          document.getElementById('corregirProvincia').value.trim(),
-        codigoPostal:       document.getElementById('corregirCP').value.trim(),
+        nombre,
+        apellido,
+        cuit:                 document.getElementById('corregirCuit').value.trim(),
+        whatsappRevendedor:   document.getElementById('corregirWhatsapp').value.trim(),
+        provincia:            document.getElementById('corregirProvincia').value.trim(),
+        ciudad:               document.getElementById('corregirCiudad').value.trim(),
+        codigoPostal:         document.getElementById('corregirCP').value.trim(),
+        direccion,
+        direccionAlternativa: document.getElementById('corregirDireccionAlt').value.trim(),
     };
-    currentVendorProfile = nuevo;
+    currentVendorNombre   = nombre;
+    currentVendorApellido = apellido;
+    currentVendorProfile  = Object.assign({}, currentVendorProfile, nuevo);
     try {
         if (currentUid) {
             await _db.collection('usuarios').doc(currentUid).set(nuevo, { merge: true });
@@ -4266,7 +4355,14 @@ async function confirmSendAll() {
     const pedidoList = categoria ? pedidoListCompleta.filter(p => (p.nicho || 'multishop') === categoria) : pedidoListCompleta;
     if (!pedidoList.length) return;
 
-    const btn = event && event.target ? event.target.closest('.btn-send-all') : document.querySelector('.btn-send-all');
+    // 🔧 FIX: acá "event" es el click del botón "Enviar" del modal de
+    // confirmación (no el ".btn-send-all" de la categoría), así que ya
+    // no se lo usa para resolver el botón — se usa la referencia real
+    // guardada en sendAllPedidos() (ver comentario ahí). Con eso, el
+    // botón correcto sí queda en "Enviando..." y deshabilitado mientras
+    // se crea la preferencia de pago, evitando un doble envío del mismo
+    // lote si el revendedor vuelve a tocarlo antes de ser redirigido.
+    const btn = window._btnEnviandoLote || null;
     if (btn) { btn.textContent = `Enviando...`; btn.disabled = true; }
 
     const totalMayorista = pedidoList.reduce((s, p) => s + (p.totalMayorista || 0), 0);
@@ -4374,6 +4470,7 @@ async function confirmSendAll() {
         btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Enviar a precio mayorista`;
         btn.disabled = false;
     }
+    window._btnEnviandoLote = null;
 
     if (mpRedirectUrl) {
         // 🔧 FIX: solo se limpian de la lista los pedidos de ESTA categoría
@@ -4589,7 +4686,8 @@ function renderPedidoListaView() {
 
     let html = `<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px">
         <h2 class="section-title" style="margin:0">Pedidos Confirmados <span style="font-size:13px;font-weight:400;color:var(--text3)">(${list.length} pedido${list.length!==1?'s':''})</span></h2>
-        <button class="btn-head" style="background:var(--red-pale);border-color:rgba(244,63,94,.3);color:var(--red)" onclick="vaciarListaConfirmados()">
+        <button class="btn-head" style="background:#fff;border:1px solid rgba(0,0,0,.35);color:#111;padding:6px 12px;font-size:12px;display:inline-flex;align-items:center;gap:6px" onclick="vaciarListaConfirmados()">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
             Vaciar lista
         </button>
     </div>
@@ -4601,26 +4699,30 @@ function renderPedidoListaView() {
 
     const pedidoCardHtml = (p) => {
         const fecha = p.fecha ? new Date(p.fecha).toLocaleString('es-AR', { timeZone:'America/Argentina/Buenos_Aires', day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : '—';
-        return `<div class="ribbon" style="margin-bottom:8px">
-            <div class="ribbon-head" style="cursor:default;flex-direction:column;align-items:stretch;gap:6px">
+        // 🔧 NUEVO: cinta del pedido confirmado individual con fondo gris
+        // oscuro y texto blanco propios (no toca el estilo de .ribbon
+        // compartido con otras listas) — antes usaba prácticamente el
+        // mismo color que el fondo del panel y quedaba ilegible.
+        return `<div class="ribbon" style="margin-bottom:8px;background:#2b2d33;border:1px solid #44474f">
+            <div class="ribbon-head" style="cursor:default;flex-direction:column;align-items:stretch;gap:6px;background:transparent">
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
-                    <span class="r-name" style="white-space:normal;overflow:visible;text-overflow:clip">${esc(p.cliente || 'Cliente')}</span>
+                    <span class="r-name" style="white-space:normal;overflow:visible;text-overflow:clip;color:#fff">${esc(p.cliente || 'Cliente')}</span>
                     <button onclick="quitarDePedidoLista('${p.id}')" title="Quitar de confirmados" aria-label="Quitar de confirmados" style="flex-shrink:0;background:var(--red-pale);border:1px solid rgba(244,63,94,.2);color:var(--red);border-radius:8px;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0">
                         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
                     </button>
                 </div>
                 <div style="display:flex;align-items:center;gap:10px">
-                    <span class="r-code" style="font-size:10.5px">📅 ${fecha}</span>
+                    <span class="r-code" style="font-size:10.5px;background:rgba(255,255,255,.14);color:#fff">📅 ${fecha}</span>
                     <span style="font-size:11.5px;font-weight:700;color:var(--green)">+$${Math.round(p.ganancia||0).toLocaleString()} ganancia</span>
                 </div>
             </div>
             <div class="ribbon-body">
-                <div class="ribbon-inner" style="padding:10px 14px">
-                    <div style="font-size:12px;color:var(--text2);margin-bottom:6px">
-                        Mayorista: <strong style="color:var(--text)">$${Math.round(p.totalMayorista||0).toLocaleString()}</strong> · 
-                        Cliente: <strong style="color:var(--text)">$${Math.round(p.total||0).toLocaleString()}</strong>
+                <div class="ribbon-inner" style="padding:10px 14px;border-top:1px solid #44474f">
+                    <div style="font-size:12px;color:#e4e4e7;margin-bottom:6px">
+                        Mayorista: <strong style="color:#fff">$${Math.round(p.totalMayorista||0).toLocaleString()}</strong> ·
+                        Cliente: <strong style="color:#fff">$${Math.round(p.total||0).toLocaleString()}</strong>
                     </div>
-                    ${(p.items||[]).map(it => `<div style="font-size:11px;color:var(--text3)">· ${esc(it.nombre)} x${it.cantidad}</div>`).join('')}
+                    ${(p.items||[]).map(it => `<div style="font-size:11px;color:#c9c9ce">· ${esc(it.nombre)} x${it.cantidad}</div>`).join('')}
                     <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
                         <button class="btn-act btn-pdf" style="flex:1;min-width:110px;justify-content:center" onclick="event.stopPropagation();downloadInvoicePDF('${p.id}')">Factura revendedor</button>
                         <button class="btn-act btn-pdf" style="flex:1;min-width:110px;justify-content:center;background:#0a8a52 !important" onclick="event.stopPropagation();downloadClientInvoicePDF('${p.id}')">Factura cliente</button>
