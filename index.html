@@ -594,6 +594,80 @@
             #btn-confirmados svg { width: 13px; height: 13px; }
         }
 
+        /* ── PANTALLAS ANCHAS (tablet horizontal, notebook, PC) ──
+           El panel está pensado como una sola columna angosta (igual que
+           en celular vertical, que ya se ve bien). Acá NO se reordena ni
+           se arma un layout de escritorio nuevo: se mantiene exactamente
+           el mismo orden y la misma estructura, solo que:
+           1) se recorta el ancho máximo del contenedor general (antes
+              .wrap llegaba a 1200px, lo que hacía que las pestañas y los
+              botones con flex:1 se estiraran muchísimo y quedaran con
+              montañas de espacio vacío adentro — el efecto "desprolijo");
+           2) se agranda proporcionalmente tipografía, paddings, gaps y
+              tarjetas para que en pantalla ancha no se vea "todo chiquito"
+              como en un celular. */
+        @media (min-width: 641px) {
+            .wrap { max-width: 760px; padding: 40px 30px; }
+
+            /* header / topbar */
+            .brand-title { font-size: 18px; }
+            .brand-code { font-size: 12px; max-width: 200px; }
+            .brand-mark { width: 38px; height: 38px; }
+            .page-title { font-size: 29px; }
+            .btn-head { padding: 12px 22px; font-size: 14px; gap: 9px; }
+            .btn-head svg { width: 16px; height: 16px; }
+            .header-icon-row { gap: 10px; }
+            .header-icon-row .btn-guide-icon,
+            .header-icon-row .btn-gift,
+            .header-icon-row .btn-history,
+            .header-icon-row .btn-seguimiento,
+            .header-icon-row .btn-actualizar-icon { width: 36px!important; height: 36px!important; }
+            .header-icon-row .btn-gear { width: 30px!important; height: 30px!important; }
+            .header-icon-row svg { width: 17px!important; height: 17px!important; }
+
+            /* tabs: Pedidos / Estadísticas / Ganancias / Clientes */
+            .menu-btn { padding: 14px 20px; font-size: 14.5px; gap: 8px; }
+            .menu-btn svg { width: 16px; height: 16px; }
+
+            /* tabs: Pedidos pendientes / aprobados */
+            .stab { padding: 11px 18px; font-size: 13.5px; gap: 8px; }
+            .stab svg { width: 14px; height: 14px; }
+            .stab .cnt { min-width: 22px; height: 22px; font-size: 12px; }
+
+            /* tarjetas de reseña/rating (stats-row) */
+            .stats-row { gap: 12px; }
+            .stat-card { padding: 20px 16px; }
+            .stat-lbl { font-size: 11.5px; }
+            .stat-val { font-size: 27px; }
+            .stat-val.split { font-size: 14.5px; gap: 4px; }
+
+            .kpi-row-3 { gap: 12px; }
+            .kpi-row-3 .kpi { padding: 15px 12px; }
+            .kpi-row-3 .kpi-lbl { font-size: 11.5px; }
+            .kpi-row-3 .kpi-val { font-size: 17px; }
+
+            /* filas de pedidos (Pedidos Confirmados incluido) */
+            .ribbon-head { padding: 15px 20px; }
+            .r-name { font-size: 15px; }
+            .r-code { font-size: 12px; padding: 3px 10px; }
+            .r-date { font-size: 12.5px; }
+            .ribbon-inner { padding: 20px 22px; }
+
+            /* íconos de acciones (enviar / eliminar) de cada pedido */
+            .btn-act { padding: 9px 16px; font-size: 13px; gap: 7px; }
+            .foot-gain { font-size: 14px; }
+            .foot-meta { font-size: 13px; }
+        }
+
+        /* Monitores grandes: mismo criterio, un empujón más de aire y
+           tipografía para que no quede "apretado" en el medio de la
+           pantalla, sin volver a estirar los componentes de punta a punta. */
+        @media (min-width: 1100px) {
+            .wrap { max-width: 880px; padding: 48px 32px; }
+            .page-title { font-size: 31px; }
+            .stat-val { font-size: 29px; }
+        }
+
         /* ── GUÍA ── */
         .btn-guide-icon { display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;background:var(--blue-pale);border:1.5px solid var(--blue-glow);color:var(--blue-glow);cursor:pointer;transition:background .18s,transform .18s;flex-shrink:0; }
         .btn-guide-icon:hover { background:var(--blue-glow);color:#fff;transform:scale(1.1); }
