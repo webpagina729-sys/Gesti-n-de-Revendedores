@@ -2286,6 +2286,36 @@ function _entregarFacturaPDF(doc, filename, esPagado, telefonoCliente) {
     setTimeout(() => { const el = document.getElementById('factura-lista-modal'); if (el) el.remove(); }, 14000);
 }
 
+// 🆕 Número de pedido secuencial (#N) para mostrar en las facturas —
+// distinto de invoiceNumericId() (un ID de 10 dígitos derivado del propio
+// pedidoId, ya usado como "FACTURA Nº"). Este número se pide get-or-create
+// a workerpagos.js (mismo contador global secuencial que usa pedidos.html
+// para panelGestion/pedidosStock/carritosStock), así que un pedido tiene
+// el MISMO numeroPedido sin importar desde qué panel se mire, y desde
+// pendiente hasta pagado. No bloqueante: si falla, simplemente no se
+// muestra el número (la factura sigue funcionando igual que antes).
+async function _asignarNumerosPedido(lista) {
+    const ids = (lista || []).map(p => p.id).filter(Boolean).slice(0, 200);
+    if (!ids.length) return;
+    try {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 8000);
+        const res = await fetch(`${WORKER_MAYORISTA}/api/numeros-pedido`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: ctrl.signal,
+            body: JSON.stringify({ pedidoIds: ids }),
+        });
+        clearTimeout(t);
+        if (!res.ok) return;
+        const data = await res.json().catch(() => null);
+        const numeros = data && data.numeros ? data.numeros : {};
+        (lista || []).forEach(p => {
+            if (p.id && numeros[p.id]) p.numeroPedido = numeros[p.id];
+        });
+    } catch(_) { /* no bloqueante */ }
+}
+
 function invoiceNumericId(pedidoId) {
     if (!pedidoId) return '0000000000';
     const digits = String(pedidoId).replace(/\D/g, '');
@@ -2445,6 +2475,8 @@ function downloadClientInvoicePDF(id) {
     doc.setFontSize(22);
     doc.text('RW · Revende Ways', 14, 16);
     doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6);
+    doc.text('Factura no fiscal', 14, 20);
     doc.setFontSize(10);
     doc.text(esPagado ? 'Comprobante de Compra' : 'Comprobante de Compra (Pendiente de pago)', 14, 23);
     doc.setFontSize(8);
@@ -2488,6 +2520,7 @@ function downloadClientInvoicePDF(id) {
     drawPartyBox(14, 'VENDEDOR', [
         revName,
         'Factura Nº: ' + nroFactLabel,
+        p.numeroPedido ? ('Pedido Nº: #' + p.numeroPedido) : '',
         'Panel: Revende Ways'
     ], BLUE);
 
@@ -2649,6 +2682,8 @@ function downloadInvoicePDF(id) {
     doc.setFontSize(22);
     doc.text('RW · Revende Ways', 14, 16);
     doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6);
+    doc.text('Factura no fiscal', 14, 20);
     doc.setFontSize(10);
     doc.text(esPagado ? 'Comprobante de Compra y Venta' : 'Comprobante de Compra y Venta (Pendiente de pago)', 14, 23);
     doc.setFontSize(8);
@@ -2695,6 +2730,7 @@ function downloadInvoicePDF(id) {
     drawPartyBox(14, 'REVENDEDOR', [
         revName,
         'Factura Nº: ' + nroFactLabel,
+        p.numeroPedido ? ('Pedido Nº: #' + p.numeroPedido) : '',
         'Panel: Revende Ways'
     ], BLUE);
 
@@ -3896,6 +3932,12 @@ function loadData() {
             // escribe cuando el dueño aprueba un pedido.
 
             pedidos.sort((a,b) => (b.fechaCreacion?.seconds||0) - (a.fechaCreacion?.seconds||0));
+
+            // 🆕 Número de pedido secuencial (#N) para las facturas — se pide
+            // get-or-create a workerpagos (mismo contador global que usan
+            // panelGestion/pedidosStock/carritosStock en pedidos.html), así
+            // el número queda estable en todo el ciclo de vida del pedido.
+            await _asignarNumerosPedido(pedidos);
 
             renderAll();
             try { _updatePedidoListaBadge(); } catch(_) {}
