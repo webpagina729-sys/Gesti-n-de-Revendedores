@@ -602,14 +602,23 @@
         .guide-ribbon { background:var(--surface2);border:1px solid var(--border);border-radius:12px;overflow:hidden;cursor:pointer;transition:border-color .2s; }
         .guide-ribbon:hover { border-color:var(--blue-glow); }
         .guide-head { display:flex;align-items:center;gap:10px;padding:13px 14px; }
-        .guide-icon { font-size:17px;flex-shrink:0; }
+        /* 🔧 FIX: reemplazados los emojis por SVG profesionales/compactos —
+           font-size ya no aplica (no hay texto), así que el ícono se
+           dimensiona con width/height + un círculo sutil de fondo, mismo
+           lenguaje visual que el resto de los íconos del panel. */
+        .guide-icon { display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:8px;background:var(--blue-pale);color:var(--blue);flex-shrink:0; }
+        .guide-icon svg { width:15px;height:15px; }
         .guide-title { flex:1;font-size:13px;font-weight:700;color:var(--text); }
         .guide-caret { width:15px;height:15px;color:var(--text3);flex-shrink:0;transition:transform .25s; }
         .guide-body { max-height:0;overflow:hidden;transition:max-height .35s ease;padding:0 14px; }
         .guide-body p { font-size:12.5px;color:var(--text2);line-height:1.6;margin:0 0 8px; }
         .guide-body p:last-child { margin-bottom:12px; }
         .guide-ribbon.open .guide-caret { transform:rotate(180deg); }
-        .guide-ribbon.open .guide-body { max-height:260px; }
+        /* 🔧 FIX: el texto de "Pedidos confirmados" (3 párrafos) quedaba
+           cortado — max-height:260px + overflow:hidden recortaba el final
+           sin dar forma de leerlo. Ahora, si el contenido abierto supera el
+           alto máximo, queda scrolleable (deslizando) en vez de cortado. */
+        .guide-ribbon.open .guide-body { max-height:320px; overflow-y:auto; -webkit-overflow-scrolling:touch; }
 
         /* ── PERSONALIZAR PANEL ── */
         .btn-customize { display: inline-flex; align-items: center; gap: 6px; }
@@ -859,6 +868,15 @@
     </div>
 </div>
 
+<!-- 🔧 NUEVO: overlay que nubla la pantalla mientras "Actualizar" recarga
+     los pedidos (antes el botón no daba ninguna señal visual de que algo
+     estaba pasando). Reusa el mismo look de .modal-overlay (blur + fondo
+     oscuro) y el mismo spinner de .loader/.spin que ya usa el resto del
+     panel. Se muestra/oculta desde loadData() (mostrarOverlayActualizar /
+     ocultarOverlayActualizar), sin tocar ninguna otra lógica de esa función. -->
+<div class="modal-overlay" id="actualizar-overlay" style="z-index:9999">
+    <div class="spin" style="width:40px;height:40px;border-width:4px"></div>
+</div>
 
 <div class="main" id="main">
     <div class="wrap">
@@ -1395,7 +1413,7 @@
 
             <div class="guide-ribbon" onclick="toggleGuide(this)">
                 <div class="guide-head">
-                    <span class="guide-icon">📋</span>
+                    <span class="guide-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></span>
                     <span class="guide-title">Pedidos Aprobados/Pendientes</span>
                     <svg class="guide-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                 </div>
@@ -1409,7 +1427,7 @@
 
             <div class="guide-ribbon" onclick="toggleGuide(this)">
                 <div class="guide-head">
-                    <span class="guide-icon">📁</span>
+                    <span class="guide-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h6l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg></span>
                     <span class="guide-title">Categorías</span>
                     <svg class="guide-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                 </div>
@@ -1421,7 +1439,7 @@
 
             <div class="guide-ribbon" onclick="toggleGuide(this)">
                 <div class="guide-head">
-                    <span class="guide-icon">📊</span>
+                    <span class="guide-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
                     <span class="guide-title">Estadísticas</span>
                     <svg class="guide-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                 </div>
@@ -1433,7 +1451,7 @@
 
             <div class="guide-ribbon" onclick="toggleGuide(this)">
                 <div class="guide-head">
-                    <span class="guide-icon">📈</span>
+                    <span class="guide-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>
                     <span class="guide-title">Ganancias</span>
                     <svg class="guide-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                 </div>
@@ -1445,7 +1463,7 @@
 
             <div class="guide-ribbon" onclick="toggleGuide(this)">
                 <div class="guide-head">
-                    <span class="guide-icon">🏅</span>
+                    <span class="guide-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg></span>
                     <span class="guide-title">Ranking</span>
                     <svg class="guide-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                 </div>
@@ -1456,7 +1474,7 @@
 
             <div class="guide-ribbon" onclick="toggleGuide(this)">
                 <div class="guide-head">
-                    <span class="guide-icon">💳</span>
+                    <span class="guide-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>
                     <span class="guide-title">Pedidos confirmados</span>
                     <svg class="guide-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                 </div>
@@ -3974,7 +3992,19 @@ async function _fetchPedidosFirestoreUsuario() {
     }
 }
 
+// 🔧 NUEVO: muestra/oculta el overlay que nubla la pantalla mientras
+// "Actualizar" recarga los pedidos (ver div#actualizar-overlay más arriba).
+function mostrarOverlayActualizar() {
+    const ov = document.getElementById('actualizar-overlay');
+    if (ov) ov.style.display = 'flex';
+}
+function ocultarOverlayActualizar() {
+    const ov = document.getElementById('actualizar-overlay');
+    if (ov) ov.style.display = 'none';
+}
+
 function loadData() {
+    mostrarOverlayActualizar();
     ['perfumes','belleza','calzados','bazar','jugueteria','libreria','lenceria','suplementos','multishop'].forEach(k => {
         document.getElementById('list-'+k).innerHTML =
             '<div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div>';
@@ -3985,6 +4015,7 @@ function loadData() {
             document.getElementById('list-'+k).innerHTML =
                 `<div class="empty"><div class="empty-icon">⚠️</div><h3>Sin sesión</h3><p>No hay código de revendedor activo.</p></div>`;
         });
+        ocultarOverlayActualizar();
         return;
     }
 
@@ -4096,6 +4127,10 @@ function loadData() {
                 document.getElementById('list-'+k).innerHTML =
                     `<div class="empty"><div class="empty-icon">⚠️</div><h3>Error</h3><p>${esc(e.message)}</p></div>`;
             });
+        } finally {
+            // 🔧 NUEVO: se oculta acá (tanto en éxito como en error) para
+            // que el overlay de "Actualizar" nunca quede trabado.
+            ocultarOverlayActualizar();
         }
     })();
 }
