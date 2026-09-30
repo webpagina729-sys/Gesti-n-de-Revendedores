@@ -949,6 +949,21 @@
     </div>
 </div>
 
+<!-- ══ MODAL OBJETIVO NO CUMPLIDO ══ -->
+<!-- 🔧 NUEVO: aviso al intentar "Enviar a precio mayorista" sin haber
+     alcanzado el objetivo (MINIMO_POR_CATEGORIA) de esa categoría. -->
+<div class="modal-overlay" id="objetivoPendienteModal">
+    <div class="modal-box">
+        <div class="modal-icon" style="background:var(--red-pale)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <h3>Completa el objetivo para enviar el pedido</h3>
+        <div class="modal-actions">
+            <button class="modal-confirm-btn" style="background:var(--red);width:100%" onclick="document.getElementById('objetivoPendienteModal').classList.remove('show')">Entendido</button>
+        </div>
+    </div>
+</div>
+
 <!-- ══ MODAL AVISO (publicado desde pedidos.html) ══ -->
 <div class="modal-overlay" id="aviso-modal">
     <div class="modal-box">
@@ -4113,8 +4128,9 @@ function toggleRibbon(id) { document.getElementById('oc-'+id)?.classList.toggle(
 const PEDIDO_LIST_KEY = 'rw_pedido_list_v1';
 
 // 🔧 NUEVO: montos mínimos por categoría para poder enviar el lote
-// confirmado a "precio mayorista". Calzados se mide en UNIDADES (pares),
-// el resto en pesos ($ mayorista acumulado del lote de esa categoría).
+// confirmado a "precio mayorista". Calzados y Suplementos se miden en
+// UNIDADES, el resto en pesos ($ mayorista acumulado del lote de esa
+// categoría).
 const MINIMO_POR_CATEGORIA = {
     perfumes:    { tipo: 'monto', valor: 150000 },
     belleza:     { tipo: 'monto', valor: 200000 },
@@ -4122,8 +4138,8 @@ const MINIMO_POR_CATEGORIA = {
     bazar:       { tipo: 'monto', valor: 150000 },
     jugueteria:  { tipo: 'monto', valor: 150000 },
     libreria:    { tipo: 'monto', valor: 150000 },
-    lenceria:    { tipo: 'monto', valor: 150000 },
-    suplementos: { tipo: 'monto', valor: 150000 },
+    lenceria:    { tipo: 'monto', valor: 200000 },
+    suplementos: { tipo: 'unidades', valor: 15 },
     multishop:   { tipo: 'monto', valor: 250000 },
 };
 const NICHO_LABEL_PEDLISTA = {
@@ -4133,6 +4149,26 @@ const NICHO_LABEL_PEDLISTA = {
 
 function getPedidoList() {
     try { return JSON.parse(localStorage.getItem(PEDIDO_LIST_KEY) || '[]'); } catch(_) { return []; }
+}
+
+// 🔧 NUEVO: mismo cálculo suma-vs-mínimo que ya usa renderPedidoListaView()
+// para pintar cada tarjeta de categoría, pero como función reusable — la
+// usan tanto el render (para mostrar el estado) como sendAllPedidos() (para
+// bloquear el envío de verdad si todavía no se alcanzó el objetivo).
+function _totalCategoriaPedidoLista(nicho) {
+    const items = getPedidoList().filter(p => (p.nicho || 'multishop') === nicho);
+    const totalMayoristaCat = items.reduce((s, p) => s + (p.totalMayorista || 0), 0);
+    const unidadesCat = items.reduce((s, p) => s + (p.items || []).reduce((s2, it) => s2 + (Number(it.cantidad) || 1), 0), 0);
+    return { totalMayoristaCat, unidadesCat };
+}
+function _categoriaCumpleObjetivo(nicho) {
+    const min = MINIMO_POR_CATEGORIA[nicho] || { tipo: 'monto', valor: 0 };
+    const { totalMayoristaCat, unidadesCat } = _totalCategoriaPedidoLista(nicho);
+    const valorActual = min.tipo === 'unidades' ? unidadesCat : totalMayoristaCat;
+    return valorActual >= min.valor;
+}
+function mostrarObjetivoPendienteModal() {
+    document.getElementById('objetivoPendienteModal')?.classList.add('show');
 }
 function savePedidoList(list) {
     // 🔧 NUEVO: antes esta lista vivía ÚNICAMENTE en localStorage — el
@@ -4232,6 +4268,16 @@ function aprobarPedido(id, btn) {
 }
 
 async function sendAllPedidos(categoria) {
+    // 🔧 NUEVO: gating real — el envío queda bloqueado (con aviso) si esta
+    // categoría todavía no alcanzó su objetivo (MINIMO_POR_CATEGORIA). El
+    // botón ya se muestra atenuado cuando falta, pero el chequeo se hace
+    // acá también para que quede bloqueado de verdad, sin depender de que
+    // el atributo "disabled" del botón no haya sido salteado.
+    if (categoria && !_categoriaCumpleObjetivo(categoria)) {
+        mostrarObjetivoPendienteModal();
+        return;
+    }
+
     // 🔧 NUEVO: antes de llegar al modal de pago, se confirma que los
     // datos de envío del revendedor (los que van a usarse en pedidos.html
     // para "Ejecutar Pedido") estén correctos.
@@ -4767,7 +4813,7 @@ function renderPedidoListaView() {
                 <div class="ribbon-inner" style="padding:12px 14px">
                     ${items.map(pedidoCardHtml).join('')}
                     ${textoEstado}
-                    <button class="btn-head btn-send-all" style="width:100%;justify-content:center;padding:14px" ${cumple ? '' : 'disabled'} onclick="sendAllPedidos('${nicho}')">
+                    <button class="btn-head btn-send-all" style="width:100%;justify-content:center;padding:14px${cumple ? '' : ';opacity:.5;cursor:not-allowed'}" onclick="sendAllPedidos('${nicho}')">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                         Enviar a precio mayorista ($${Math.round(totalMayoristaCat).toLocaleString()})
                     </button>
