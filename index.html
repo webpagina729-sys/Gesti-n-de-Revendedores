@@ -554,6 +554,7 @@
         @media (max-width: 640px) {
             .topbar { padding: 0 16px; }
             .wrap { padding: 20px 14px; }
+            .page-head { gap: 10px; }
             .head-actions { gap: 6px; }
             .btn-head { padding: 8px 12px; font-size: 12px; }
             .page-title { font-size: 20px; }
@@ -585,6 +586,12 @@
             .page-title { font-size: 18px; }
             .brand-code { max-width: 110px; }
             .brand-title { font-size: 15px; }
+            /* 🔧 AJUSTE ESTÉTICO: en pantallas muy angostas, el botón
+               "Pedidos Confirmados" se achica un poco más para que siga
+               entrando en la misma línea que "Mis Pedidos" sin cortarse a
+               una segunda línea. */
+            .btn-head { padding: 7px 10px; font-size: 11px; gap: 6px; }
+            #btn-confirmados svg { width: 13px; height: 13px; }
         }
 
         /* ── GUÍA ── */
@@ -652,29 +659,46 @@
            amontonados a la izquierda. Su ancho queda igual al de la
            tarjeta de nivel (.level-block, que también tope-a en 480px). */
         @media (max-width: 640px) {
-            .head-actions { width:100%; }
-            .header-icon-row { width:100%; max-width:480px; justify-content:space-between; }
+            /* 🔧 AJUSTE ESTÉTICO: el botón "Pedidos Confirmados" queda en la
+               misma línea que "Mis Pedidos" (cubriendo el espacio libre a la
+               derecha, gracias al justify-content:space-between ya presente
+               en .page-head) — antes .head-actions forzaba width:100%, lo
+               que lo tiraba a su propia línea. La fila de íconos (ahora
+               hermana de .head-actions, no hija) sigue ocupando su propia
+               línea completa debajo, separada por una línea delicada. */
+            .header-icon-row {
+                width:100%;
+                max-width:480px;
+                justify-content:space-between;
+                margin-top:12px;
+                padding-top:12px;
+                border-top:1px solid var(--border);
+            }
         }
 
         @media (max-width: 480px) {
+            /* 🔧 AJUSTE ESTÉTICO: íconos un poquito más grandes (27→30px,
+               gear 22→25px), manteniendo un gap chico entre ellos. */
+            .header-icon-row { gap:7px; }
+            .header-icon-row .btn-guide-icon,
+            .header-icon-row .btn-gift,
+            .header-icon-row .btn-history,
+            .header-icon-row .btn-seguimiento,
+            .header-icon-row .btn-actualizar-icon { width:30px!important; height:30px!important; }
+            .header-icon-row .btn-gear { width:25px!important; height:25px!important; }
+            .header-icon-row svg { width:14.5px!important; height:14.5px!important; }
+        }
+        @media (max-width: 360px) {
+            /* 🔧 AJUSTE ESTÉTICO: ídem, un poquito más grandes (24→27px,
+               gear 20→23px), gap chico. */
             .header-icon-row { gap:5px; }
             .header-icon-row .btn-guide-icon,
             .header-icon-row .btn-gift,
             .header-icon-row .btn-history,
             .header-icon-row .btn-seguimiento,
             .header-icon-row .btn-actualizar-icon { width:27px!important; height:27px!important; }
-            .header-icon-row .btn-gear { width:22px!important; height:22px!important; }
-            .header-icon-row svg { width:13px!important; height:13px!important; }
-        }
-        @media (max-width: 360px) {
-            .header-icon-row { gap:3px; }
-            .header-icon-row .btn-guide-icon,
-            .header-icon-row .btn-gift,
-            .header-icon-row .btn-history,
-            .header-icon-row .btn-seguimiento,
-            .header-icon-row .btn-actualizar-icon { width:24px!important; height:24px!important; }
-            .header-icon-row .btn-gear { width:20px!important; height:20px!important; }
-            .header-icon-row svg { width:12px!important; height:12px!important; }
+            .header-icon-row .btn-gear { width:23px!important; height:23px!important; }
+            .header-icon-row svg { width:13.5px!important; height:13.5px!important; }
         }
 
         /* ── CLIENTE DEL MES ── */
@@ -852,13 +876,20 @@
                     Pedidos Confirmados
                     <span class="cnt" id="cnt-confirmados" style="background:#ef4444;color:#fff">0</span>
                 </button>
+            </div>
                 <!-- ══ FILA DE ÍCONOS DEL HEADER ══
                      Los 6 botones (Guía/notificaciones, Regalo, Historial,
                      Seguimiento, Personalizar panel y Actualizar) viven en
                      este único contenedor flex con flex-wrap:nowrap (ver
                      CSS .header-icon-row) para que NUNCA se corten a una
                      segunda línea, en ningún ancho de pantalla — se van
-                     achicando con clamp()/media queries en su lugar. -->
+                     achicando con clamp()/media queries en su lugar.
+                     🔧 AJUSTE ESTÉTICO: se sacó de adentro de .head-actions
+                     y pasó a ser hermano directo dentro de .page-head, para
+                     que en mobile quede SIEMPRE en su propia línea (debajo
+                     de "Mis Pedidos" + el botón de Pedidos Confirmados, que
+                     ahora comparten la primera línea), separada por una
+                     línea divisoria delicada (ver CSS @media max-width:640px). -->
                 <div class="header-icon-row" id="header-icon-row">
                     <button id="btn-guide" class="btn-guide-icon" onclick="openGuide()" title="Guía del panel" aria-label="Abrir guía">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -889,7 +920,6 @@
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
                     </button>
                 </div>
-            </div>
         </div>
 
         <!-- MENU -->
