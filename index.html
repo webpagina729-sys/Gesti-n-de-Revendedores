@@ -21,6 +21,7 @@
             --blue-pale:   rgba(0,102,255,.12);
             --blue-glow:   rgba(0,102,255,.25);
             --bg:          #0b0d12;
+            --bg-rgb:      11,13,18;
             --bg2:         #111318;
             --bg3:         #16181f;
             --surface:     #1c1f2a;
@@ -44,7 +45,16 @@
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         html { scroll-behavior: smooth; overflow-x: hidden; width: 100%; }
         body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; line-height: 1.6; min-height: 100vh; width: 100%; overflow-x: hidden; position: relative; }
-        body::before { content:''; position: fixed; inset: 0; z-index: 0; pointer-events: none; background: radial-gradient(ellipse 70% 50% at 50% 0%, var(--luz-general, rgba(0,102,255,.10)), transparent 70%); }
+        body::before {
+            content:''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+            background:
+                radial-gradient(ellipse 65% 50% at 10% 0%,   var(--luz-general, rgba(0,102,255,.35)), transparent 62%),
+                radial-gradient(ellipse 65% 50% at 90% 5%,   var(--luz-general, rgba(0,102,255,.28)), transparent 62%),
+                radial-gradient(ellipse 80% 60% at 50% 100%, var(--luz-general, rgba(0,102,255,.24)), transparent 68%);
+            mix-blend-mode: screen;
+            animation: luzPulse 7s ease-in-out infinite;
+        }
+        @keyframes luzPulse { 0%, 100% { opacity: .82; } 50% { opacity: 1; } }
         .wrap { position: relative; z-index: 1; }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: var(--bg2); }
@@ -53,8 +63,9 @@
         /* ── TOPBAR ── */
         .topbar {
             position: sticky; top: 0; z-index: 200;
-            background: rgba(11,13,18,.92); backdrop-filter: blur(12px);
+            background: rgba(var(--bg-rgb, 11,13,18),.92); backdrop-filter: blur(12px);
             border-bottom: 1px solid var(--border);
+            box-shadow: 0 1px 24px -2px var(--luz-borde, transparent);
             padding: 0 32px; height: 60px;
             display: flex; align-items: center; justify-content: space-between;
             gap: 10px;
@@ -6400,12 +6411,23 @@ function _applyCustomColorsV2(colors) {
     // Color de Fondo — se derivan los 5 tonos de fondo que usa el panel a
     // partir de un solo color base elegido por el revendedor.
     if (colors.bg) {
-        const pasos = isLight ? [0, -3, -6, 3, -1] : [0, 3, 6, 9, 13];
+        // Pasos ampliados: antes iban de 0 a 13% (casi imperceptible), ahora
+        // llegan hasta ~26% para que el tono elegido se note de verdad en
+        // las superficies del panel sin perder legibilidad del texto.
+        const pasos = isLight ? [0, -5, -10, 5, -3] : [0, 6, 12, 18, 26];
         setVar('--bg',       _shadeHex(colors.bg, pasos[0]));
         setVar('--bg2',      _shadeHex(colors.bg, pasos[1]));
         setVar('--bg3',      _shadeHex(colors.bg, pasos[2]));
         setVar('--surface',  _shadeHex(colors.bg, pasos[3]));
         setVar('--surface2', _shadeHex(colors.bg, pasos[4]));
+        // --bg-rgb: componentes r,g,b del color de fondo elegido, usados por
+        // elementos que necesitan aplicar su propia opacidad (ej. .topbar,
+        // que antes tenía un color de fondo fijo y no reflejaba el cambio).
+        const _v = (colors.bg || '#000000').replace('#', '');
+        const _r = parseInt(_v.substring(0, 2), 16);
+        const _g = parseInt(_v.substring(2, 4), 16);
+        const _b = parseInt(_v.substring(4, 6), 16);
+        setVar('--bg-rgb', `${_r},${_g},${_b}`);
     }
 
     // Color de bordes — bordes de tarjetas/botones/separadores.
@@ -6425,7 +6447,10 @@ function _applyCustomColorsV2(colors) {
     // Luz general — brillos y luces ambiente del panel (resplandor detrás
     // del contenido, no confundir con el color de los botones).
     if (colors.glow) {
-        setVar('--luz-general', _hexToRgba(colors.glow, .14));
+        // Antes alpha .14 (casi invisible). Ahora bien notorio, tipo neón,
+        // y se refuerza con --luz-borde (resplandor en el borde del topbar).
+        setVar('--luz-general', _hexToRgba(colors.glow, .4));
+        setVar('--luz-borde', _hexToRgba(colors.glow, .55));
     }
 
     // Reflejar el color elegido en el slider/swatch/texto correspondiente.
@@ -6455,7 +6480,7 @@ function applySavedCustomColors() {
     if (saved.bg || saved.border || saved.btn || saved.glow) {
         _applyCustomColorsV2(saved);
     } else {
-        ['--blue','--blue-dim','--blue-pale','--blue-glow','--border','--border2','--bg','--bg2','--bg3','--surface','--surface2','--luz-general']
+        ['--blue','--blue-dim','--blue-pale','--blue-glow','--border','--border2','--bg','--bg-rgb','--bg2','--bg3','--surface','--surface2','--luz-general','--luz-borde']
             .forEach(p => document.documentElement.style.removeProperty(p));
     }
 }
@@ -6547,7 +6572,7 @@ function saveCustomColors() {
 
 function resetCustomColors() {
     _customColorsDraft = { bg: null, border: null, btn: null, glow: null };
-    ['--blue','--blue-dim','--blue-pale','--blue-glow','--border','--border2','--bg','--bg2','--bg3','--surface','--surface2','--luz-general']
+    ['--blue','--blue-dim','--blue-pale','--blue-glow','--border','--border2','--bg','--bg-rgb','--bg2','--bg3','--surface','--surface2','--luz-general','--luz-borde']
         .forEach(p => document.documentElement.style.removeProperty(p));
     localStorage.removeItem(CUSTOM_COLOR_KEY);
     const isLight = document.body.classList.contains('light-theme');
