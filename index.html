@@ -4713,7 +4713,8 @@ async function confirmSendAll() {
                 productos: itemsLote,
                 total: Math.round(totalMayorista),
                 codigoVendedor: currentCode,
-                nicho: nichoLote
+                nicho: nichoLote,
+                pedidosClientesIds: pedidoList.map(p => p.id).filter(Boolean)
             })
         });
         if (resPedido.ok) {
