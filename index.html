@@ -411,6 +411,8 @@
            quedaba tapado detrás de #confirmados-modal. Se deja por encima de
            TODOS los demás modal-overlay del archivo (incluidos los 9500).*/
         #datosCorrectosModal, #corregirDatosModal, #datosActualizadosModal { z-index: 9600; }
+        /* Aviso "Completa el objetivo": siempre en primer plano, por encima de Pedidos Confirmados. */
+        #objetivoPendienteModal { z-index: 9600; }
         .modal-overlay.show { display: flex; }
         .modal-box { background: var(--bg2); border: 1px solid var(--border2); border-radius: 14px; width: 100%; max-width: 380px; padding: 24px; box-shadow: var(--shadow-lg); }
         .modal-icon { width: 42px; height: 42px; border-radius: 10px; background: var(--red-pale); display: flex; align-items: center; justify-content: center; margin-bottom: 14px; }
