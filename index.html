@@ -2165,9 +2165,9 @@ let CATALOGO_PRECIOS_WORKER = {};
     }).catch(() => {});
 })();
 
-function _precioRefCatalogo(nombre) {
+function _precioRefCatalogo(nombre, fuentesPropias) {
     if (!nombre) return null;
-    const fuentes = [CATALOGO_PRECIOS_REF, CATALOGO_PRECIOS_WORKER];
+    const fuentes = fuentesPropias || [CATALOGO_PRECIOS_WORKER, CATALOGO_PRECIOS_REF];
 
     // Limpia el nombre: quita talle "(T.43)", "(T43)", espacios extra
     function limpiar(s) {
@@ -2204,26 +2204,23 @@ function _precioRefCatalogo(nombre) {
 
     return null;
 }
-// Precio mayorista efectivo de un ítem:
-// 1) si el pedido ya trae precioCosto (pedidos nuevos, enviados desde tienda.html
-//    con el costo real adjunto) → se usa ese, es el dato exacto.
-// 2) si no lo trae (pedidos viejos, anteriores a este cambio) → se busca por
-//    nombre en el catálogo de referencia.
-// 3) si tampoco hay match en el catálogo → cae al precio del pedido (peor caso).
+// Precio mayorista efectivo de un ítem (lo que el revendedor paga):
+// 1) el precio del producto en el Worker preciosmayoristasrevendedores
+//    (por nombre) — fuente de verdad. La referencia local queda como respaldo.
+// 2) si el producto ya no está ahí, el precioCosto que trae el pedido.
+// 3) costoMayoristaUnitario — solo si es distinto del precio cliente
+//    (pedidos viejos tienen este campo igual al precio cliente = bug).
+// 4) sin dato → 0 (no se inventa un costo).
 function precioMayoristaItem(item) {
     if (!item) return 0;
     const pCli = Number(item.precioFinal ?? item.precioCliente ?? item.precio ?? 0);
 
-    // 1. precioCosto — campo explícito enviado por workerpagos/tienda.html
-    const pc = Number(item.precioCosto || 0);
-    if (pc > 0 && pc !== pCli) return pc;
-
-    // 2. Catálogo por nombre — fuente de verdad (resuelve con talle incluido)
     const ref = _precioRefCatalogo(item.nombre);
     if (ref != null) return ref;
 
-    // 3. costoMayoristaUnitario — solo si es distinto del precio cliente
-    //    (pedidos viejos tienen este campo igual al precio cliente = bug)
+    const pc = Number(item.precioCosto || 0);
+    if (pc > 0 && pc !== pCli) return pc;
+
     const cmu = Number(item.costoMayoristaUnitario || 0);
     if (cmu > 0 && cmu !== pCli) return cmu;
 
@@ -2800,6 +2797,12 @@ function downloadClientInvoicePDF(id) {
         doc.text('$' + Math.round(valorSegundo).toLocaleString('es-AR'), boxXSegundo + boxW - 3, y + 11.5, { align: 'right' });
     }
 
+    // Fecha y hora del pedido, en chiquito debajo del total
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...GRAY);
+    doc.text('Pedido realizado: ' + fecha + ' hs', W - 14, y + 19, { align: 'right' });
+
     y += 22;
 
     // Footer
@@ -3003,6 +3006,12 @@ function downloadInvoicePDF(id) {
     drawRow(2, '% aplicado en esta venta', pctAplicado.toFixed(1) + ' %', BLUE, true);
     drawRow(3, 'Ganancia neta', '$' + Math.round(ganancia).toLocaleString('es-AR'), RED, true);
 
+    // Fecha y hora del pedido, en chiquito debajo del total
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...GRAY);
+    doc.text('Pedido realizado: ' + fecha + ' hs', W - 14, y + rowH * 4 + 8, { align: 'right' });
+
     y += rowH * 4 + 12;
 
     // ── ESTADÍSTICAS DEL PEDIDO ──
@@ -3141,12 +3150,10 @@ function resellerGainForItem(item, nichoKey) {
     const precioCliente   = resellerPriceFinal(item, nichoKey);
     const precioMayorista = precioMayoristaItem(item);
     const qty = Number(item.cantidad || 1);
-    if (!precioCliente && !precioMayorista) return 0;
-    // Ganancia = precio mayor - precio menor (siempre positivo)
-    const pMax = Math.max(precioCliente, precioMayorista);
-    const pMin = Math.min(precioCliente, precioMayorista);
-    if (!pMin || !pMax) return 0;
-    return (pMax - pMin) * qty;
+    // Ganancia = precio que paga el cliente (tienda.html) − precio mayorista.
+    // Sin precio mayorista conocido no se puede calcular: 0.
+    if (!precioCliente || !precioMayorista) return 0;
+    return (precioCliente - precioMayorista) * qty;
 }
 
 function resellerGainOf(p) {
@@ -3245,6 +3252,28 @@ function saveGananciasOficiales(list) {
     localStorage.setItem(GANANCIAS_OFICIALES_KEY, JSON.stringify(list.slice(-2000)));
 }
 
+// 🔧 FECHAS: lo que se guarda en Firestore va como Timestamp real (los textos
+// ISO se convierten al escribir) y al leer se devuelve el mismo texto ISO que
+// ya usaba el resto de la pantalla.
+const _RE_FECHA_ISO_FS = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
+function _fsFechasEscritura(obj) {
+    const o = {};
+    Object.keys(obj || {}).forEach(k => {
+        const v = obj[k];
+        o[k] = (typeof v === 'string' && _RE_FECHA_ISO_FS.test(v) && !isNaN(new Date(v).getTime()))
+            ? firebase.firestore.Timestamp.fromDate(new Date(v)) : v;
+    });
+    return o;
+}
+function _fsFechasLectura(obj) {
+    const o = {};
+    Object.keys(obj || {}).forEach(k => {
+        const v = obj[k];
+        o[k] = (v && typeof v.toDate === 'function' && typeof v.toMillis === 'function') ? v.toDate().toISOString() : v;
+    });
+    return o;
+}
+
 // Escribe un registro de ganancia oficial en Firestore (no bloqueante).
 // Falla en silencio si no hay conexión: el dato ya quedó guardado en
 // localStorage, y quedará pendiente de sincronizar hasta la próxima carga.
@@ -3253,7 +3282,7 @@ async function _fsGuardarGananciaOficial(item) {
     try {
         await _db.collection('usuarios').doc(currentUid)
             .collection('gananciasOficiales').doc(item.id)
-            .set(item, { merge: true });
+            .set(_fsFechasEscritura(item), { merge: true });
     } catch(e) {
         console.warn('No se pudo persistir ganancia oficial en Firestore:', e.message);
     }
@@ -3300,7 +3329,7 @@ async function _fsCargarGananciasOficiales() {
     if (!currentUid) return;
     try {
         const snap = await _db.collection('usuarios').doc(currentUid).collection('gananciasOficiales').get();
-        const remoto = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const remoto = snap.docs.map(d => _fsFechasLectura({ id: d.id, ...d.data() }));
         const local = getGananciasOficiales();
 
         // Subir a Firestore lo local que no esté remoto todavía
@@ -3445,7 +3474,7 @@ function _normalizarVendedor(uid, fbUser, data) {
         nombre: u.nombre || nombreFallback || '',
         apellido: u.apellido || apellidoFallback || '',
         configTienda: u.configTienda || u.config || {},
-        fechaAlta: u.fechaAlta || null
+        fechaAlta: (u.fechaAlta && typeof u.fechaAlta.toMillis === 'function') ? u.fechaAlta.toMillis() : (u.fechaAlta || null)
     };
 }
 
@@ -4209,7 +4238,28 @@ function actualizarContadoresEstado() {
     }
 }
 
+// Un producto que ya no existe en el Worker preciosmayoristasrevendedores
+// (fue quitado del catálogo) no tiene precio mayorista contra el cual
+// calcular: se quita del pedido en todas las vistas. Solo actúa con el
+// catálogo cargado completo (≥500 productos) para no borrar nada si el
+// worker falla o responde incompleto.
+function _productoDescatalogado(nombre) {
+    if (Object.keys(CATALOGO_PRECIOS_WORKER).length < 500) return false;
+    return _precioRefCatalogo(nombre, [CATALOGO_PRECIOS_WORKER]) == null;
+}
+function _quitarProductosDescatalogados() {
+    pedidos = pedidos.filter(p => {
+        const todos = Array.isArray(p.items) ? p.items : [];
+        const quedan = todos.filter(i => !_productoDescatalogado(i && i.nombre));
+        if (quedan.length === todos.length) return true;
+        if (!quedan.length) return false; // el pedido solo tenía productos quitados
+        p.items = quedan;
+        return true;
+    });
+}
+
 function renderAll() {
+    _quitarProductosDescatalogados();
     // Los pedidos ya confirmados (movidos a "Pedidos Confirmados") no deben
     // seguir apareciendo en "Pedidos aprobados" — si no, el revendedor cree
     // que todavía están pendientes de confirmar y se genera confusión.
@@ -4308,7 +4358,7 @@ function card(p) {
             <td><div class="prod-name">${esc(it.nombre||'—')}</div>${detalle ? `<div style="font-size:11px;color:var(--text3);margin-top:2px">${esc(detalle)}</div>` : ''}</td>
             <td class="qty-num">${it.cantidad||1}</td>
             <td class="price-cell">${mayCell}</td>
-            ${hasConfig ? `<td class="price-cell">$${(pFin||0).toLocaleString()}</td><td class="gain-cell">+$${Math.round(gain||0).toLocaleString()}</td>` : ''}
+            ${hasConfig ? `<td class="price-cell">$${(pFin||0).toLocaleString()}</td><td class="gain-cell">${(gain||0) < 0 ? '-' : '+'}$${Math.abs(Math.round(gain||0)).toLocaleString()}</td>` : ''}
         </tr>`;
     }).join('');
 
@@ -4451,7 +4501,7 @@ function savePedidoList(list) {
         const idsAnteriores = new Set(anterior.map(p => p.id));
         const coll = _db.collection('usuarios').doc(currentUid).collection('pedidoListaConfirmados');
         // Agregar/actualizar lo que está en la lista nueva
-        list.forEach(p => { coll.doc(String(p.id)).set(p).catch(() => {}); });
+        list.forEach(p => { coll.doc(String(p.id)).set(_fsFechasEscritura(p)).catch(() => {}); });
         // Borrar de Firestore lo que ya no está (se quitó o se envió a pagar)
         anterior.forEach(p => {
             if (!idsNuevos.has(p.id)) coll.doc(String(p.id)).delete().catch(() => {});
@@ -4467,13 +4517,13 @@ async function _fsCargarPedidoListaConfirmados() {
     if (!currentUid) return;
     try {
         const snap = await _db.collection('usuarios').doc(currentUid).collection('pedidoListaConfirmados').get();
-        const remoto = snap.docs.map(d => d.data());
+        const remoto = snap.docs.map(d => _fsFechasLectura(d.data()));
         const local = getPedidoList();
 
         const remotoIds = new Set(remoto.map(p => p.id));
         const soloLocal = local.filter(p => !remotoIds.has(p.id));
         soloLocal.forEach(p => {
-            _db.collection('usuarios').doc(currentUid).collection('pedidoListaConfirmados').doc(String(p.id)).set(p).catch(() => {});
+            _db.collection('usuarios').doc(currentUid).collection('pedidoListaConfirmados').doc(String(p.id)).set(_fsFechasEscritura(p)).catch(() => {});
         });
 
         const merged = new Map();
@@ -6621,7 +6671,7 @@ async function _fsGuardarRegalo(gift) {
     try {
         await _db.collection('usuarios').doc(currentUid)
             .collection('regalos').doc(gift.id)
-            .set(gift, { merge: true });
+            .set(_fsFechasEscritura(gift), { merge: true });
     } catch(e) {
         console.warn('No se pudo persistir el regalo en Firestore:', e.message);
     }
@@ -6637,7 +6687,7 @@ async function _fsCargarRegalos() {
     if (!currentUid) return;
     try {
         const snap = await _db.collection('usuarios').doc(currentUid).collection('regalos').get();
-        const remoto = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const remoto = snap.docs.map(d => _fsFechasLectura({ id: d.id, ...d.data() }));
         const local = getGiftsLog();
 
         const remotoIds = new Set(remoto.map(g => g.id));
