@@ -3411,6 +3411,19 @@ function _checkMercadoPagoReturn() {
             toast('⏳ Tu pago está pendiente de aprobación en Mercado Pago', false);
         } else if (status === 'failure' || status === 'rejected') {
             // El pago no se acreditó: el lote sigue en la lista "Pedido" para reintentar.
+            // Se vuelven a poner en "Pedidos Confirmados" los pedidos de este
+            // lote (salieron de la lista al ir a Mercado Pago) para poder reintentar.
+            try {
+                if (pending && Array.isArray(pending.pedidos) && pending.pedidos.length) {
+                    const actuales = getPedidoList();
+                    const idsActuales = new Set(actuales.map(p => String(p.id)));
+                    const repuestos = pending.pedidos.filter(p => !idsActuales.has(String(p.id)));
+                    if (repuestos.length) savePedidoList(actuales.concat(repuestos));
+                    clearMpPendingPayment();
+                    try { _updatePedidoListaBadge(); } catch(_) {}
+                    try { renderLevelBar(); } catch(_) {}
+                }
+            } catch(_) {}
             toast('❌ El pago no se completó. Los pedidos siguen en tu lista "Pedido".', 'err');
         }
 
