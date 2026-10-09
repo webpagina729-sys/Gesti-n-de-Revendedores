@@ -526,8 +526,9 @@ const IC = {
 };
 
 function pintarPanel(s) {
-  $('p-codigo').textContent = s.codigo;
-  $('p-link').value = linkAfiliado(s.codigo);
+  // El enlace lleva el código de afiliado (AFI-…), nunca el código real de revendedor.
+  $('p-codigo').textContent = s.codigoAfiliado || '';
+  $('p-link').value = s.codigoAfiliado ? linkAfiliado(s.codigoAfiliado) : '';
   const e = s.etapas, r = s.resumen;
   const ln = (a, b) => `<div class="line"><span>${a}</span><b>${b}</b></div>`;
   $('p-kpis').innerHTML =
@@ -549,7 +550,7 @@ function pintarPanel(s) {
   $('p-afil-res').innerHTML = `Afiliados activos: <b>${r.afiliadosActivos}</b> · Afiliados inactivos (libres): <b>${r.afiliadosInactivos}</b>`;
   $('p-afils').innerHTML = s.referidos.length ? s.referidos.map(a => {
     const pill = a.vinculo === 'libre' ? '<span class="pill r">Libre</span>' : (a.actividad === 'activo' ? '<span class="pill g">Activo</span>' : '<span class="pill a">Sin ventas recientes</span>');
-    return ribbon(IC.user, a.vinculo === 'libre' ? 'r' : 'b', a.nombre, a.codigo + ' · ' + pill, null,
+    return ribbon(IC.user, a.vinculo === 'libre' ? 'r' : 'b', a.nombre, (a.codigo ? a.codigo + ' · ' : '') + pill, null,
       ln('Pedidos', a.pedidos) + ln('Productos vendidos', a.unidades) + ln('Total vendido', money(a.totalVendido)) +
       ln('Tu comisión generada', money(a.comisionGenerada)) + ln('Última venta', fmtFecha(a.ultimaVenta)) +
       (a.vinculo === 'libre' ? ln('Estado', a.motivoLibre === 'afiliador_inactivo' ? 'Libre (por falta de pedidos tuyos)' : 'Libre (2 meses sin ventas)') : ''));
@@ -565,13 +566,11 @@ async function cargarPanel() {
   vista('v-load');
   const s = await api('/api/mis-stats').catch(() => ({ error: 'Sin conexión' }));
   if (s.error && !s.ok) {
-    // El enlace sale del código del revendedor, así que se muestra igual aunque falle el servicio de afiliados.
+    // Sin datos del servicio no se muestra enlace (nunca se arma con el código real del revendedor).
     vista('v-panel');
     $('p-err').classList.remove('hide');
     $('p-err-txt').textContent = (s.error || 'Sin conexión') + (s.detalle ? ' · ' + s.detalle : '');
-    let cod = ''; try { cod = localStorage.getItem('codigoVendedorLocal') || ''; } catch (_) {}
-    if (!cod && auth.currentUser) { const p = await fetch(WORKER_DATOS + '/api/perfil?uid=' + auth.currentUser.uid).then(r => r.ok ? r.json() : null).catch(() => null); cod = (p && p.ok && p.perfil && p.perfil.codigoVendedor) || ''; }
-    if (cod) { $('p-codigo').textContent = cod; $('p-link').value = linkAfiliado(cod); }
+    $('p-codigo').textContent = ''; $('p-link').value = '';
     return;
   }
   $('p-err').classList.add('hide');
