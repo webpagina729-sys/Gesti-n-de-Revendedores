@@ -916,6 +916,10 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="10" height="10"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
                     Reclamos
                 </button>
+                <button onclick="this.blur();window.location.href='afiliados.html'" title="Afiliados" aria-label="Afiliados" style="margin-left:auto;display:inline-flex;align-items:center;gap:3px;background:#fff;border:1px solid #fff;color:#0b0d12;border-radius:10px;padding:2px 8px;font-size:10px;font-weight:700;cursor:pointer;line-height:1.6;flex-shrink:0;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    Afiliados
+                </button>
             </div>
             <div class="level-row">
                 <div class="level-bar-wrap" title="Progreso al siguiente nivel">
@@ -4762,7 +4766,8 @@ async function confirmSendAll() {
     const btn = window._btnEnviandoLote || null;
     if (btn) { btn.textContent = `Enviando...`; btn.disabled = true; }
 
-    const totalMayorista = pedidoList.reduce((s, p) => s + (p.totalMayorista || 0), 0);
+    const totalMayorista = pedidoList.reduce((s, p) => s + (p.totalMayorista || 0), 0)
+        + (window._afilRecargoLote ? window._afilRecargoLote(pedidoList) : 0); // aporte 1% Programa de Afiliados (0 si no está inscripto)
 
     // Aplanar los items del lote de ESTA categoría en una sola lista de
     // productos. Ya no hace falta "adivinar" el nicho predominante — el
@@ -7064,5 +7069,276 @@ document.getElementById('gift-stats-modal').addEventListener('click', function(e
 
 window.addEventListener('load', init);
 </script>
+<!-- ═══════════════════════════════════════════════════════════════════════
+     PROGRAMA DE AFILIADOS — módulo agregado (no modifica la lógica existente)
+     Se conecta con el Worker nuevo https://afiliados.tuweb.workers.dev.
+     • Reporta al programa los pedidos por etapa (solo si el revendedor está
+       afiliado a alguien o inscripto en el programa).
+     • Estadísticas: sector "Afiliados" + globo informativo (solo inscriptos).
+     • Pago a precio mayorista: aporte del 1% de la ganancia (solo inscriptos).
+     Si el Worker no responde, todo el panel funciona igual que antes.
+     ═══════════════════════════════════════════════════════════════════════ -->
+<script id="afiliados-modulo">
+(function () {
+    'use strict';
+    var WORKER_AFILIADOS = 'https://afiliados.tuweb.workers.dev';
+    var PCT_APORTE = 5;   // % de su ganancia que cede a quien lo afilió (solo si está en el programa)
+    var LS_APORTES = 'rw_afil_aportes_v1';
+
+    // ── estilos propios (no tocan el CSS existente) ──
+    var st = document.createElement('style');
+    st.textContent =
+        '.afil-ovl{position:fixed;inset:0;background:rgba(0,0,0,.62);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;z-index:9999;padding:18px}' +
+        '.afil-ovl.show{display:flex}' +
+        '.afil-modal{background:var(--surface,#1c1f2a);color:var(--text,#e8eaf0);border:1px solid var(--border2,rgba(255,255,255,.14));border-radius:16px;padding:20px;max-width:360px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.45)}' +
+        '.afil-modal h3{font-size:15px;font-weight:800;margin-bottom:6px}' +
+        '.afil-modal p{font-size:12.5px;color:var(--text2,#9aa0b4);margin-bottom:10px}' +
+        '.afil-l{display:flex;justify-content:space-between;gap:10px;padding:7px 0;font-size:12.5px;border-bottom:1px dashed var(--border,rgba(255,255,255,.08))}' +
+        '.afil-l:last-of-type{border-bottom:0}.afil-l b{font-weight:800;white-space:nowrap}' +
+        '.afil-btn{width:100%;margin-top:14px;background:var(--blue,#0066ff);color:#fff;border:0;border-radius:10px;padding:12px;font-size:13.5px;font-weight:700;font-family:inherit;cursor:pointer}' +
+        '.afil-sector{position:relative;background:var(--surface,#1c1f2a);border:1px solid var(--border,rgba(255,255,255,.08));border-radius:12px;padding:12px 14px;margin:0 0 16px}' +
+        '.afil-sector h3{font-size:13px;font-weight:800;display:flex;align-items:center;gap:7px;margin-bottom:6px}' +
+        '.afil-bubble{position:absolute;left:10px;right:10px;top:calc(100% + 12px);z-index:30;background:var(--blue,#0066ff);color:#fff;border-radius:14px;padding:12px 14px;box-shadow:0 14px 34px rgba(0,0,0,.4);animation:afilPop .28s ease-out;transform-origin:30px -10px}' +
+        '.afil-bubble:before{content:"";position:absolute;top:-8px;left:26px;border:8px solid transparent;border-top:0;border-bottom-color:var(--blue,#0066ff)}' +
+        '.afil-bubble .afil-l{border-color:rgba(255,255,255,.22);font-size:12px}' +
+        '.afil-bubble button{position:absolute;top:6px;right:8px;background:none;border:0;color:#fff;font-size:17px;line-height:1;cursor:pointer}' +
+        '.afil-bubble .t{font-size:12.5px;font-weight:800;margin-bottom:4px;padding-right:20px}' +
+        '@keyframes afilPop{from{opacity:0;transform:scale(.88) translateY(-8px)}to{opacity:1;transform:none}}';
+    document.head.appendChild(st);
+
+    var _info = null;      // {registrado, referidoDe}
+    var _stats = null;     // respuesta de /api/mis-stats
+    var _statsAt = 0;
+    var _aporteLote = false;
+    function leerAportes() { try { return JSON.parse(localStorage.getItem(LS_APORTES) || '{}') || {}; } catch (_) { return {}; } }
+    function guardarAportes(o) { try { localStorage.setItem(LS_APORTES, JSON.stringify(o)); } catch (_) {} }
+    function cede() { return !!(_info && _info.registrado && _info.cedeComision); }
+
+    function money(n) { return '$' + Math.round(Number(n) || 0).toLocaleString('es-AR'); }
+    function fdia(ms) { return ms ? new Date(ms).toLocaleDateString('es-AR') : '—'; }
+
+    async function api(path, opts) {
+        opts = opts || {};
+        var u = (typeof _auth !== 'undefined') ? _auth.currentUser : null;
+        if (!u) throw new Error('sin sesión');
+        var ctrl = new AbortController(); var tm = setTimeout(function () { ctrl.abort(); }, 9000);
+        try {
+            var r = await fetch(WORKER_AFILIADOS + path, {
+                method: opts.method || 'GET', signal: ctrl.signal,
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + await u.getIdToken() },
+                body: opts.body ? JSON.stringify(opts.body) : undefined
+            });
+            return await r.json();
+        } finally { clearTimeout(tm); }
+    }
+
+    // ── 1) Reporte de pedidos por etapa ──
+    function sumUnid(items) { return (items || []).reduce(function (s, i) { return s + (Number(i.cantidad) || 1); }, 0); }
+    function nombres(items) { return (items || []).map(function (i) { return i.nombre; }).filter(Boolean); }
+    function construirSync() {
+        var out = [], ids = {}, ultimoPago = 0, ultimaVenta = 0;
+        try {
+            var aportes = leerAportes(), cedio = cede();
+            getGananciasOficiales().forEach(function (g) {
+                var f = Date.parse(g.fechaPago) || Date.now(); ids[String(g.id)] = 1;
+                if (f > ultimoPago) ultimoPago = f; if (f > ultimaVenta) ultimaVenta = f;
+                var ap = Number(aportes[String(g.id)]) || 0;
+                if (!ap) return; // pagado sin ceder el 5%: no genera comisión (la actividad igual se informa)
+                out.push({ id: g.id, etapa: 'confirmado', aporte: ap, ganancia: (Number(g.ganancia) || 0) + ap, total: g.total || 0, unidades: sumUnid(g.items), productos: nombres(g.items), numeroPedido: g.numeroPedido || null, fecha: f, fechaPago: f });
+            });
+            getPedidoList().forEach(function (p) {
+                if (ids[String(p.id)]) return; ids[String(p.id)] = 1;
+                var f = Date.parse(p.fecha) || Date.now(); if (f > ultimaVenta) ultimaVenta = f;
+                if (!cedio) return;
+                out.push({ id: p.id, etapa: 'aprobado', ganancia: p.ganancia || 0, total: p.total || 0, unidades: sumUnid(p.items), productos: nombres(p.items), numeroPedido: p.numeroPedido || null, fecha: f });
+            });
+            (typeof pedidos !== 'undefined' ? pedidos : []).forEach(function (p) {
+                if (p.estado !== 'pagado' || ids[String(p.id)]) return; ids[String(p.id)] = 1;
+                var f = ((p.fechaCreacion && p.fechaCreacion.seconds) || 0) * 1000 || Date.now(); if (f > ultimaVenta) ultimaVenta = f;
+                if (!cedio) return;
+                out.push({ id: p.id, etapa: 'pendiente', ganancia: resellerGainOf(p), total: totalFinalRevendedor(p), unidades: sumUnid(p.items), productos: nombres(p.items), numeroPedido: p.numeroPedido || null, fecha: f });
+            });
+        } catch (e) { console.warn('afiliados: no se pudo armar el reporte', e); }
+        return { pedidos: out, ultimoPago: ultimoPago, ultimaVenta: ultimaVenta };
+    }
+    var _syncBusy = false;
+    async function sincronizar() {
+        if (_syncBusy || !_info || !(_info.registrado || _info.referidoDe)) return;
+        _syncBusy = true;
+        try { await api('/api/sync-ventas', { method: 'POST', body: construirSync() }); }
+        catch (e) { /* sin conexión: se reintenta en el próximo ciclo */ }
+        _syncBusy = false;
+    }
+    async function cargarStats(force) {
+        if (!force && _stats && Date.now() - _statsAt < 45000) return _stats;
+        var d = await api('/api/mis-stats');
+        if (d && d.ok) { _stats = d; _statsAt = Date.now(); _info = Object.assign(_info || {}, { registrado: !!d.registrado }); }
+        return _stats;
+    }
+    async function iniciar() {
+        try {
+            if (typeof _auth === 'undefined' || !_auth.currentUser) return;
+            var e = await api('/api/estado');
+            if (!e || !e.ok) return;
+            _info = { registrado: !!e.registrado, referidoDe: e.referidoDe || null, cedeComision: !!e.cedeComision };
+            if (_info.registrado) cargarStats(true).catch(function () {});
+            await sincronizar();
+        } catch (_) {}
+    }
+    var _ld = (typeof loadData === 'function') ? loadData : null;
+    if (_ld) {
+        loadData = function () { var r = _ld.apply(this, arguments); setTimeout(iniciar, 3500); return r; };
+    }
+    setInterval(sincronizar, 120000);
+    document.addEventListener('visibilitychange', function () {
+        if (document.hidden) return;
+        sincronizar();
+        // Si volvió de pagar Stock con su saldo, el Total a Liquidar se actualiza al instante.
+        var sec = document.getElementById('afil-sector');
+        if (sec && typeof pintarSector === 'function') { sec.remove(); _lastBubble = Date.now(); pintarSector(); }
+    });
+
+    // ── 2) Estadísticas: sector "Afiliados" + globo ──
+    var ICO = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>';
+    function filas(s) {
+        var e = s.etapas, r = s.resumen;
+        function row(a, n, m) { return '<div class="afil-l"><span>' + a + (n != null ? ' <span style="opacity:.7">(' + n + ' ped.)</span>' : '') + '</span><b>' + money(m) + '</b></div>'; }
+        return row('% Pendiente', e.pendiente.n, e.pendiente.monto) +
+            row('% Aprobados', e.aprobado.n, e.aprobado.monto) +
+            row('% Confirmado', e.confirmado.n, e.confirmado.monto) +
+            row('Total a Liquidar', null, s.saldoLiquidar != null ? s.saldoLiquidar : e.liquidar.monto) +
+            (s.liquidado ? row('Total liquidado (cobros y Stock)', null, s.liquidado.total) : '') +
+            '<div class="afil-l"><span>Afiliados activos</span><b>' + r.afiliadosActivos + '</b></div>' +
+            '<div class="afil-l"><span>Afiliados inactivos (libres)</span><b>' + r.afiliadosInactivos + '</b></div>';
+    }
+    var _lastBubble = 0;
+    async function pintarSector() {
+        var el = document.getElementById('stats-content');
+        if (!el || document.getElementById('afil-sector')) return;
+        if (!_info) { try { await iniciar(); } catch (_) {} }
+        if (!_info || !_info.registrado) return;
+        var s; try { s = await cargarStats(true); } catch (_) { return; }
+        if (!s || !s.registrado || !document.getElementById('stats-content') || document.getElementById('afil-sector')) return;
+        var box = document.createElement('div');
+        box.className = 'afil-sector'; box.id = 'afil-sector';
+        box.innerHTML = '<h3>' + ICO + 'Programa de Afiliados</h3>' + filas(s) +
+            '<div class="afil-l"><span>Próxima liquidación</span><b>' + fdia(s.proximaLiquidacion) + '</b></div>' +
+            '<div id="afil-bubble-slot"></div>';
+        var h2 = el.querySelector('h2.section-title');
+        if (h2 && h2.nextSibling) h2.parentNode.insertBefore(box, h2.nextSibling); else el.insertBefore(box, el.firstChild);
+        if (Date.now() - _lastBubble < 30000) return;
+        _lastBubble = Date.now();
+        var b = document.createElement('div'); b.className = 'afil-bubble'; b.id = 'afil-bubble';
+        b.innerHTML = '<button aria-label="Cerrar" onclick="this.parentNode.remove()">×</button><div class="t">Tus afiliados</div>' + filas(s);
+        b.addEventListener('click', function () { b.remove(); });
+        box.appendChild(b);
+        setTimeout(function () { var x = document.getElementById('afil-bubble'); if (x) x.remove(); }, 12000);
+    }
+    var _rsv = (typeof renderStatsView === 'function') ? renderStatsView : null;
+    if (_rsv) {
+        renderStatsView = function () { var r = _rsv.apply(this, arguments); pintarSector(); return r; };
+    }
+
+    // ── 3) Pago a precio mayorista: aporte 1% + ganancia pendiente de afiliados ──
+    function gananciaLote(categoria) {
+        var l = getPedidoList();
+        if (categoria) l = l.filter(function (p) { return (p.nicho || 'multishop') === categoria; });
+        return l;
+    }
+    function aporteDe(p) { return Math.round((Number(p.ganancia) || 0) * PCT_APORTE / 100); }
+    window._afilRecargoLote = function (lista) {
+        if (!_aporteLote) return 0;
+        return (lista || []).reduce(function (s, p) { return s + aporteDe(p); }, 0);
+    };
+
+    function modal(id, html) {
+        var o = document.getElementById(id);
+        if (!o) { o = document.createElement('div'); o.id = id; o.className = 'afil-ovl'; document.body.appendChild(o); }
+        o.innerHTML = '<div class="afil-modal">' + html + '</div>'; o.classList.add('show'); return o;
+    }
+    function cerrar(id) { var o = document.getElementById(id); if (o) o.classList.remove('show'); }
+    function L(a, b) { return '<div class="afil-l"><span>' + a + '</span><b>' + b + '</b></div>'; }
+
+    var _prep = (typeof _prepararYMostrarConfirmacionPago === 'function') ? _prepararYMostrarConfirmacionPago : null;
+    if (_prep) {
+        _prepararYMostrarConfirmacionPago = async function (categoria) {
+            _aporteLote = false;
+            var s = null;
+            try { if (_info && _info.registrado) s = await cargarStats(true); else if (!_info) { await iniciar(); if (_info && _info.registrado) s = await cargarStats(true); } } catch (_) {}
+            if (!s || !s.registrado) return _prep.call(this, categoria);
+            var cedeAhora = cede();
+
+            var lista = gananciaLote(categoria);
+            if (!lista.length) return _prep.call(this, categoria);
+            var G = lista.reduce(function (t, p) { return t + (Number(p.ganancia) || 0); }, 0);
+            var R = lista.reduce(function (t, p) { return t + aporteDe(p); }, 0);
+            var M = lista.reduce(function (t, p) { return t + (Number(p.totalMayorista) || 0); }, 0);
+            var self = this;
+
+            window._afilPaso1Aceptar = function () {
+                cerrar('afil-m1');
+                modal('afil-m2', '<h3>Programa de Afiliados</h3>' +
+                    '<p>Ganancia pendiente a liquidar de tus afiliados</p>' +
+                    L('Ganancia pendiente a liquidar', money(s.resumen.pendienteALiquidar)) +
+                    L('Fecha a liquidar', fdia(s.proximaLiquidacion)) +
+                    '<button class="afil-btn" onclick="_afilPaso2Continuar()">Aceptar y Continuar</button>');
+            };
+            window._afilPaso2Continuar = function () {
+                cerrar('afil-m2');
+                _aporteLote = cedeAhora;
+                var r = _prep.call(self, categoria);
+                if (!cedeAhora) return r;
+                // El cartel original muestra el total sin el aporte: se actualiza con el total real.
+                setTimeout(function () {
+                    try {
+                        var p = document.getElementById('send-all-modal').querySelector('p');
+                        p.textContent = p.textContent.replace(/\$[\d.,]+/, '$' + Math.round(M + R).toLocaleString());
+                    } catch (_) {}
+                }, 0);
+                return r;
+            };
+            if (!cedeAhora) { window._afilPaso1Aceptar(); return; }
+            modal('afil-m1', '<h3>Programa de Afiliados</h3>' +
+                '<p>Ganancia −' + PCT_APORTE + '% Programa de Afiliados aplicado al precio mayorista</p>' +
+                L('Ganancia de este pedido', money(G)) +
+                L('Aporte Programa de Afiliados (' + PCT_APORTE + '%)', '−' + money(R)) +
+                L('Ganancia final', money(G - R)) +
+                L('Precio mayorista', money(M)) +
+                L('+ Aporte al precio mayorista', money(R)) +
+                L('Total a pagar', money(M + R)) +
+                '<button class="afil-btn" onclick="_afilPaso1Aceptar()">Aceptar</button>');
+        };
+    }
+
+    // El total del envío incluye el aporte; al guardar el pago se registra la ganancia ya descontada.
+    var _setMp = (typeof setMpPendingPayment === 'function') ? setMpPendingPayment : null;
+    if (_setMp) {
+        setMpPendingPayment = function (data) {
+            if (_aporteLote && data) { data.aporteAfiliados = PCT_APORTE; }
+            _aporteLote = false;
+            return _setMp.call(this, data);
+        };
+    }
+    var _reg = (typeof registrarPagoConfirmado === 'function') ? registrarPagoConfirmado : null;
+    if (_reg) {
+        registrarPagoConfirmado = function (lista) {
+            var pend = null; try { pend = getMpPendingPayment(); } catch (_) {}
+            if (pend && pend.aporteAfiliados && Array.isArray(lista)) {
+                var ap = leerAportes();
+                lista = lista.map(function (p) {
+                    var a = aporteDe(p);
+                    if (a > 0) ap[String(p.id)] = a;
+                    return Object.assign({}, p, { ganancia: (Number(p.ganancia) || 0) - a, totalMayorista: (Number(p.totalMayorista) || 0) + a });
+                });
+            }
+            if (pend && pend.aporteAfiliados && Array.isArray(lista)) guardarAportes(ap);
+            var r = _reg.call(this, lista);
+            setTimeout(function () { sincronizar(); }, 1500);
+            return r;
+        };
+    }
+})();
+</script>
+
 </body>
 </html>
