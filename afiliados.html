@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Revende Ways | Programa de Afiliados</title>
+<link rel="icon" type="image/png" href="favicom.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
+<style>
+:root{
+  --blue:#0066ff;--blue-pale:rgba(0,102,255,.12);
+  --bg:#0b0d12;--bg2:#111318;--surface:#1c1f2a;--surface2:#222536;
+  --border:rgba(255,255,255,.08);--border2:rgba(255,255,255,.14);
+  --text:#e8eaf0;--text2:#9aa0b4;--text3:#5a6070;
+  --green:#00c96e;--green-pale:rgba(0,201,110,.12);--amber:#f59e0b;--amber-pale:rgba(245,158,11,.12);--red:#f43f5e;--red-pale:rgba(244,63,94,.12);
+  --r:12px;
+}
+body.light{--bg:#f4f6fb;--bg2:#fff;--surface:#fff;--surface2:#eef1f8;--border:rgba(0,0,0,.08);--border2:rgba(0,0,0,.15);--text:#161a26;--text2:#4b5368;--text3:#8a91a4}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans-serif;font-size:14px;line-height:1.45;min-height:100vh}
+button{font-family:inherit;cursor:pointer}
+.top{position:sticky;top:0;z-index:20;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;padding:12px 16px}
+.top h1{font-size:15px;font-weight:800;flex:1;display:flex;align-items:center;gap:8px}
+.back{display:inline-flex;align-items:center;gap:5px;background:var(--surface);border:1px solid var(--border2);color:var(--text);border-radius:9px;padding:7px 11px;font-size:12px;font-weight:700}
+.wrap{max-width:640px;margin:0 auto;padding:16px 16px 60px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:14px}
+.card h2{font-size:14px;font-weight:800;margin-bottom:6px;display:flex;align-items:center;gap:7px}
+.muted{color:var(--text2);font-size:12.5px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;width:100%;background:var(--blue);color:#fff;border:0;border-radius:10px;padding:12px 14px;font-size:13.5px;font-weight:700}
+.btn.sec{background:var(--surface2);color:var(--text);border:1px solid var(--border2)}
+.btn.green{background:var(--green);color:#06210f}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.sm{width:auto;padding:8px 12px;font-size:12px}
+label.f{display:block;font-size:11.5px;font-weight:700;color:var(--text2);margin:10px 0 4px}
+input.i,select.i{width:100%;background:var(--bg2);border:1px solid var(--border2);color:var(--text);border-radius:9px;padding:11px 12px;font-size:14px;font-family:inherit}
+input.i:focus{outline:2px solid var(--blue);outline-offset:0}
+input.i[readonly]{opacity:.8}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tabs{display:flex;gap:6px;margin-bottom:14px}
+.tab{flex:1;background:var(--surface);border:1px solid var(--border2);color:var(--text2);padding:10px;border-radius:10px;font-size:13px;font-weight:700}
+.tab.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.chk{display:flex;gap:9px;align-items:flex-start;margin:10px 0;font-size:12.5px;color:var(--text2)}
+.chk input{margin-top:3px;width:16px;height:16px;flex-shrink:0}
+.err{background:var(--red-pale);color:var(--red);border:1px solid var(--red);border-radius:9px;padding:9px 11px;font-size:12.5px;margin-top:10px;display:none}
+.err.show{display:block}
+.invite{display:flex;align-items:center;gap:10px;background:var(--blue-pale);border:1px solid var(--blue);border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:13px}
+.ribbon{border:1px solid var(--border);border-radius:11px;background:var(--surface2);margin-bottom:8px;overflow:hidden}
+.rhead{display:flex;align-items:center;gap:10px;padding:11px 12px;cursor:pointer;width:100%;background:none;border:0;color:var(--text);text-align:left}
+.rhead .l{flex:1;min-width:0}
+.rname{font-weight:700;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rsub{font-size:11px;color:var(--text2)}
+.rval{font-weight:800;font-size:13.5px;white-space:nowrap}
+.caret{transition:transform .2s;flex-shrink:0;color:var(--text3)}
+.ribbon.open .caret{transform:rotate(180deg)}
+.rbody{display:none;padding:2px 12px 12px;border-top:1px solid var(--border)}
+.ribbon.open .rbody{display:block}
+.line{display:flex;justify-content:space-between;gap:10px;padding:6px 0;font-size:12.5px;border-bottom:1px dashed var(--border)}
+.line:last-child{border-bottom:0}
+.line b{font-weight:700}
+.ico{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ico.b{background:var(--blue-pale);color:var(--blue)}.ico.g{background:var(--green-pale);color:var(--green)}.ico.a{background:var(--amber-pale);color:var(--amber)}.ico.r{background:var(--red-pale);color:var(--red)}
+.pill{font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:20px;white-space:nowrap}
+.pill.g{background:var(--green-pale);color:var(--green)}.pill.a{background:var(--amber-pale);color:var(--amber)}.pill.r{background:var(--red-pale);color:var(--red)}.pill.b{background:var(--blue-pale);color:var(--blue)}
+.linkbox{display:flex;gap:8px;margin-top:10px}
+.linkbox input{flex:1;min-width:0}
+.ovl{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;z-index:50;padding:18px}
+.ovl.show{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border2);border-radius:16px;padding:20px;max-width:380px;width:100%}
+.modal h3{font-size:15px;font-weight:800;margin-bottom:8px}
+.opt{display:block;width:100%;text-align:left;background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:11px;padding:12px;margin-top:9px}
+.opt.on{border-color:var(--blue);background:var(--blue-pale)}
+.opt b{display:block;font-size:13.5px}.opt span{font-size:11.5px;color:var(--text2)}
+.loader{display:flex;flex-direction:column;align-items:center;gap:12px;padding:70px 0;color:var(--text2)}
+.spin{width:30px;height:30px;border:3px solid var(--border2);border-top-color:var(--blue);border-radius:50%;animation:s 0.8s linear infinite}
+@keyframes s{to{transform:rotate(360deg)}}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--surface2);border:1px solid var(--border2);padding:10px 16px;border-radius:10px;font-size:13px;z-index:80;opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.show{opacity:1}
+.sep{height:1px;background:var(--border);margin:14px 0}
+.hide{display:none!important}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <h1>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    Programa de Afiliados
+  </h1>
+  <button class="back hide" id="btn-back" onclick="irAlPanel()">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="15 18 9 12 15 6"/></svg>Mi Panel
+  </button>
+</div>
+
+<div class="wrap">
+  <div id="v-load" class="loader"><div class="spin"></div><span>Cargando...</span></div>
+
+  <!-- ═══ REGISTRO / INGRESO (personas sin sesión) ═══ -->
+  <div id="v-auth" class="hide">
+    <div id="invite-box" class="invite hide">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span id="invite-txt"></span>
+    </div>
+    <div class="card">
+      <h2>Empezá a vender con Revende Ways</h2>
+      <p class="muted">Creá tu cuenta de revendedor en un minuto. Al terminar entrás directo a tu panel, sin volver a iniciar sesión.</p>
+    </div>
+    <div class="tabs">
+      <button class="tab on" id="tab-reg" onclick="verTab('reg')">Crear cuenta</button>
+      <button class="tab" id="tab-log" onclick="verTab('log')">Ya tengo cuenta</button>
+    </div>
+
+    <form id="f-reg" class="card" onsubmit="return registrar(event)" autocomplete="on">
+      <div class="row2">
+        <div><label class="f">Nombre *</label><input class="i" id="r-nombre" required autocomplete="given-name"></div>
+        <div><label class="f">Apellido *</label><input class="i" id="r-apellido" required autocomplete="family-name"></div>
+      </div>
+      <label class="f">Correo electrónico *</label><input class="i" id="r-email" type="email" required autocomplete="email">
+      <label class="f">Contraseña * (mínimo 6 caracteres)</label><input class="i" id="r-pass" type="password" minlength="6" required autocomplete="new-password">
+      <label class="f">WhatsApp *</label><input class="i" id="r-wa" type="tel" required autocomplete="tel" placeholder="Ej: 11 2345 6789">
+      <label class="f">Dirección *</label><input class="i" id="r-dir" required autocomplete="street-address">
+      <div class="row2">
+        <div><label class="f">Provincia *</label><input class="i" id="r-prov" required autocomplete="address-level1"></div>
+        <div><label class="f">Ciudad *</label><input class="i" id="r-ciudad" required autocomplete="address-level2"></div>
+      </div>
+      <label class="f">Código postal *</label><input class="i" id="r-cp" required autocomplete="postal-code">
+      <label class="f" id="r-ref-lbl">Código de quien te invitó</label>
+      <input class="i" id="r-ref" placeholder="Opcional" autocapitalize="characters">
+      <label class="chk hide" id="r-prog-lbl"><input type="checkbox" id="r-prog"><span>Acepto el Programa de Afiliados: cedo el 5% de mi ganancia a quien me invitó, y puedo invitar a otras personas y ganar el 5% de sus ganancias.</span></label>
+      <label class="chk"><input type="checkbox" id="r-tyc"><span>Acepto los términos y condiciones de uso de la plataforma.</span></label>
+      <label class="chk"><input type="checkbox" id="r-priv"><span>Acepto la política de privacidad.</span></label>
+      <div id="ts-reg" style="margin:10px 0"></div>
+      <button class="btn" id="btn-reg" type="submit">Crear mi cuenta y entrar</button>
+      <button class="btn sec" type="button" style="margin-top:9px" onclick="googleReg()">Registrarme con Google</button>
+      <div class="err" id="e-reg"></div>
+    </form>
+
+    <form id="f-log" class="card hide" onsubmit="return ingresar(event)">
+      <label class="f">Correo electrónico</label><input class="i" id="l-email" type="email" required autocomplete="email">
+      <label class="f">Contraseña</label><input class="i" id="l-pass" type="password" required autocomplete="current-password">
+      <button class="btn" id="btn-log" type="submit" style="margin-top:14px">Ingresar</button>
+      <button class="btn sec" type="button" style="margin-top:9px" onclick="googleLog()">Ingresar con Google</button>
+      <div class="err" id="e-log"></div>
+    </form>
+  </div>
+
+  <!-- ═══ REGISTRO AL PROGRAMA (revendedor con sesión, todavía no inscripto) ═══ -->
+  <div id="v-join" class="hide">
+    <div class="card">
+      <h2>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Ganá invitando emprendedores
+      </h2>
+      <p class="muted">Compartí tu enlace personal. Cada emprendedor que se registre con él queda bajo tu código y vos cobrás una parte de sus ganancias.</p>
+      <div class="sep"></div>
+      <div class="line"><span>Tu comisión</span><b>5% de la ganancia de cada pedido de tus afiliados</b></div>
+      <div class="line"><span>Tu aporte si te invitó alguien</span><b>5% de tu ganancia va a quien te invitó</b></div>
+      <div class="line"><span>Retención de la plataforma</span><b>1% de tu Total a Liquidar</b></div>
+      <div class="line"><span>Liquidación</span><b>cada 30 días</b></div>
+      <div class="line"><span>Comisión disponible</span><b>a los 10 días del pago del pedido</b></div>
+    </div>
+    <div class="card">
+      <h2>Reglas para mantener tus afiliados</h2>
+      <p class="muted">• Un solo nivel: cobrás por quienes vos invitaste.<br>
+      • Si un afiliado no genera ventas durante 2 meses, queda libre (su cuenta sigue activa) y dejás de recibir su comisión.<br>
+      • Si vos no entregás un pedido en 2 meses, perdés tus afiliados.<br>
+      • Solo los usuarios registrados en el programa pueden afiliar. Si te registraste con el enlace de alguien, el 5% de tu ganancia de cada pedido pagado va a esa persona.<br>
+      • Del Total a Liquidar, el 1% queda en la plataforma.<br>
+      • Pasados los 30 días podés usar tu Total a Liquidar en Stock con "Liquidar Afiliaciones".</p>
+    </div>
+    <div class="card">
+      <p class="muted" style="margin-bottom:6px">Se usarán los datos que ya cargaste al registrarte; no tenés que completar nada más.</p>
+      <label class="chk"><input type="checkbox" id="j-acepto"><span>Acepto las condiciones del Programa de Afiliados (si me invitó alguien, cedo el 5% de mi ganancia a esa persona; la plataforma retiene el 1% del Total a Liquidar).</span></label>
+      <button class="btn" id="btn-join" onclick="unirsePrograma()">Registrarme en el programa</button>
+      <div class="err" id="e-join"></div>
+    </div>
+  </div>
+
+  <!-- ═══ PANEL DEL AFILIADOR ═══ -->
+  <div id="v-panel" class="hide">
+    <div class="card">
+      <h2>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        Tu enlace de afiliado
+      </h2>
+      <p class="muted">Quien se registre con este enlace queda afiliado a tu código <b id="p-codigo"></b>.</p>
+      <div class="linkbox"><input class="i" id="p-link" readonly onclick="this.select()"></div>
+      <div class="row2" style="margin-top:10px">
+        <button class="btn sm" style="width:100%" onclick="copiarLink()">Copiar enlace</button>
+        <button class="btn sm green" style="width:100%" onclick="compartirLink()">Compartir</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        Mis ganancias del programa
+      </h2>
+      <div id="p-kpis" style="margin-top:8px"></div>
+      <div class="sep"></div>
+      <div class="line"><span>Ganancia pendiente a liquidar</span><b id="p-pend">$0</b></div>
+      <div class="line"><span>Fecha a liquidar</span><b id="p-fecha">-</b></div>
+      <div class="line"><span>Total a liquidar (confirmado)</span><b id="p-liq">$0</b></div>
+      <div class="line"><span>Crédito de compra en Stock</span><b id="p-cred">$0</b></div>
+      <button class="btn green" id="btn-cobro" style="margin-top:12px" onclick="abrirCobro()">Solicitar cobro</button>
+      <p class="muted" id="p-cobro-nota" style="margin-top:8px"></p>
+    </div>
+
+    <div class="card">
+      <h2>Mis afiliados</h2>
+      <p class="muted" id="p-afil-res"></p>
+      <div id="p-afils" style="margin-top:10px"></div>
+    </div>
+
+    <div class="card">
+      <h2>Pedidos de cobro</h2>
+      <div id="p-retiros" style="margin-top:8px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: pedir cobro -->
+<div class="ovl" id="m-cobro">
+  <div class="modal">
+    <h3>Solicitar cobro</h3>
+    <p class="muted">Disponible para cobrar: <b id="mc-monto">$0</b></p>
+    <button class="opt on" id="o-trans" onclick="elegirMetodo('transferencia')"><b>Transferencia</b><span>Te transferimos a tu alias o CBU.</span></button>
+    <button class="opt" id="o-cred" onclick="elegirMetodo('credito')"><b>Crédito de compra en Stock</b><span>Queda como saldo a favor para tus compras mayoristas.</span></button>
+    <div id="mc-alias-box"><label class="f">Alias o CBU</label><input class="i" id="mc-alias" placeholder="tu.alias.mp"></div>
+    <div class="err" id="e-cobro"></div>
+    <div class="row2" style="margin-top:14px">
+      <button class="btn sec" onclick="cerrar('m-cobro')">Cancelar</button>
+      <button class="btn" id="btn-cobro-ok" onclick="confirmarCobro()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═════════════ Configuración ═════════════
+const WORKER_AFILIADOS = 'https://afiliados.tuweb.workers.dev';
+const WORKER_DATOS     = 'https://datosderevendedor.tuweb.workers.dev';
+// Panel de gestión del revendedor (mismo dominio que esta página).
+const PANEL_GESTION_URL = 'index (1).html';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBRzd3HXbY6xIBIBNkzATo70kredodhKwc",
+  authDomain: "revende-weys.firebaseapp.com",
+  projectId: "revende-weys",
+  storageBucket: "revende-weys.firebasestorage.app",
+  messagingSenderId: "606182275212",
+  appId: "1:606182275212:web:69089eb56f10b8a02063a9"
+};
+if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
+
+try { if (localStorage.getItem('rw_theme') === 'light') document.body.classList.add('light'); } catch (_) {}
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money = n => '$' + Math.round(Number(n) || 0).toLocaleString('es-AR');
+const fmtFecha = ms => { if (!ms) return '—'; const d = new Date(ms); return d.toLocaleDateString('es-AR') + ' ' + d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }); };
+const fmtDia = ms => ms ? new Date(ms).toLocaleDateString('es-AR') : '—';
+function toast(t) { const e = $('toast'); e.textContent = t; e.classList.add('show'); setTimeout(() => e.classList.remove('show'), 2600); }
+function cerrar(id) { $(id).classList.remove('show'); }
+function showErr(id, m) { const e = $(id); e.textContent = m || ''; e.classList.toggle('show', !!m); }
+
+const params = new URLSearchParams(location.search);
+const REF = (params.get('ref') || '').trim().replace(/\s+/g, '').toUpperCase();
+let STATS = null, METODO = 'transferencia', registrando = false;
+
+function vista(v) {
+  ['v-load', 'v-auth', 'v-join', 'v-panel'].forEach(x => $(x).classList.toggle('hide', x !== v));
+  $('btn-back').classList.toggle('hide', v === 'v-auth' || v === 'v-load');
+}
+function irAlPanel() { location.href = encodeURI(PANEL_GESTION_URL).replace(/\(/g, '%28').replace(/\)/g, '%29'); }
+function verTab(t) {
+  $('f-reg').classList.toggle('hide', t !== 'reg'); $('f-log').classList.toggle('hide', t !== 'log');
+  $('tab-reg').classList.toggle('on', t === 'reg'); $('tab-log').classList.toggle('on', t === 'log');
+}
+
+// ═════════════ Llamadas al Worker ═════════════
+async function api(path, opts = {}) {
+  const u = auth.currentUser;
+  const headers = { 'Content-Type': 'application/json' };
+  if (u) headers.Authorization = 'Bearer ' + await u.getIdToken();
+  const r = await fetch(WORKER_AFILIADOS + path, { method: opts.method || 'GET', headers, body: opts.body ? JSON.stringify(opts.body) : undefined });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok && !d.error) d.error = 'Error ' + r.status;
+  return d;
+}
+
+// ═════════════ Invitación ═════════════
+async function cargarInvitacion() {
+  if (!REF) return;
+  $('r-ref').value = REF; $('r-ref').readOnly = true; $('r-ref-lbl').textContent = 'Código de quien te invitó';
+  $('invite-box').classList.remove('hide'); $('r-prog-lbl').classList.remove('hide');
+  $('invite-txt').textContent = 'Te invitaron a unirte a Revende Ways con el código ' + REF + '.';
+  try {
+    const d = await fetch(WORKER_AFILIADOS + '/api/ref-info?codigo=' + encodeURIComponent(REF)).then(r => r.json());
+    if (d.existe && d.nombre) $('invite-txt').textContent = d.nombre + ' te invitó a unirte a Revende Ways.';
+    else if (d.ok && !d.existe) $('invite-txt').textContent = 'El código de invitación ' + REF + ' no está activo, pero igual podés crear tu cuenta.';
+  } catch (_) {}
+}
+
+// ═════════════ Registro ═════════════
+function msgAuth(e) {
+  const c = e && e.code;
+  if (c === 'auth/email-already-in-use') return 'Ese correo ya tiene una cuenta. Usá "Ya tengo cuenta".';
+  if (c === 'auth/weak-password') return 'La contraseña debe tener al menos 6 caracteres.';
+  if (c === 'auth/invalid-email') return 'El correo no es válido.';
+  if (c === 'auth/user-not-found' || c === 'auth/wrong-password' || c === 'auth/invalid-credential') return 'Correo o contraseña incorrectos.';
+  if (c === 'auth/too-many-requests') return 'Demasiados intentos. Probá de nuevo en unos minutos.';
+  if (c === 'auth/popup-closed-by-user') return '';
+  return (e && e.message) || 'No se pudo completar. Intentá de nuevo.';
+}
+function codigoDesdeUid(uid) { return 'RW-' + String(uid).replace(/[^a-zA-Z0-9]/g, '').substring(0, 8).toUpperCase(); }
+
+async function crearCuentaEnPlataforma(user, datos) {
+  const body = JSON.stringify({ uid: user.uid, datos });
+  let r = await fetch(WORKER_DATOS + '/api/crear-cuenta', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+  if (!r.ok) r = await fetch(WORKER_DATOS + '/api/crear-cuenta', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+  if (!r.ok) throw new Error('No se pudo guardar tu registro. Intentá de nuevo.');
+  // Aceptación de términos y privacidad (mismo registro que el resto de la plataforma).
+  const idAcept = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2));
+  await fetch(WORKER_DATOS + '/api/guardar-datos-registro', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ uid: user.uid, terminosCondicionesAceptado: true, politicaPrivacidadAceptado: true, legalAceptacionId: idAcept, fechaAceptacionLegales: new Date().toISOString(), versionLegales: '1.1' })
+  }).catch(() => {});
+}
+
+// ═════════════ Cloudflare Turnstile ═════════════
+const TURNSTILE_SITEKEY = '0x4AAAAAAEuP7UTtW1odDnHM';
+let tsWidget = null, tsToken = '';
+function tsInit() {
+  if (tsWidget !== null || !window.turnstile || !$('ts-reg')) return;
+  tsWidget = window.turnstile.render('#ts-reg', { sitekey: TURNSTILE_SITEKEY, callback: t => { tsToken = t; }, 'expired-callback': () => { tsToken = ''; }, 'error-callback': () => { tsToken = ''; } });
+}
+(function esperarTs() { if (window.turnstile) tsInit(); else setTimeout(esperarTs, 300); })();
+async function verificarAntiBot() {
+  if (!tsToken) throw new Error('Completá la verificación anti-bot antes de continuar.');
+  const d = await fetch(WORKER_AFILIADOS + '/api/verificar-turnstile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: tsToken }) }).then(r => r.json()).catch(() => ({}));
+  tsToken = ''; try { if (window.turnstile && tsWidget !== null) window.turnstile.reset(tsWidget); } catch (_) {}
+  if (!d.ok) throw new Error(d.error || 'No pudimos verificar que sos una persona. Intentá de nuevo.');
+}
+function falta_prog() { const ref = ($('r-ref').value || REF || '').trim(); return ref && !$('r-prog').checked; }
+
+async function vincularYEntrar(user) {
+  const ref = ($('r-ref').value || REF || '').trim().replace(/\s+/g, '').toUpperCase();
+  if (ref) {
+    // Si el código no existe no frena el registro: la cuenta se crea igual.
+    const v = await api('/api/vincular', { method: 'POST', body: { refCodigo: ref } }).catch(() => ({}));
+    // Quien se registra con un enlace entra al programa (cede el 5% y puede afiliar).
+    if (v && v.ok) await api('/api/registrar-programa', { method: 'POST', body: { acepta: true } }).catch(() => {});
+  }
+  irAlPanel(); // el panel detecta la sesión de Firebase y entra solo
+}
+
+async function registrar(e) {
+  e.preventDefault(); showErr('e-reg', '');
+  if (!$('r-tyc').checked || !$('r-priv').checked) { showErr('e-reg', 'Tenés que aceptar los términos y la política de privacidad.'); return false; }
+  if (falta_prog()) { showErr('e-reg', 'Tenés que aceptar las condiciones del Programa de Afiliados.'); return false; }
+  registrando = true; const b = $('btn-reg'); b.disabled = true; b.textContent = 'Creando tu cuenta...';
+  try {
+    await verificarAntiBot();
+    const email = $('r-email').value.trim(), pass = $('r-pass').value;
+    const cred = await auth.createUserWithEmailAndPassword(email, pass);
+    const user = cred.user;
+    const wa = $('r-wa').value.trim();
+    await crearCuentaEnPlataforma(user, {
+      uid: user.uid, nombre: $('r-nombre').value.trim(), apellido: $('r-apellido').value.trim(),
+      direccion: $('r-dir').value.trim(), telefono: wa, whatsappRevendedor: wa, email,
+      provincia: $('r-prov').value.trim(), ciudad: $('r-ciudad').value.trim(), codigoPostal: $('r-cp').value.trim(),
+      codigoVendedor: codigoDesdeUid(user.uid), creado: new Date().toISOString(),
+    });
+    try { localStorage.setItem('codigoVendedorLocal', codigoDesdeUid(user.uid)); } catch (_) {}
+    b.textContent = 'Entrando a tu panel...';
+    await vincularYEntrar(user);
+  } catch (err) {
+    registrando = false; b.disabled = false; b.textContent = 'Crear mi cuenta y entrar';
+    showErr('e-reg', msgAuth(err));
+  }
+  return false;
+}
+
+async function googleReg() {
+  showErr('e-reg', '');
+  if (!$('r-tyc').checked || !$('r-priv').checked) { showErr('e-reg', 'Tenés que aceptar los términos y la política de privacidad.'); return; }
+  if (falta_prog()) { showErr('e-reg', 'Tenés que aceptar las condiciones del Programa de Afiliados.'); return; }
+  registrando = true;
+  try {
+    await verificarAntiBot();
+    const res = await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+    const u = res.user;
+    const existe = await fetch(WORKER_DATOS + '/api/perfil?uid=' + u.uid).then(r => r.ok ? r.json() : null).catch(() => null);
+    if (!(existe && existe.ok && existe.perfil && existe.perfil.codigoVendedor)) {
+      const partes = (u.displayName || '').trim().split(/\s+/);
+      await crearCuentaEnPlataforma(u, {
+        uid: u.uid, nombre: partes[0] || '', apellido: partes.slice(1).join(' '), direccion: '', telefono: $('r-wa').value.trim(),
+        whatsappRevendedor: $('r-wa').value.trim(), email: u.email || '', provincia: $('r-prov').value.trim(), ciudad: $('r-ciudad').value.trim(),
+        codigoPostal: $('r-cp').value.trim(), codigoVendedor: codigoDesdeUid(u.uid), creado: new Date().toISOString(),
+      });
+      await vincularYEntrar(u);
+    } else {
+      registrando = false; await iniciarSesionUI(u); // ya tenía cuenta: sigue como usuario existente
+    }
+  } catch (err) { registrando = false; showErr('e-reg', msgAuth(err)); }
+}
+
+async function ingresar(e) {
+  e.preventDefault(); showErr('e-log', '');
+  const b = $('btn-log'); b.disabled = true; b.textContent = 'Ingresando...';
+  try { await auth.signInWithEmailAndPassword($('l-email').value.trim(), $('l-pass').value); }
+  catch (err) { showErr('e-log', msgAuth(err)); }
+  b.disabled = false; b.textContent = 'Ingresar';
+  return false;
+}
+async function googleLog() {
+  showErr('e-log', '');
+  try { await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()); }
+  catch (err) { showErr('e-log', msgAuth(err)); }
+}
+
+// ═════════════ Programa ═════════════
+async function unirsePrograma() {
+  showErr('e-join', '');
+  if (!$('j-acepto').checked) { showErr('e-join', 'Tenés que aceptar las condiciones del programa.'); return; }
+  const b = $('btn-join'); b.disabled = true; b.textContent = 'Registrando...';
+  const d = await api('/api/registrar-programa', { method: 'POST', body: { acepta: true } }).catch(() => ({ error: 'Sin conexión' }));
+  b.disabled = false; b.textContent = 'Registrarme en el programa';
+  if (!d.ok) { showErr('e-join', d.error || 'No se pudo registrar.'); return; }
+  toast('¡Ya estás en el programa!');
+  await cargarPanel();
+}
+
+function linkAfiliado(codigo) {
+  const base = location.origin + location.pathname.replace(/[^/]*$/, '') + 'afiliados.html';
+  return base + '?ref=' + encodeURIComponent(codigo);
+}
+async function copiarLink() {
+  const v = $('p-link').value;
+  try { await navigator.clipboard.writeText(v); toast('Enlace copiado'); }
+  catch (_) { $('p-link').select(); document.execCommand('copy'); toast('Enlace copiado'); }
+}
+async function compartirLink() {
+  const v = $('p-link').value, t = 'Sumate a Revende Ways y empezá a vender con tu propia tienda:';
+  if (navigator.share) { try { await navigator.share({ title: 'Revende Ways', text: t, url: v }); return; } catch (_) {} }
+  window.open('https://wa.me/?text=' + encodeURIComponent(t + ' ' + v), '_blank');
+}
+
+function ribbon(icono, claseIco, titulo, sub, valor, cuerpo) {
+  const id = 'r' + Math.random().toString(36).slice(2, 8);
+  return `<div class="ribbon" id="${id}"><button class="rhead" onclick="document.getElementById('${id}').classList.toggle('open')">
+    <span class="ico ${claseIco}">${icono}</span><span class="l"><div class="rname">${esc(titulo)}</div>${sub ? `<div class="rsub">${sub}</div>` : ''}</span>
+    ${valor != null ? `<span class="rval">${valor}</span>` : ''}
+    <svg class="caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="6 9 12 15 18 9"/></svg>
+  </button><div class="rbody">${cuerpo || ''}</div></div>`;
+}
+const IC = {
+  clock: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+  check: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="20 6 9 17 4 12"/></svg>',
+  card: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>',
+  coin: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v12M9 9h4.5a2 2 0 0 1 0 4H9.5a2 2 0 0 0 0 4H15"/></svg>',
+  user: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+};
+
+function pintarPanel(s) {
+  $('p-codigo').textContent = s.codigo;
+  $('p-link').value = linkAfiliado(s.codigo);
+  const e = s.etapas, r = s.resumen;
+  const ln = (a, b) => `<div class="line"><span>${a}</span><b>${b}</b></div>`;
+  $('p-kpis').innerHTML =
+    ribbon(IC.clock, 'a', '5% Pendiente', `${e.pendiente.n} pedido${e.pendiente.n !== 1 ? 's' : ''} aprobado${e.pendiente.n !== 1 ? 's' : ''} por tus afiliados`, money(e.pendiente.monto), ln('Pedidos', e.pendiente.n) + ln('Comisión', money(e.pendiente.monto))) +
+    ribbon(IC.check, 'b', '5% Aprobados', `${e.aprobado.n} pedido${e.aprobado.n !== 1 ? 's' : ''} confirmado${e.aprobado.n !== 1 ? 's' : ''}`, money(e.aprobado.monto), ln('Pedidos', e.aprobado.n) + ln('Comisión', money(e.aprobado.monto))) +
+    ribbon(IC.card, 'g', '5% Confirmado', `${e.confirmado.n} pedido${e.confirmado.n !== 1 ? 's' : ''} pagado${e.confirmado.n !== 1 ? 's' : ''}`, money(e.confirmado.monto),
+      ln('Pedidos pagados', e.confirmado.n) + ln('En espera de los 10 días', `${e.enEspera.n} · ${money(e.enEspera.monto)}`) + ln('Ya disponibles', `${e.disponibles.n} · ${money(e.disponibles.monto)}`)) +
+    ribbon(IC.coin, 'g', 'Total a Liquidar', 'Confirmado por Revende Ways · neto del 1%', money(s.saldoLiquidar), ln('Pedidos confirmados', e.liquidar.n) + ln('Confirmado (ya con 1% de plataforma descontado)', money(e.liquidar.monto)) + ln('Total liquidado (cobros y Stock)', money(s.liquidado ? s.liquidado.total : 0)) + ln('Disponible para liquidar', money(s.saldoLiquidar)));
+  $('p-pend').textContent = money(r.pendienteALiquidar);
+  $('p-fecha').textContent = fmtDia(s.proximaLiquidacion);
+  $('p-liq').textContent = money(s.saldoLiquidar);
+  $('p-cred').textContent = money(s.creditoStock);
+  const b = $('btn-cobro');
+  b.disabled = !s.puedeSolicitar;
+  $('p-cobro-nota').textContent = s.puedeSolicitar ? 'Ya podés pedir tu cobro.'
+    : (s.saldoLiquidar > 0 ? 'Los cobros se habilitan cada 30 días. Próximo cobro: ' + fmtDia(s.proximaLiquidacion) + '.'
+      : 'Todavía no tenés comisiones confirmadas para cobrar. Próxima fecha de liquidación: ' + fmtDia(s.proximaLiquidacion) + '.');
+
+  $('p-afil-res').innerHTML = `Afiliados activos: <b>${r.afiliadosActivos}</b> · Afiliados inactivos (libres): <b>${r.afiliadosInactivos}</b>`;
+  $('p-afils').innerHTML = s.referidos.length ? s.referidos.map(a => {
+    const pill = a.vinculo === 'libre' ? '<span class="pill r">Libre</span>' : (a.actividad === 'activo' ? '<span class="pill g">Activo</span>' : '<span class="pill a">Sin ventas recientes</span>');
+    return ribbon(IC.user, a.vinculo === 'libre' ? 'r' : 'b', a.nombre, a.codigo + ' · ' + pill, null,
+      ln('Pedidos', a.pedidos) + ln('Productos vendidos', a.unidades) + ln('Total vendido', money(a.totalVendido)) +
+      ln('Tu comisión generada', money(a.comisionGenerada)) + ln('Última venta', fmtFecha(a.ultimaVenta)) +
+      (a.vinculo === 'libre' ? ln('Estado', a.motivoLibre === 'afiliador_inactivo' ? 'Libre (por falta de pedidos tuyos)' : 'Libre (2 meses sin ventas)') : ''));
+  }).join('') : '<p class="muted">Todavía no tenés afiliados. Compartí tu enlace para sumar a los primeros.</p>';
+
+  $('p-retiros').innerHTML = s.retiros.length ? s.retiros.map(x => ribbon(IC.coin, x.estado === 'pagado' || x.estado === 'acreditado' ? 'g' : 'a',
+    (x.metodo === 'credito' ? 'Crédito en Stock' : 'Transferencia') + ' · ' + money(x.monto), fmtFecha(x.fecha), null,
+    ln('Estado', x.estado === 'pagado' ? 'Pagado' : x.estado === 'acreditado' ? 'Acreditado' : 'Solicitado') + (x.alias ? ln('Alias', esc(x.alias)) : '') + ln('Pedidos incluidos', (x.ventaIds || []).length))).join('')
+    : '<p class="muted">Todavía no pediste ningún cobro.</p>';
+}
+
+async function cargarPanel() {
+  vista('v-load');
+  const s = await api('/api/mis-stats').catch(() => ({ error: 'Sin conexión' }));
+  if (s.error && !s.ok) { vista('v-panel'); toast(s.error); return; }
+  if (!s.registrado) { vista('v-join'); return; }
+  STATS = s; pintarPanel(s); vista('v-panel');
+}
+
+// ═════════════ Cobro ═════════════
+function abrirCobro() {
+  if (!STATS) return;
+  $('mc-monto').textContent = money(STATS.saldoLiquidar);
+  $('mc-alias').value = STATS.aliasCobro || '';
+  showErr('e-cobro', ''); elegirMetodo('transferencia');
+  $('m-cobro').classList.add('show');
+}
+function elegirMetodo(m) {
+  METODO = m;
+  $('o-trans').classList.toggle('on', m === 'transferencia'); $('o-cred').classList.toggle('on', m === 'credito');
+  $('mc-alias-box').classList.toggle('hide', m !== 'transferencia');
+}
+async function confirmarCobro() {
+  showErr('e-cobro', '');
+  const b = $('btn-cobro-ok'); b.disabled = true;
+  const d = await api('/api/solicitar-retiro', { method: 'POST', body: { metodo: METODO, alias: $('mc-alias').value.trim() } }).catch(() => ({ error: 'Sin conexión' }));
+  b.disabled = false;
+  if (!d.ok) { showErr('e-cobro', d.error || 'No se pudo solicitar el cobro.'); return; }
+  cerrar('m-cobro'); toast(METODO === 'credito' ? 'Crédito acreditado en tu cuenta' : 'Cobro solicitado'); cargarPanel();
+}
+
+// ═════════════ Sesión ═════════════
+async function iniciarSesionUI(user) {
+  // Hay sesión: ¿es revendedor de la plataforma?
+  const p = await fetch(WORKER_DATOS + '/api/perfil?uid=' + user.uid).then(r => r.ok ? r.json() : null).catch(() => null);
+  if (!(p && p.ok && p.perfil && p.perfil.codigoVendedor)) {
+    await auth.signOut().catch(() => {});
+    vista('v-auth'); verTab('log'); showErr('e-log', 'No encontramos una cuenta de revendedor con ese acceso. Creá tu cuenta primero.');
+    return;
+  }
+  await cargarPanel();
+}
+
+auth.onAuthStateChanged(async user => {
+  if (registrando) return; // el registro se encarga de redirigir al panel
+  if (!user) { await cargarInvitacion(); vista('v-auth'); verTab('reg'); return; }
+  await iniciarSesionUI(user);
+});
+</script>
+</body>
+</html>
