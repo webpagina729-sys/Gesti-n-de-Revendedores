@@ -138,6 +138,28 @@ input.i[readonly]{opacity:.8}
 .tl b{font-weight:700;white-space:nowrap;font-size:11.5px}
 .tl.first .nm{font-weight:800}
 .top-nota{font-size:10.5px;color:var(--text3);margin-top:8px;line-height:1.4}
+
+/* ── Carrera de afiliados ── */
+.race{overflow:hidden;position:relative;min-width:0}
+.race-ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin:2px 0 10px}
+.seg{display:inline-flex;border:1px solid var(--border2);border-radius:8px;overflow:hidden;max-width:100%}
+.seg button{background:none;border:0;color:var(--text2);font-family:inherit;font-size:11px;font-weight:700;padding:5px 9px;cursor:pointer;white-space:nowrap}
+.seg button+button{border-left:1px solid var(--border2)}
+.seg button.on{background:var(--blue);color:#fff}
+.race-box{position:relative;overflow:hidden;border:1px solid var(--border);border-radius:10px;background:var(--bg2);padding:6px 10px}
+.race-lanes{position:relative}
+.rr{position:absolute;left:0;right:0;height:26px;display:flex;align-items:center;gap:7px;transition:transform .55s cubic-bezier(.4,0,.2,1)}
+.rr .rp{width:16px;text-align:right;font-size:10.5px;font-weight:800;color:var(--text3);flex-shrink:0}
+.rr .rn{width:78px;flex-shrink:0;font-size:11px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rr .rt{position:relative;flex:1;min-width:0;height:100%}
+.rr .rt:before{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:var(--border2);opacity:.6}
+.rr .rl{position:absolute;left:0;top:50%;height:1px;width:calc(var(--p,0) * 1%);transition:width .55s cubic-bezier(.4,0,.2,1)}
+.rr .rd{position:absolute;top:50%;left:calc(var(--p,0) * 1%);width:6px;height:6px;border-radius:50%;transform:translate(-50%,-50%);transition:left .55s cubic-bezier(.4,0,.2,1)}
+.rr .rv{width:74px;flex-shrink:0;text-align:right;font-size:11px;font-weight:700;white-space:nowrap;line-height:1.1}
+.rr .rv small{display:block;font-size:9.5px;font-weight:600;color:var(--text3)}
+.rr.first .rn{font-weight:800}.rr.first .rp{color:var(--text)}
+.race-vacio{padding:34px 8px;text-align:center;font-size:12px;color:var(--text2)}
+@media(max-width:380px){.rr .rn{width:62px}.rr .rv{width:64px}}
 </style>
 </head>
 <body>
@@ -295,6 +317,15 @@ input.i[readonly]{opacity:.8}
       <div id="p-top"></div>
       <div id="p-top-leg" class="top-leg"></div>
       <p class="top-nota" id="p-top-nota"></p>
+    </div>
+
+    <div class="card race" id="c-race">
+      <h2>Carrera de afiliados</h2>
+      <div class="race-ctl">
+        <div class="seg" id="race-per"><button data-p="7">Semana</button><button data-p="15">Quincena</button><button data-p="30" class="on">Mes</button><button data-p="365">Año</button></div>
+        <div class="seg" id="race-met"><button data-m="$" class="on">$ Comisión</button><button data-m="n">Nº Pedidos</button></div>
+      </div>
+      <div class="race-box"><div class="race-lanes" id="race-lanes"></div></div>
     </div>
 
     <div class="card">
@@ -631,6 +662,7 @@ function pintarPanel(s) {
   $('p-afil-res').innerHTML = `Afiliados activos: <b>${r.afiliadosActivos}</b> · Afiliados inactivos (libres): <b>${r.afiliadosInactivos}</b>`;
   AF_LISTA = s.referidos || []; AF_VISTOS = 3; pintarAfils();
   pintarTop(s.ranking || []);
+  pintarCarrera(s);
 
   $('p-retiros').innerHTML = s.retiros.length ? s.retiros.map(x => ribbon(IC.coin, x.estado === 'pagado' || x.estado === 'acreditado' ? 'g' : 'a',
     (x.metodo === 'credito' ? 'Crédito en Stock' : 'Transferencia') + ' · ' + money(x.monto), fmtFecha(x.fecha), null,
@@ -708,6 +740,76 @@ function pintarTop(rk) {
   nota.textContent = 'Puntaje = comisión acumulada × (1 + 0,2 por cada pedido pagado): suma el monto y premia la constancia en el tiempo.';
 }
 let _topRz; window.addEventListener('resize', () => { clearTimeout(_topRz); _topRz = setTimeout(() => { if (TOP_DATA.length) pintarTop(TOP_DATA); }, 150); });
+
+
+// ═════════════ Carrera de afiliados (semana / quincena / mes / año · $ o nº) ═════════════
+let RACE_PER = 30, RACE_MET = '$', RACE_SRC = [], RACE_COL = {};
+const RACE_H = 26;
+function pintarCarrera(s) {
+  // Eventos [fecha, comisión] por afiliado. Si el servicio aún no envía "carrera", se arman desde el ranking.
+  RACE_SRC = (s.carrera && s.carrera.length) ? s.carrera : (s.ranking || []).map(a => ({
+    uid: a.uid, nombre: a.nombre, codigo: a.codigo, vinculo: a.vinculo,
+    eventos: a.serie.map((p, i) => [p[0], p[2] - (i ? a.serie[i - 1][2] : 0)])
+  }));
+  RACE_COL = {};
+  const orden = (s.ranking || []).map(a => a.uid).concat(RACE_SRC.map(a => a.uid));
+  [...new Set(orden)].forEach((u, i) => { RACE_COL[u] = TOP_COL[i % TOP_COL.length]; });
+  dibujarCarrera();
+}
+function dibujarCarrera() {
+  const cut = Date.now() - RACE_PER * 864e5;
+  const filas = RACE_SRC.map(a => {
+    const ev = a.eventos.filter(e => e[0] >= cut);
+    return { a, c: ev.reduce((t, e) => t + e[1], 0), n: ev.length };
+  }).filter(x => x.n > 0);
+  const k = RACE_MET === '$' ? 'c' : 'n', k2 = RACE_MET === '$' ? 'n' : 'c';
+  filas.sort((x, y) => (y[k] - x[k]) || (y[k2] - x[k2]));
+  const top = filas.slice(0, 10), box = $('race-lanes');
+  document.querySelectorAll('#race-per button').forEach(b => b.classList.toggle('on', Number(b.dataset.p) === RACE_PER));
+  document.querySelectorAll('#race-met button').forEach(b => b.classList.toggle('on', b.dataset.m === RACE_MET));
+  if (!top.length) {
+    box.style.height = 'auto';
+    box.innerHTML = '<div class="race-vacio">Sin pedidos pagados en este período todavía.<br>Acá vas a ver la carrera de tus afiliados.</div>';
+    return;
+  }
+  if (box.querySelector('.race-vacio')) box.innerHTML = '';
+  box.style.height = (top.length * RACE_H) + 'px';
+  const max = Math.max(1, ...top.map(x => x[k]));
+  const vivos = new Set(top.map(x => x.a.uid));
+  [...box.children].forEach(el => { if (!vivos.has(el.dataset.u)) el.remove(); });
+  top.forEach((x, i) => {
+    let el = [...box.children].find(e => e.dataset.u === x.a.uid);
+    const col = RACE_COL[x.a.uid] || TOP_COL[i % TOP_COL.length];
+    if (!el) {
+      el = document.createElement('div'); el.className = 'rr'; el.dataset.u = x.a.uid;
+      el.style.transform = `translateY(${i * RACE_H}px)`;
+      el.innerHTML = '<span class="rp"></span><span class="rn"></span><span class="rt"><i class="rl"></i><i class="rd"></i></span><span class="rv"></span>';
+      box.appendChild(el);
+      void el.offsetWidth;
+    }
+    const first = i === 0;
+    el.classList.toggle('first', first);
+    el.style.transform = `translateY(${i * RACE_H}px)`;
+    el.querySelector('.rp').textContent = i + 1;
+    const nm = el.querySelector('.rn'); nm.textContent = x.a.nombre; nm.title = x.a.nombre;
+    const p = Math.max(2, Math.round(x[k] / max * 100));
+    const rt = el.querySelector('.rt'); rt.style.setProperty('--p', p);
+    const ln = el.querySelector('.rl'); ln.style.background = col; ln.style.opacity = first ? 1 : .6;
+    const dt = el.querySelector('.rd');
+    dt.style.background = col;
+    dt.style.boxShadow = first ? `0 0 0 3px ${col}33, 0 0 12px 2px ${col}` : `0 0 5px ${col}`;
+    dt.style.width = dt.style.height = first ? '8px' : '6px';
+    el.querySelector('.rv').innerHTML = RACE_MET === '$'
+      ? `${money(x.c)}<small>${x.n} ped.</small>` : `${x.n} ped.<small>${money(x.c)}</small>`;
+    el.title = `#${i + 1} ${x.a.nombre} · ${money(x.c)} · ${x.n} pedido${x.n !== 1 ? 's' : ''}`;
+  });
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest && e.target.closest('#race-per button, #race-met button');
+  if (!b) return;
+  if (b.dataset.p) RACE_PER = Number(b.dataset.p); else RACE_MET = b.dataset.m;
+  dibujarCarrera();
+});
 
 async function cargarPanel() {
   vista('v-load');
