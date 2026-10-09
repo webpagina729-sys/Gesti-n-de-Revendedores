@@ -71,6 +71,10 @@ button{font-family:inherit;cursor:pointer}
 .btn.sm{width:auto;padding:8px 12px;font-size:12px}
 label.f{display:block;font-size:11.5px;font-weight:700;color:var(--text2);margin:10px 0 4px}
 input.i,select.i{width:100%;background:var(--bg2);border:1px solid var(--border2);color:var(--text);border-radius:9px;padding:11px 12px;font-size:14px;font-family:inherit}
+#r-ref-msg{font-size:12px;margin-top:5px;min-height:0}
+#r-ref-msg.ok{color:var(--green)}
+#r-ref-msg.err{color:#f43f5e}
+#r-ref-msg.wait{color:var(--text2)}
 input.i:focus{outline:2px solid var(--blue);outline-offset:0}
 input.i[readonly]{opacity:.8}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -162,7 +166,8 @@ input.i[readonly]{opacity:.8}
       </div>
       <label class="f">Código postal *</label><input class="i" id="r-cp" required autocomplete="postal-code">
       <label class="f" id="r-ref-lbl">Código de quien te invitó</label>
-      <input class="i" id="r-ref" placeholder="Opcional" autocapitalize="characters">
+      <input class="i" id="r-ref" placeholder="Opcional" autocapitalize="characters" autocomplete="off" spellcheck="false">
+      <div id="r-ref-msg" class="ref-msg"></div>
       <label class="chk hide" id="r-prog-lbl"><input type="checkbox" id="r-prog"><span>Acepto el Programa de Afiliados: cedo el 5% de mi ganancia a quien me invitó, y puedo invitar a otras personas y ganar el 5% de sus ganancias.</span></label>
       <label class="chk"><input type="checkbox" id="r-tyc"><span>Acepto los términos y condiciones de uso de la plataforma.</span></label>
       <label class="chk"><input type="checkbox" id="r-priv"><span>Acepto la política de privacidad.</span></label>
@@ -329,6 +334,16 @@ function vista(v) {
   $('btn-back').classList.toggle('hide', v === 'v-auth' || v === 'v-load');
   if (v === 'v-join' && typeof tsInit === 'function') setTimeout(() => tsInit('join'), 0);
 }
+// Tras registrarse, el usuario sigue en stock.html (otro dominio): se le pide un token de ingreso
+// al worker para que entre ya autenticado. Si algo falla, cae al panel como antes.
+const STOCK_URL = 'https://tutiendapropia.revendeways.shop/';
+async function irAStock() {
+  try {
+    const d = await api('/api/token-stock', { method: 'POST' });
+    if (d && d.ok && d.customToken) { location.href = STOCK_URL + '#ct=' + encodeURIComponent(d.customToken); return; }
+  } catch (_) {}
+  irAlPanel();
+}
 function irAlPanel() { location.href = encodeURI(PANEL_GESTION_URL).replace(/\(/g, '%28').replace(/\)/g, '%29'); }
 function verTab(t) {
   $('f-reg').classList.toggle('hide', t !== 'reg'); $('f-log').classList.toggle('hide', t !== 'log');
@@ -349,15 +364,52 @@ async function api(path, opts = {}) {
 // ═════════════ Invitación ═════════════
 async function cargarInvitacion() {
   if (!REF) return;
-  $('r-ref').value = REF; $('r-ref').readOnly = true; $('r-ref-lbl').textContent = 'Código de quien te invitó';
-  $('invite-box').classList.remove('hide'); $('r-prog-lbl').classList.remove('hide');
+  $('r-ref').value = REF; $('r-ref-lbl').textContent = 'Código de quien te invitó';
+  $('invite-box').classList.remove('hide');
   $('invite-txt').textContent = 'Te invitaron a unirte a Revende Ways con el código ' + REF + '.';
-  try {
-    const d = await fetch(WORKER_AFILIADOS + '/api/ref-info?codigo=' + encodeURIComponent(REF)).then(r => r.json());
-    if (d.existe && d.nombre) $('invite-txt').textContent = d.nombre + ' te invitó a unirte a Revende Ways.';
-    else if (d.ok && !d.existe) $('invite-txt').textContent = 'El código de invitación ' + REF + ' no está activo, pero igual podés crear tu cuenta.';
-  } catch (_) {}
+  const ok = await validarRef();
+  if (ok === true && REF_NOMBRE) $('invite-txt').textContent = REF_NOMBRE + ' te invitó a unirte a Revende Ways.';
+  else if (ok === false) { $('invite-txt').textContent = 'El código de invitación ' + REF + ' no es válido. Pedile el enlace de nuevo a quien te invitó.'; }
+  // Con un código válido queda bloqueado (viene del enlace); si no es válido se puede corregir.
+  $('r-ref').readOnly = ok === true;
 }
+
+// ═════════════ Verificación del código de invitación ═════════════
+// Si el usuario escribe un código, tiene que existir de verdad: si no, no se puede continuar.
+let REF_OK = null, REF_NOMBRE = '', refTimer = null, refSeq = 0;
+function normRef(v) { return String(v || '').trim().replace(/\s+/g, '').toUpperCase(); }
+function setRefMsg(t, cls) { const e = $('r-ref-msg'); e.textContent = t || ''; e.className = cls || ''; e.id = 'r-ref-msg'; }
+async function validarRef() {
+  const v = normRef($('r-ref').value); const my = ++refSeq;
+  REF_NOMBRE = '';
+  if (!v) { REF_OK = null; setRefMsg(''); $('r-prog-lbl').classList.add('hide'); return null; }
+  setRefMsg('Verificando código…', 'wait');
+  let d = null;
+  try { d = await fetch(WORKER_AFILIADOS + '/api/ref-info?codigo=' + encodeURIComponent(v)).then(r => r.json()); } catch (_) {}
+  if (my !== refSeq) return REF_OK; // llegó una respuesta vieja: se ignora
+  if (!d || !d.ok) { REF_OK = false; setRefMsg('No pudimos verificar el código. Revisá tu conexión e intentá de nuevo.', 'err'); $('r-prog-lbl').classList.add('hide'); return false; }
+  if (d.existe) {
+    REF_OK = true; REF_NOMBRE = d.nombre || '';
+    setRefMsg('✓ Código válido' + (d.nombre ? ' · te invita ' + d.nombre : ''), 'ok');
+    $('r-prog-lbl').classList.remove('hide');
+    return true;
+  }
+  REF_OK = false; setRefMsg('Ese código no existe. Revisalo o pedile el enlace a quien te invitó.', 'err');
+  $('r-prog-lbl').classList.add('hide');
+  return false;
+}
+// Devuelve true si se puede continuar (sin código, o con un código real).
+async function refPermiteContinuar() {
+  if (!normRef($('r-ref').value)) return true;
+  const ok = await validarRef();
+  if (ok !== true) { showErr('e-reg', 'El código de invitación no es válido. Corregilo o dejá el campo vacío para registrarte sin invitación.'); return false; }
+  return true;
+}
+document.addEventListener('DOMContentLoaded', () => {
+  const inp = $('r-ref'); if (!inp) return;
+  inp.addEventListener('input', () => { REF_OK = null; clearTimeout(refTimer); refTimer = setTimeout(validarRef, 450); });
+  inp.addEventListener('blur', () => { clearTimeout(refTimer); validarRef(); });
+});
 
 // ═════════════ Registro ═════════════
 function msgAuth(e) {
@@ -401,22 +453,23 @@ async function verificarAntiBot(k) {
   o.tok = ''; try { if (window.turnstile && o.w !== null) window.turnstile.reset(o.w); } catch (_) {}
   if (!d.ok) throw new Error(d.error || 'No pudimos verificar que sos una persona. Intentá de nuevo.');
 }
-function falta_prog() { const ref = ($('r-ref').value || REF || '').trim(); return ref && !$('r-prog').checked; }
+function falta_prog() { return normRef($('r-ref').value) && !$('r-prog').checked; }
 
 async function vincularYEntrar(user) {
-  const ref = ($('r-ref').value || REF || '').trim().replace(/\s+/g, '').toUpperCase();
+  const ref = normRef($('r-ref').value);
   if (ref) {
     // Si el código no existe no frena el registro: la cuenta se crea igual.
     const v = await api('/api/vincular', { method: 'POST', body: { refCodigo: ref } }).catch(() => ({}));
     // Quien se registra con un enlace entra al programa (cede el 5% y puede afiliar).
     if (v && v.ok) await api('/api/registrar-programa', { method: 'POST', body: { acepta: true } }).catch(() => {});
   }
-  irAlPanel(); // el panel detecta la sesión de Firebase y entra solo
+  irAStock();  // continúa en stock.html (fecha de nacimiento y contraseña de seguridad)
 }
 
 async function registrar(e) {
   e.preventDefault(); showErr('e-reg', '');
   if (!$('r-tyc').checked || !$('r-priv').checked) { showErr('e-reg', 'Tenés que aceptar los términos y la política de privacidad.'); return false; }
+  if (!(await refPermiteContinuar())) return false;
   if (falta_prog()) { showErr('e-reg', 'Tenés que aceptar las condiciones del Programa de Afiliados.'); return false; }
   registrando = true; const b = $('btn-reg'); b.disabled = true; b.textContent = 'Creando tu cuenta...';
   try {
@@ -444,6 +497,7 @@ async function registrar(e) {
 async function googleReg() {
   showErr('e-reg', '');
   if (!$('r-tyc').checked || !$('r-priv').checked) { showErr('e-reg', 'Tenés que aceptar los términos y la política de privacidad.'); return; }
+  if (!(await refPermiteContinuar())) return;
   if (falta_prog()) { showErr('e-reg', 'Tenés que aceptar las condiciones del Programa de Afiliados.'); return; }
   registrando = true;
   try {
