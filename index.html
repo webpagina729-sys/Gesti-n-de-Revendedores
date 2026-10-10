@@ -887,6 +887,22 @@
         .btn-pdf:hover { background:#3968f6 !important; }
 
     </style>
+<style id="ancho-completo">
+/* Pantallas horizontales/anchas: el panel usa todo el ancho (solo estética; no mueve nada ni toca funciones) */
+@media (min-width: 641px) {
+    .wrap { max-width: none; width: 100%; padding-left: clamp(16px, 2.6vw, 56px); padding-right: clamp(16px, 2.6vw, 56px); box-sizing: border-box; }
+    .topbar { padding-left: clamp(16px, 2.6vw, 56px); padding-right: clamp(16px, 2.6vw, 56px); }
+    .level-strip { padding-left: clamp(16px, 2.6vw, 56px); padding-right: clamp(16px, 2.6vw, 56px); }
+    .level-strip .level-block { max-width: none; width: 100%; padding: 12px 20px; gap: 14px; }
+    .level-strip .level-name { font-size: 14px; }
+    .level-strip .level-avatar { width: 40px; height: 40px; font-size: 16px; }
+    .level-strip .level-star { width: 15px; height: 15px; }
+    .level-strip .level-count { font-size: 12px; }
+}
+@media (max-height: 520px) and (orientation: landscape) {
+    .wrap { padding-top: 16px; padding-bottom: 24px; }
+}
+</style>
 </head>
 <body>
 
