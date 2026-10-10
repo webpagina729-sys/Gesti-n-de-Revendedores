@@ -117,6 +117,10 @@ input.i[readonly]{opacity:.8}
 @keyframes s{to{transform:rotate(360deg)}}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--surface2);border:1px solid var(--border2);padding:10px 16px;border-radius:10px;font-size:13px;z-index:80;opacity:0;pointer-events:none;transition:opacity .2s}
 .toast.show{opacity:1}
+.cred-info{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-top:9px;font-size:11.5px;line-height:1.45;color:var(--text2)}
+.cred-info b{color:var(--text)}.cred-info .ok{color:var(--green)}.cred-info .no{color:var(--amber)}
+.cred-info ul{list-style:none;margin:4px 0 6px;padding:0}.cred-info li{padding:1px 0}
+.opt:disabled{opacity:.55;cursor:not-allowed}
 .sep{height:1px;background:var(--border);margin:14px 0}
 .hide{display:none!important}
 
@@ -300,7 +304,8 @@ input.i[readonly]{opacity:.8}
       <div class="line"><span>Ganancia pendiente a liquidar</span><b id="p-pend">$0</b></div>
       <div class="line"><span>Fecha a liquidar</span><b id="p-fecha">-</b></div>
       <div class="line"><span>Total a liquidar (confirmado)</span><b id="p-liq">$0</b></div>
-      <div class="line"><span>Crédito de compra en Stock</span><b id="p-cred">$0</b></div>
+      <div class="line"><span>Crédito Total</span><b id="p-cred">$0</b></div>
+      <div class="line"><span>Crédito Utilizado</span><b id="p-cred-uso">$0</b></div>
       <button class="btn green" id="btn-cobro" style="margin-top:12px" onclick="abrirCobro()">Solicitar cobro</button>
       <p class="muted" id="p-cobro-nota" style="margin-top:8px"></p>
     </div>
@@ -341,7 +346,8 @@ input.i[readonly]{opacity:.8}
     <h3>Solicitar cobro</h3>
     <p class="muted">Disponible para cobrar: <b id="mc-monto">$0</b></p>
     <button class="opt on" id="o-trans" onclick="elegirMetodo('transferencia')"><b>Transferencia</b><span>Te transferimos a tu alias o CBU.</span></button>
-    <button class="opt" id="o-cred" onclick="elegirMetodo('credito')"><b>Crédito de compra en Stock</b><span>Queda como saldo a favor para tus compras mayoristas.</span></button>
+    <button class="opt" id="o-cred" onclick="elegirMetodo('credito')"><b>Crédito de compra en Stock</b><span id="mc-cred-sub">Queda como saldo a favor para tus compras mayoristas.</span></button>
+    <div id="mc-cred-info" class="cred-info hide"></div>
     <div id="mc-alias-box"><label class="f">Alias o CBU</label><input class="i" id="mc-alias" placeholder="tu.alias.mp"></div>
     <div class="err" id="e-cobro"></div>
     <div class="row2" style="margin-top:14px">
@@ -653,6 +659,7 @@ function pintarPanel(s) {
   $('p-fecha').textContent = fmtDia(s.proximaLiquidacion);
   $('p-liq').textContent = money(s.saldoLiquidar);
   $('p-cred').textContent = money(s.creditoStock);
+  $('p-cred-uso').textContent = money(s.creditoUsado);
   const b = $('btn-cobro');
   b.disabled = !s.puedeSolicitar;
   $('p-cobro-nota').textContent = s.puedeSolicitar ? 'Ya podés pedir tu cobro.'
@@ -665,8 +672,9 @@ function pintarPanel(s) {
   pintarCarrera(s);
 
   $('p-retiros').innerHTML = s.retiros.length ? s.retiros.map(x => ribbon(IC.coin, x.estado === 'pagado' || x.estado === 'acreditado' ? 'g' : 'a',
-    (x.metodo === 'credito' ? 'Crédito en Stock' : 'Transferencia') + ' · ' + money(x.monto), fmtFecha(x.fecha), null,
-    ln('Estado', x.estado === 'pagado' ? 'Pagado' : x.estado === 'acreditado' ? 'Acreditado' : 'Solicitado') + (x.alias ? ln('Alias', esc(x.alias)) : '') + ln('Pedidos incluidos', (x.ventaIds || []).length))).join('')
+    (x.metodo === 'credito' ? 'Crédito en Stock' : 'Transferencia') + ' · ' + money(x.monto), (x.numeroSolicitud ? 'Solicitud ' + esc(x.numeroSolicitud) + ' · ' : '') + fmtFecha(x.fecha), null,
+    (x.numeroSolicitud ? ln('Solicitud de cobro', esc(x.numeroSolicitud)) : '') +
+    ln('Estado', x.estado === 'pagado' ? 'Pagado' : x.estado === 'acreditado' ? 'Acreditado' : 'Solicitado · en espera de la transferencia') + (x.alias ? ln('Alias', esc(x.alias)) : '') + ln('Pedidos incluidos', (x.ventaIds || []).length))).join('')
     : '<p class="muted">Todavía no pediste ningún cobro.</p>';
 }
 
@@ -828,17 +836,43 @@ async function cargarPanel() {
 }
 
 // ═════════════ Cobro ═════════════
+// Categorías en las que se puede usar el crédito en Stock (mínimos de stock.html).
+const CRED_CATS_DEF = [
+  { nombre: 'Perfumes', min: 150000 }, { nombre: 'Bazar', min: 150000 }, { nombre: 'Librería', min: 150000 },
+  { nombre: 'Belleza y Cuidado Personal', min: 200000 }, { nombre: 'Lencería', min: 200000 }, { nombre: 'Multishop', min: 250000 },
+  { nombre: 'Salud / Suplementos', min: 400000, unidades: 15 }, { nombre: 'Calzados', min: 426000, unidades: 12 },
+];
+function infoCredito(monto) {
+  const cfg = (STATS && STATS.config) || {};
+  const cats = cfg.CREDITO_CATEGORIAS || CRED_CATS_DEF, minimo = cfg.CREDITO_MIN || 150000;
+  if (monto < minimo) return { ok: false, html: `El crédito en Stock se habilita desde <b>${money(minimo)}</b>, el mínimo de las categorías. Por ahora podés cobrar por transferencia.` };
+  const si = cats.filter(c => monto >= c.min), no = cats.filter(c => monto < c.min);
+  const li = c => `<li>${esc(c.nombre)} · mínimo ${money(c.min)}${c.unidades ? ` · usalo dentro del objetivo de <b>${c.unidades} unidades</b>` : ''}</li>`;
+  const aclara = si.filter(c => c.unidades).map(c => `${esc(c.nombre)}: tenés que usar el crédito dentro del objetivo de ${c.unidades} unidades; si el carrito cubre tu crédito con menos productos, no se podrá pagar.`).join('<br>');
+  return { ok: true, html:
+    `<b>Con ${money(monto)} de crédito:</b>` +
+    (si.length ? `<div class="ok" style="margin-top:4px">Disponible para</div><ul>${si.map(li).join('')}</ul>` : '') +
+    (no.length ? `<div class="no">Todavía no alcanza para</div><ul>${no.map(li).join('')}</ul>` : '') +
+    (aclara ? `<div>${aclara}</div>` : '') };
+}
 function abrirCobro() {
   if (!STATS) return;
-  $('mc-monto').textContent = money(STATS.saldoLiquidar);
+  const monto = STATS.saldoLiquidar;
+  $('mc-monto').textContent = money(monto);
   $('mc-alias').value = STATS.aliasCobro || '';
-  showErr('e-cobro', ''); elegirMetodo('transferencia');
+  showErr('e-cobro', '');
+  const ic = infoCredito(monto);
+  $('o-cred').disabled = !ic.ok;
+  $('mc-cred-info').innerHTML = ic.html;
+  elegirMetodo('transferencia');
   $('m-cobro').classList.add('show');
 }
 function elegirMetodo(m) {
+  if (m === 'credito' && $('o-cred').disabled) { $('mc-cred-info').classList.remove('hide'); return; }
   METODO = m;
   $('o-trans').classList.toggle('on', m === 'transferencia'); $('o-cred').classList.toggle('on', m === 'credito');
   $('mc-alias-box').classList.toggle('hide', m !== 'transferencia');
+  $('mc-cred-info').classList.toggle('hide', m !== 'credito' && !$('o-cred').disabled);
 }
 async function confirmarCobro() {
   showErr('e-cobro', '');
@@ -846,7 +880,7 @@ async function confirmarCobro() {
   const d = await api('/api/solicitar-retiro', { method: 'POST', body: { metodo: METODO, alias: $('mc-alias').value.trim() } }).catch(() => ({ error: 'Sin conexión' }));
   b.disabled = false;
   if (!d.ok) { showErr('e-cobro', d.error || 'No se pudo solicitar el cobro.'); return; }
-  cerrar('m-cobro'); toast(METODO === 'credito' ? 'Crédito acreditado en tu cuenta' : 'Cobro solicitado'); cargarPanel();
+  cerrar('m-cobro'); const nro = d.retiro && d.retiro.numeroSolicitud ? ' ' + d.retiro.numeroSolicitud : ''; toast(METODO === 'credito' ? 'Crédito acreditado en tu cuenta · Solicitud' + nro : 'Cobro solicitado · Solicitud' + nro); cargarPanel();
 }
 
 // ═════════════ Sesión ═════════════
