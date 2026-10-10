@@ -7421,5 +7421,63 @@ window.addEventListener('load', init);
 </script>
 
 
+<script id="objetivo-cumplido">
+/* Aviso "Objetivo cumplido": se muestra cuando una categoría de Pedidos Confirmados alcanza su mínimo (MINIMO_POR_CATEGORIA).
+   Solo agrega un aviso: no cambia ninguna función existente. */
+(function () {
+    'use strict';
+    var st = document.createElement('style');
+    st.textContent =
+        '#objetivoCumplidoModal .oc-box{max-width:340px;padding:20px 20px 18px;text-align:center}' +
+        '#objetivoCumplidoModal .oc-ico{width:46px;height:46px;border-radius:50%;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;background:rgba(45,146,76,.14);border:1px solid rgba(45,146,76,.45)}' +
+        '#objetivoCumplidoModal h3{font-size:17px;font-weight:800;margin:0 0 8px;text-wrap:balance}' +
+        '#objetivoCumplidoModal p{font-size:12.5px;line-height:1.55;color:var(--text2);margin:0 0 8px;text-wrap:pretty;text-align:center}' +
+        '#objetivoCumplidoModal p:last-of-type{margin-bottom:14px}' +
+        '#objetivoCumplidoModal .oc-btn{width:100%;padding:11px;border:0;border-radius:8px;background:var(--blue,#0a47de);color:#fff;font:700 13px var(--font,inherit);cursor:pointer}' +
+        '@media (max-width:380px){#objetivoCumplidoModal .oc-box{padding:16px 14px 14px}#objetivoCumplidoModal p{font-size:12px}}';
+    document.head.appendChild(st);
+
+    var ov = document.createElement('div');
+    ov.className = 'modal-overlay';
+    ov.id = 'objetivoCumplidoModal';
+    ov.innerHTML =
+        '<div class="modal-box oc-box" role="dialog" aria-modal="true" aria-labelledby="ocTitulo">' +
+        '<div class="oc-ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2d924c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>' +
+        '<h3 id="ocTitulo">¡Objetivo cumplido!</h3>' +
+        '<p>Ya podés entregar tu pedido y obtener tus ganancias.</p>' +
+        '<p>Podés hacerlo ahora mismo o podés coordinar una fecha de entrega con tus clientes y aprovechar el margen de tiempo disponible para usar la función de configurar y compartir productos individuales.</p>' +
+        '<p>¡Promocionando los más vendidos antes de entregar el pedido!</p>' +
+        '<button type="button" class="oc-btn" id="ocCerrar">Entendido</button>' +
+        '</div>';
+    document.body.appendChild(ov);
+    function cerrar() { ov.classList.remove('show'); }
+    document.getElementById('ocCerrar').addEventListener('click', cerrar);
+    ov.addEventListener('click', function (e) { if (e.target === ov) cerrar(); });
+
+    function cumplen() {
+        var r = {};
+        try { Object.keys(MINIMO_POR_CATEGORIA).forEach(function (n) { r[n] = _categoriaCumpleObjetivo(n); }); } catch (_) {}
+        return r;
+    }
+    function tieneItems(n) {
+        try { return getPedidoList().some(function (p) { return (p.nicho || 'multishop') === n; }); } catch (_) { return false; }
+    }
+
+    if (typeof window.savePedidoList === 'function') {
+        var orig = window.savePedidoList;
+        window.savePedidoList = function () {
+            var antes = cumplen();
+            var res = orig.apply(this, arguments);
+            try {
+                var despues = cumplen();
+                var nuevo = Object.keys(despues).some(function (n) { return despues[n] && !antes[n] && tieneItems(n); });
+                if (nuevo) setTimeout(function () { ov.classList.add('show'); }, 350);
+            } catch (_) {}
+            return res;
+        };
+    }
+})();
+</script>
+
 </body>
 </html>
