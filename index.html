@@ -7333,12 +7333,77 @@ window.addEventListener('load', init);
             }
             if (pend && pend.aporteAfiliados && Array.isArray(lista)) guardarAportes(ap);
             var r = _reg.call(this, lista);
-            setTimeout(function () { sincronizar(); }, 1500);
+            // El aporte queda en el servidor apenas se paga (reintenta por si no hay señal): así se ve igual desde cualquier dispositivo.
+            [1500, 15000, 60000].forEach(function (ms) { setTimeout(function () { sincronizar(); }, ms); });
             return r;
         };
     }
 })();
 </script>
+
+
+<script id="pdf-enlace">
+/* Boletas/facturas por enlace: al abrir el chat de WhatsApp (wa.me) tras generar un PDF, se sube ese mismo PDF
+   y se agrega su link al final del mensaje. Si algo falla, se abre el chat igual que antes. */
+(function () {
+    'use strict';
+    var WK = 'https://afiliados.tuweb.workers.dev';
+    var cap = null, btnT = 0, origOpen = window.open.bind(window);
+    function auth() {
+        var u = (typeof _auth !== 'undefined') ? _auth.currentUser : null;
+        if (!u) return null;
+        return u.getIdToken().then(function (t) { return { 'Authorization': 'Bearer ' + t }; });
+    }
+    var J = window.jspdf && window.jspdf.jsPDF;
+    function envolver(Orig) {
+        function W() {
+            var d = new (Function.prototype.bind.apply(Orig, [null].concat([].slice.call(arguments))))();
+            var os = d.save, oo = d.output;
+            d.save = function (fn) { cap = { doc: d, out: oo, name: (fn && String(fn)) || 'documento.pdf', t: Date.now() }; return os.apply(this, arguments); };
+            d.output = function (tipo) { if (tipo === 'blob' || tipo === 'bloburl' || tipo === 'bloburi') { cap = { doc: d, out: oo, name: (cap && cap.doc === d ? cap.name : 'Factura.pdf'), t: Date.now() }; } return oo.apply(this, arguments); };
+            return d;
+        }
+        W.prototype = Orig.prototype;
+        Object.keys(Orig).forEach(function (k) { try { W[k] = Orig[k]; } catch (_) {} });
+        return W;
+    }
+    if (J && !J.__pe) { var W = envolver(J); W.__pe = true; window.jspdf.jsPDF = W; }
+    function b64(c) {
+        var u = new Uint8Array(c.out.call(c.doc, 'arraybuffer')), s = '', i;
+        for (i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000));
+        return btoa(s);
+    }
+    // botón WhatsApp de factura en index: ir por el chat (wa.me) en vez de la hoja de compartir
+    document.addEventListener('click', function (e) {
+        if (e.target && e.target.closest && e.target.closest('#factura-whatsapp-btn')) btnT = Date.now();
+    }, true);
+    if (navigator.canShare) {
+        var cs = navigator.canShare.bind(navigator);
+        navigator.canShare = function (d) { return (d && d.files && Date.now() - btnT < 3000) ? false : cs(d); };
+    }
+    window.open = function (u) {
+        var args = arguments;
+        var m = typeof u === 'string' && u.match(/^(https:\/\/wa\.me\/\d{10,15}\?text=)([\s\S]*)$/);
+        var edad = cap ? Date.now() - cap.t : Infinity;
+        if (!m || !cap || !(edad < 20000 || (Date.now() - btnT < 3000 && edad < 1800000))) return origOpen.apply(window, args);
+        var c = cap, body; cap = null;
+        try { body = JSON.stringify({ filename: c.name, pdfBase64: b64(c) }); } catch (_) { return origOpen.apply(window, args); }
+        var w = origOpen('', '_blank');           // se abre ya (dentro del toque) y se completa al terminar la subida
+        var ir = function (url) { if (w) { try { w.location.href = url; return; } catch (_) {} } origOpen(url, '_blank'); };
+        Promise.resolve().then(auth).then(function (h) {
+            if (!h) throw new Error('sin auth');
+            h['Content-Type'] = 'application/json';
+            return fetch(WK + '/api/pdf-subir', { method: 'POST', headers: h, body: body });
+        }).then(function (r) { return r.json(); }).then(function (j) {
+            if (!j || !j.ok || !j.url) throw new Error('fallo');
+            var sep = m[2] ? encodeURIComponent('\n') : '';
+            ir(m[1] + m[2] + sep + encodeURIComponent(j.url));
+        }).catch(function () { ir(u); });
+        return w;
+    };
+})();
+</script>
+
 
 </body>
 </html>
