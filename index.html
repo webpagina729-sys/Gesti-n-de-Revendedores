@@ -903,6 +903,29 @@
     .wrap { padding-top: 16px; padding-bottom: 24px; }
 }
 </style>
+<script id="auth-worker-pagos">
+/* Envía la sesión de Firebase al leer el panel de gestión y los pedidos de
+   stock propios (el servidor comprueba que sean del dueño). No cambia ninguna
+   función de la página. */
+(function () {
+  var RUTA = /^\/api\/(panel-gestion|pedidos-stock)(\/|$)/;
+  var orig = window.fetch.bind(window);
+  window.fetch = async function (input, init) {
+    try {
+      if (typeof input !== 'string') return orig(input, init);
+      var u = new URL(input, location.href);
+      if (u.hostname !== 'workerpagos.tuweb.workers.dev' || !RUTA.test(u.pathname)) return orig(input, init);
+      var h = new Headers((init && init.headers) || undefined);
+      try {
+        var us = window.firebase && firebase.auth && firebase.auth().currentUser;
+        if (us && !h.has('Authorization')) h.set('Authorization', 'Bearer ' + (await us.getIdToken()));
+      } catch (e) {}
+      var n = {}; for (var k in (init || {})) n[k] = init[k]; n.headers = h;
+      return orig(input, n);
+    } catch (e) { return orig(input, init); }
+  };
+})();
+</script>
 </head>
 <body>
 
