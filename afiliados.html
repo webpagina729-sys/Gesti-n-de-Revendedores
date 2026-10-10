@@ -174,6 +174,15 @@ input.i[readonly]{opacity:.8}
 .share-ico{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:16px;box-shadow:0 2px 8px rgba(0,0,0,.25)}
 .share-ico img{width:22px;height:22px;filter:brightness(0) invert(1);display:block}
 .share-opt:active .share-ico{transform:scale(.94)}
+
+/* ── Animación de botones (feedback al tocar) ── */
+button:not(:disabled){transition:transform .12s ease,filter .12s ease,background-color .2s ease}
+button:not(:disabled):active{transform:scale(.95);filter:brightness(1.15)}
+@keyframes btnRing{0%{box-shadow:0 0 0 0 rgba(0,102,255,.55)}100%{box-shadow:0 0 0 12px rgba(0,102,255,0)}}
+@keyframes btnPop{0%{transform:scale(1)}35%{transform:scale(.93)}70%{transform:scale(1.04)}100%{transform:scale(1)}}
+button.btn-anim{animation:btnPop .38s ease,btnRing .5s ease-out}
+.btn.copiado{background:#16a34a!important;color:#fff!important;border-color:transparent!important}
+.btn.copiado svg{stroke:#fff}
 </style>
 </head>
 <body>
@@ -640,7 +649,27 @@ async function copiarLink() {
   const v = $('p-link').value;
   try { await navigator.clipboard.writeText(v); toast('Enlace copiado'); }
   catch (_) { $('p-link').select(); document.execCommand('copy'); toast('Enlace copiado'); }
+  flashCopiado();
 }
+function flashCopiado() {
+  document.querySelectorAll('[onclick="copiarLink()"]').forEach(btn => {
+    if (btn._cp) return; btn._cp = true;
+    const prev = btn.innerHTML;
+    btn.classList.add('copiado');
+    btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> ¡Copiado!';
+    setTimeout(() => { btn.classList.remove('copiado'); btn.innerHTML = prev; btn._cp = false; }, 1700);
+  });
+  document.querySelectorAll('[onclick="compartirEn(\'copiar\')"] em').forEach(em => {
+    if (em._cp) return; em._cp = true; const prev = em.textContent; em.textContent = '¡Copiado!';
+    setTimeout(() => { em.textContent = prev; em._cp = false; }, 1700);
+  });
+}
+document.addEventListener('click', function (e) {
+  const btn = e.target.closest && e.target.closest('button');
+  if (!btn || btn.disabled) return;
+  btn.classList.remove('btn-anim'); void btn.offsetWidth; btn.classList.add('btn-anim');
+  setTimeout(() => btn.classList.remove('btn-anim'), 520);
+}, true);
 const SHARE_MSG = '¡Regístrate con este enlace y comenzá a ganar con nosotros! Las posibilidades son infinitas y yo te acompañaré en cada paso.';
 function compartirLink() {
   const m = $('share-menu'); if (!m) return;
