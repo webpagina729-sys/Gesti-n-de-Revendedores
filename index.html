@@ -4906,7 +4906,7 @@ async function confirmSendAll() {
     if (btn) { btn.textContent = `Enviando...`; btn.disabled = true; }
 
     const totalMayorista = pedidoList.reduce((s, p) => s + (p.totalMayorista || 0), 0)
-        + (window._afilRecargoLote ? window._afilRecargoLote(pedidoList) : 0); // aporte 1% Programa de Afiliados (0 si no está inscripto)
+        + (window._afilRecargoLote ? window._afilRecargoLote(pedidoList) : 0); // aporte 5% Programa de Afiliados (0 si no está inscripto)
 
     // Aplanar los items del lote de ESTA categoría en una sola lista de
     // productos. Ya no hace falta "adivinar" el nicho predominante — el
@@ -7216,7 +7216,7 @@ window.addEventListener('load', init);
      • Reporta al programa los pedidos por etapa (solo si el revendedor está
        afiliado a alguien o inscripto en el programa).
      • Estadísticas: sector "Afiliados" + globo informativo (solo inscriptos).
-     • Pago a precio mayorista: aporte del 1% de la ganancia (solo inscriptos).
+     • Pago a precio mayorista: aporte del 5% de la ganancia (solo inscriptos).
      Si el Worker no responde, todo el panel funciona igual que antes.
      ═══════════════════════════════════════════════════════════════════════ -->
 <script id="afiliados-modulo">
@@ -7283,7 +7283,8 @@ window.addEventListener('load', init);
             getGananciasOficiales().forEach(function (g) {
                 var f = Date.parse(g.fechaPago) || Date.now(); ids[String(g.id)] = 1;
                 if (f > ultimoPago) ultimoPago = f; if (f > ultimaVenta) ultimaVenta = f;
-                var ap = Number(aportes[String(g.id)]) || 0;
+                var ap = Number(g.aporte) || Number(aportes[String(g.id)]) || 0;
+                if (ap && !g.aporte) { try { g.aporte = ap; saveGananciasOficiales(getGananciasOficiales().map(function (x) { return String(x.id) === String(g.id) ? Object.assign({}, x, { aporte: ap }) : x; })); _fsGuardarGananciaOficial(g); } catch (_) {} }  // pagos anteriores: el aporte pasa a la base
                 if (!ap) return; // pagado sin ceder el 5%: no genera comisión (la actividad igual se informa)
                 out.push({ id: g.id, etapa: 'confirmado', aporte: ap, ganancia: (Number(g.ganancia) || 0) + ap, total: g.total || 0, unidades: sumUnid(g.items), productos: nombres(g.items), numeroPedido: g.numeroPedido || null, fecha: f, fechaPago: f });
             });
@@ -7380,7 +7381,7 @@ window.addEventListener('load', init);
         renderStatsView = function () { var r = _rsv.apply(this, arguments); pintarSector(); return r; };
     }
 
-    // ── 3) Pago a precio mayorista: aporte 1% + ganancia pendiente de afiliados ──
+    // ── 3) Pago a precio mayorista: aporte 5% + ganancia pendiente de afiliados ──
     function gananciaLote(categoria) {
         var l = getPedidoList();
         if (categoria) l = l.filter(function (p) { return (p.nicho || 'multishop') === categoria; });
@@ -7474,6 +7475,16 @@ window.addEventListener('load', init);
             }
             if (pend && pend.aporteAfiliados && Array.isArray(lista)) guardarAportes(ap);
             var r = _reg.call(this, lista);
+            // 🔒 El aporte queda guardado en la base junto con el pago (usuarios/{uid}/gananciasOficiales): de ahí lo lee el
+            // servidor, así no depende de este dispositivo ni de que la sincronización llegue a tiempo.
+            try {
+                if (pend && pend.aporteAfiliados && Array.isArray(lista)) {
+                    var porId = {}; lista.forEach(function (p) { if (ap[String(p.id)] > 0) porId[String(p.id)] = { a: ap[String(p.id)], g: Number(p.ganancia) || 0 }; });
+                    var hist = getGananciasOficiales(), cambios = [];
+                    hist.forEach(function (h) { var x = porId[String(h.id)]; if (x && !h.aporte && Number(h.ganancia) === x.g) { h.aporte = x.a; cambios.push(h); } });
+                    if (cambios.length) { saveGananciasOficiales(hist); cambios.forEach(function (h) { _fsGuardarGananciaOficial(h); }); }
+                }
+            } catch (e) { console.warn('afiliados: no se pudo guardar el aporte en el registro', e); }
             // El aporte queda en el servidor apenas se paga (reintenta por si no hay señal): así se ve igual desde cualquier dispositivo.
             [1500, 15000, 60000].forEach(function (ms) { setTimeout(function () { sincronizar(); }, ms); });
             return r;
