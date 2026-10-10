@@ -4926,9 +4926,12 @@ async function confirmSendAll() {
     // sin esperar a que se apruebe el pago.
     let pedidoIdReal = null;
     try {
+        // 🆕 Se envía la sesión del revendedor: así este registro sigue funcionando aunque el servidor exija anti-bot al público.
+        const hdrLote = { 'Content-Type': 'application/json' };
+        try { const us = (typeof _auth !== 'undefined') ? _auth.currentUser : null; if (us) hdrLote['Authorization'] = 'Bearer ' + await us.getIdToken(); } catch (_) {}
         const resPedido = await fetch(`${WORKER_MAYORISTA}/api/pedido`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: hdrLote,
             body: JSON.stringify({
                 cliente: {
                     nombre: `${currentVendorNombre || ''} ${currentVendorApellido || ''}`.trim() || currentCode,
