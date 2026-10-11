@@ -2635,10 +2635,6 @@ function renderLevelBar() {
     // (solo pedidos propios) para no dejar la barra vacía.
     const count = (_nivelServidor && typeof _nivelServidor.total === 'number') ? _nivelServidor.total : countPropio;
     const info = levelInfoFromCount(count);
-    // El tramo pendiente/pagado (ámbar vs verde) sigue siendo solo sobre los
-    // pedidos propios — no se toca su cálculo, solo se le da su propio
-    // "info" para no mezclarlo con la escala combinada de arriba.
-    const infoPropio = levelInfoFromCount(countPropio);
     block.style.display = 'flex';
 
     const nameFull = [currentVendorNombre, currentVendorApellido].filter(Boolean).join(' ').trim() || 'Revendedor';
@@ -2658,16 +2654,23 @@ function renderLevelBar() {
     // mientras el revendedor tenga pedidos confirmados sin pagar en su
     // lote — recién vuelve a verde cuando los paga (o si no tiene
     // ninguno pendiente de pago todavía).
-    fill.classList.toggle('pendiente-pago', getPedidoList().length > 0);
+    fill.classList.toggle('pendiente-pago', getPedidoList().length > 0 || !!(_nivelServidor && _nivelServidor.afiliadosPendientesPago > 0));
     // 🔧 NUEVO: tramo verde = pedidos confirmados/pagados (de adelante para atrás);
     // el resto del tramo ocupado queda ámbar (pendiente). Se completa en verde al confirmarse todos.
+    // 🆕 Ahora el tramo ámbar/verde se calcula sobre la escala COMBINADA
+    // (propios + afiliados, igual que el conteo de arriba): los pedidos
+    // confirmados de afiliados (venta real) cuentan en ámbar hasta que el
+    // servidor los marca "Pagado" (liquidación finalizada), igual que los
+    // propios aprobados cuentan en ámbar hasta que se pagan a mayorista.
     try {
         const _pagados = new Set(getGananciasOficiales().map(g => String(g.id)));
         const _confir = new Set(getPedidoList().map(x => String(x.id)));
-        let _verdes = 0;
-        pedidos.forEach(p => { if (p && p.estado === 'pagado' && (_pagados.has(String(p.id)) || _confir.has(String(p.id)))) _verdes++; });
-        const _enNivel = Math.max(0, countPropio - infoPropio.prev);
-        const _verdeNivel = infoPropio.max ? _enNivel : Math.max(0, Math.min(_verdes, countPropio) - infoPropio.prev);
+        let _verdesPropios = 0;
+        pedidos.forEach(p => { if (p && p.estado === 'pagado' && (_pagados.has(String(p.id)) || _confir.has(String(p.id)))) _verdesPropios++; });
+        const _verdesAfiliados = _nivelServidor ? Math.max(0, (Number(_nivelServidor.afiliados) || 0) - (Number(_nivelServidor.afiliadosPendientesPago) || 0)) : 0;
+        const _verdes = _verdesPropios + _verdesAfiliados;
+        const _enNivel = Math.max(0, count - info.prev);
+        const _verdeNivel = info.max ? _enNivel : Math.max(0, Math.min(_verdes, count) - info.prev);
         const _gp = _enNivel > 0 ? Math.min(100, Math.round((_verdeNivel / _enNivel) * 100)) : 0;
         if (_gp >= 100) { fill.style.background = '#2d924c'; fill.style.boxShadow = '0 0 8px rgba(45,146,76,.4)'; }
         else if (_gp <= 0) { fill.style.background = '#f59e0b'; fill.style.boxShadow = '0 0 8px rgba(245,158,11,.4)'; }
@@ -2888,30 +2891,23 @@ function _entregarFacturaPDF(doc, filename, esPagado, telefonoCliente, soloCompa
             }
         } catch (e) { /* el usuario canceló el share — no hacer nada */ }
     };
-    document.getElementById('factura-whatsapp-btn').onclick = async () => {
+    document.getElementById('factura-whatsapp-btn').onclick = () => {
         const mensaje = esPagado === false
             ? 'Te comparto la factura pendiente (todavía sin pagar) de tu pedido.'
             : 'Te comparto tu factura.';
-        try {
-            const file = new File([blob], filename, { type: 'application/pdf' });
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                await navigator.share({ files: [file], title: filename, text: mensaje });
-                return;
-            }
-        } catch (e) { return; /* canceló */ }
-        // Fallback: WhatsApp Web no puede adjuntar archivos por URL — se
-        // abre directo el chat del CLIENTE correspondiente (si se conoce
-        // su teléfono) con el mensaje, avisando que hay que adjuntar el
-        // PDF ya descargado a mano.
+        // 🔧 FIX: antes se intentaba primero navigator.share({files}), que
+        // deja que el SISTEMA elija a dónde mandarlo (panel nativo con
+        // cualquier contacto o app) — nunca abría el chat de WhatsApp del
+        // cliente puntual. Ahora va SIEMPRE directo al chat de WhatsApp del
+        // número del cliente (ya verificado en Firestore), igual que ya
+        // funciona en pedidos.html. El script "pdf-enlace" se encarga de
+        // adjuntar/subir la factura y agregar su link al mensaje.
         const telLimpio = telefonoCliente ? String(telefonoCliente).replace(/\D/g, '') : '';
         const waUrl = telLimpio
             ? `https://wa.me/${telLimpio}?text=${encodeURIComponent(mensaje)}`
             : `https://wa.me/?text=${encodeURIComponent(mensaje)}`;
-        // Si este navegador no puede compartir archivos, el único modo de enviar el PDF
-        // es adjuntarlo a mano: recién ahí se descarga (solo en facturas de cliente).
-        if (soloCompartir) { try { doc.save(filename); } catch (_e) {} }
         window.open(waUrl, '_blank');
-        toast('Se abrió WhatsApp — adjuntá el PDF ya descargado', true);
+        toast(telLimpio ? 'Se abrió el chat de WhatsApp del cliente' : 'Este cliente no tiene WhatsApp registrado', telLimpio ? true : 'err');
     };
     setTimeout(() => { const el = document.getElementById('factura-lista-overlay'); if (el) el.remove(); }, 14000);
 }
@@ -7910,18 +7906,13 @@ window.addEventListener('load', init);
         var edad = cap ? Date.now() - cap.t : Infinity;
         if (!m || !cap || !(edad < 20000 || (Date.now() - btnT < 3000 && edad < 1800000))) return origOpen.apply(window, args);
         var c = cap, body; cap = null;
-        // Adjunta el PDF con su mensaje (hoja de compartir del dispositivo), igual que el botón "Compartir".
-        // Si el dispositivo no puede compartir archivos, sigue por enlace como antes.
-        try {
-            var fnm = /\.pdf$/i.test(c.name) ? c.name : c.name + '.pdf';
-            var fl = new File([c.out.call(c.doc, 'arraybuffer')], fnm, { type: 'application/pdf' });
-            if (navigator.canShare && navigator.canShare({ files: [fl] })) {
-                var tx = ''; try { tx = decodeURIComponent(m[2]); } catch (_) {}
-                try { navigator.clipboard.writeText(tx).catch(function () {}); } catch (_) {}
-                navigator.share({ files: [fl], title: fnm, text: tx }).catch(function (e) { if (!e || e.name !== 'AbortError') origOpen(u, '_blank'); });
-                return null;
-            }
-        } catch (_) {}
+        // 🔧 FIX: antes, si el dispositivo soportaba Web Share con archivos
+        // (navigator.canShare), se usaba navigator.share({files}) — pero esa
+        // API deja que el SISTEMA elija a dónde mandarlo (panel nativo con
+        // cualquier contacto/app), nunca abre el chat de WhatsApp puntual.
+        // Ahora siempre se sube la factura y se agrega su link al chat que
+        // ya se abrió directo al número correspondiente (cliente o
+        // revendedor, según el botón que lo disparó).
         try { body = JSON.stringify({ filename: c.name, pdfBase64: b64(c) }); } catch (_) { return origOpen.apply(window, args); }
         var w = origOpen('', '_blank');           // se abre ya (dentro del toque) y se completa al terminar la subida
         var ir = function (url) { if (w) { try { w.location.href = url; return; } catch (_) {} } origOpen(url, '_blank'); };
