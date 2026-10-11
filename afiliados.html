@@ -372,6 +372,7 @@ button.btn-anim{animation:btnPop .38s ease,btnRing .5s ease-out}
       <div class="line"><span>Ganancia pendiente a liquidar</span><b id="p-pend">$0</b></div>
       <div class="line"><span>Fecha a liquidar</span><b id="p-fecha">-</b></div>
       <div class="line"><span>Total a liquidar (confirmado)</span><b id="p-liq">$0</b></div>
+      <div class="line"><span style="color:#000;font-weight:800">Ganancia Total:</span><b id="p-gan-total" style="color:var(--green)">$0</b></div>
       <div class="line"><span>Crédito Total</span><b id="p-cred">$0</b></div>
       <div class="line"><span>Crédito Utilizado</span><b id="p-cred-uso">$0</b></div>
       <button class="btn green" id="btn-cobro" style="margin-top:12px" onclick="abrirCobro()">Solicitar cobro</button>
@@ -788,6 +789,8 @@ function pintarPanel(s) {
   $('p-pend').textContent = money(r.pendienteALiquidar);
   $('p-fecha').textContent = fmtDia(s.proximaLiquidacion);
   $('p-liq').textContent = money(s.saldoLiquidar);
+  const ganTotalPagado = (s.retiros || []).filter(x => x.estado === 'pagado').reduce((acc, x) => acc + (Number(x.monto) || 0), 0);
+  $('p-gan-total').textContent = money(ganTotalPagado);
   $('p-cred').textContent = money(s.creditoStock);
   $('p-cred-uso').textContent = money(s.creditoUsado);
   const b = $('btn-cobro');
