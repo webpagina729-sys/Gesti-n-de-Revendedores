@@ -101,6 +101,7 @@ input.i[readonly]{opacity:.8}
 .err{background:var(--red-pale);color:var(--red);border:1px solid var(--red);border-radius:9px;padding:9px 11px;font-size:12.5px;margin-top:10px;display:none}
 .err.show{display:block}
 .invite{display:flex;align-items:center;gap:10px;background:var(--blue-pale);border:1px solid var(--blue);border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:13px}
+.reg-tyc-link{display:block;text-align:center;font-size:11.5px;font-weight:500;color:var(--blue);text-decoration:underline;margin:4px 0 2px}
 .ribbon{border:1px solid var(--border);border-radius:11px;background:var(--surface2);margin-bottom:8px;overflow:hidden}
 .rhead{display:flex;align-items:center;gap:10px;padding:11px 12px;cursor:pointer;width:100%;background:none;border:0;color:var(--text);text-align:left}
 .rhead .l{flex:1;min-width:0}
@@ -287,9 +288,10 @@ button.btn-anim{animation:btnPop .38s ease,btnRing .5s ease-out}
       <label class="f" id="r-ref-lbl">Código de quien te invitó</label>
       <input class="i" id="r-ref" placeholder="Opcional" autocapitalize="characters" autocomplete="off" spellcheck="false">
       <div id="r-ref-msg" class="ref-msg"></div>
-      <label class="chk hide" id="r-prog-lbl"><input type="checkbox" id="r-prog"><span>Acepto el Programa de Afiliados: cedo el 5% de mi ganancia a quien me invitó, y puedo invitar a otras personas y ganar el 5% de sus ganancias.</span></label>
+      <label class="chk hide" id="r-prog-lbl"><input type="checkbox" id="r-prog"><span>Acepto los términos y condiciones del programa de afiliados.</span></label>
       <label class="chk"><input type="checkbox" id="r-tyc"><span>Acepto los términos y condiciones de uso de la plataforma.</span></label>
       <label class="chk"><input type="checkbox" id="r-priv"><span>Acepto la política de privacidad.</span></label>
+      <a href="https://politicarevendedor.tuweb.workers.dev/" target="_blank" rel="noopener" class="reg-tyc-link">Leer términos y condiciones / política de privacidad</a>
       <div id="ts-reg" style="margin:10px 0"></div>
       <button class="btn" id="btn-reg" type="submit">Crear mi cuenta y entrar</button>
       <button class="btn sec" type="button" style="margin-top:9px" onclick="googleReg()">Registrarme con Google</button>
