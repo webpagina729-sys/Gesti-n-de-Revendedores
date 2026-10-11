@@ -993,6 +993,23 @@ body.light-theme .lvl-panel-vermas { color:#000; }
     .lvl-panel-top-count { font-size:13.5px; }
     .lvl-panel-vermas { font-size:13px; padding:10px; }
 }
+
+/* Modal "Factura lista para enviar / descargada" — compacto, centrado,
+   una sola línea de texto y los 3 botones en una sola fila. */
+#factura-lista-overlay .modal-box { max-width:320px; padding:16px 18px; }
+.factura-modal-head { display:flex; align-items:center; gap:8px; margin-bottom:12px; }
+.factura-modal-msg { flex:1; min-width:0; display:flex; align-items:center; gap:6px; font-size:12.5px; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; }
+.factura-modal-msg span { overflow:hidden; text-overflow:ellipsis; }
+.factura-modal-msg.pendiente { color:var(--amber); }
+.factura-modal-close { background:none; border:none; color:var(--text3); cursor:pointer; padding:2px; flex-shrink:0; display:flex; line-height:0; }
+.factura-modal-actions { display:flex; gap:7px; }
+.factura-modal-actions button { flex:1; min-width:0; display:flex; align-items:center; justify-content:center; gap:5px; padding:9px 4px; border-radius:9px; font-size:11.5px; font-weight:700; cursor:pointer; font-family:var(--font); white-space:nowrap; border:none; }
+@media (min-width:641px) {
+    #factura-lista-overlay .modal-box { max-width:400px; padding:20px 22px; }
+    .factura-modal-msg { font-size:13.5px; }
+    .factura-modal-actions { gap:10px; }
+    .factura-modal-actions button { font-size:13px; padding:10px 8px; }
+}
 </style>
 <style id="iconos-header-mejora">
 /* La fila ocupa siempre todo el ancho disponible (antes se topaba en 480px en pantallas de 500–640px) */
@@ -2827,29 +2844,38 @@ function _entregarFacturaPDF(doc, filename, esPagado, telefonoCliente, soloCompa
     if (!soloCompartir) doc.save(filename);
     const blob = doc.output('blob');
     const url = URL.createObjectURL(blob);
-    let m = document.getElementById('factura-lista-modal');
-    if (!m) {
-        m = document.createElement('div');
-        m.id = 'factura-lista-modal';
-        m.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:10001;background:var(--bg2);border:1px solid var(--border2);border-radius:12px;box-shadow:0 8px 28px rgba(0,0,0,.4);padding:14px 16px;display:flex;align-items:center;gap:10px;max-width:94vw;flex-wrap:wrap;justify-content:center';
-        document.body.appendChild(m);
-    }
-    const avisoPendiente = esPagado === false
-        ? `<div style="width:100%;text-align:center;font-size:11px;color:var(--amber);font-weight:700;margin-bottom:2px">⚠️ Esta es una factura PENDIENTE — el pedido todavía no fue pagado</div>`
-        : '';
+    let overlay = document.getElementById('factura-lista-overlay');
+    if (overlay) overlay.remove(); // se reconstruye entero cada vez (el blob/url son nuevos)
+    overlay = document.createElement('div');
+    overlay.id = 'factura-lista-overlay';
+    overlay.className = 'modal-overlay show';
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+    document.body.appendChild(overlay);
+    let m = document.createElement('div');
+    m.id = 'factura-lista-modal';
+    m.className = 'modal-box';
+    overlay.appendChild(m);
+    const pendiente = esPagado === false;
     m.innerHTML = `
-        ${avisoPendiente}
-        <div style="display:flex;align-items:center;gap:8px;color:var(--text);font-size:13px;font-weight:600;white-space:nowrap">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#0ac97a" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-            ${soloCompartir ? 'Factura lista para enviar' : 'Factura descargada'}
+        <div class="factura-modal-head">
+            <div class="factura-modal-msg${pendiente ? ' pendiente' : ''}">
+                ${pendiente
+                    ? `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`
+                    : `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#0ac97a" stroke-width="2.5" style="flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>`}
+                <span>${pendiente ? 'Factura pendiente — el pedido no fue pagado' : (soloCompartir ? 'Factura lista para enviar' : 'Factura descargada')}</span>
+            </div>
+            <button class="factura-modal-close" onclick="document.getElementById('factura-lista-overlay').remove()" aria-label="Cerrar">
+                <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
         </div>
-        <button onclick="window.open('${url}', '_blank')" style="background:var(--blue);color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap">Ver</button>
-        <button id="factura-compartir-btn" style="background:var(--surface2);color:var(--text);border:1px solid var(--border2);border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap">Compartir</button>
-        <button id="factura-whatsapp-btn" style="background:#25D366;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:5px">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21h.005c5.46 0 9.9-4.45 9.9-9.91 0-2.65-1.03-5.13-2.9-7C17.17 3.03 14.69 2 12.04 2m0 1.67c2.2 0 4.27.86 5.82 2.42a8.2 8.2 0 0 1 2.42 5.82c0 4.54-3.7 8.23-8.24 8.23-1.4 0-2.77-.35-4-1.02l-.28-.16-2.98.78.8-2.9-.18-.3a8.18 8.18 0 0 1-1.13-4.14c0-4.54 3.7-8.23 8.23-8.23m-4.53 4.7c-.16 0-.42.06-.64.3-.22.24-.85.83-.85 2.02 0 1.19.87 2.34.99 2.5.12.16 1.7 2.7 4.2 3.68 2.07.82 2.49.66 2.94.62.45-.04 1.44-.59 1.64-1.16.2-.57.2-1.05.14-1.16-.06-.1-.22-.16-.46-.28-.24-.12-1.44-.71-1.66-.79-.22-.08-.38-.12-.55.12-.16.24-.62.79-.76.95-.14.16-.28.18-.52.06-.24-.12-1.02-.38-1.94-1.2-.72-.64-1.2-1.44-1.34-1.68-.14-.24-.02-.37.1-.49.11-.11.24-.28.36-.42.11-.14.15-.24.23-.4.08-.16.04-.3-.02-.42-.06-.12-.55-1.34-.76-1.83-.2-.48-.4-.42-.55-.42h-.47Z"/></svg>
-            WhatsApp
-        </button>
-        <button onclick="document.getElementById('factura-lista-modal').remove()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:18px;line-height:1;padding:0 2px">×</button>
+        <div class="factura-modal-actions">
+            <button onclick="window.open('${url}', '_blank')" style="background:var(--blue);color:#fff">Ver</button>
+            <button id="factura-compartir-btn" style="background:var(--surface2);color:var(--text);border:1px solid var(--border2)">Compartir</button>
+            <button id="factura-whatsapp-btn" style="background:#25D366;color:#fff">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21h.005c5.46 0 9.9-4.45 9.9-9.91 0-2.65-1.03-5.13-2.9-7C17.17 3.03 14.69 2 12.04 2m0 1.67c2.2 0 4.27.86 5.82 2.42a8.2 8.2 0 0 1 2.42 5.82c0 4.54-3.7 8.23-8.24 8.23-1.4 0-2.77-.35-4-1.02l-.28-.16-2.98.78.8-2.9-.18-.3a8.18 8.18 0 0 1-1.13-4.14c0-4.54 3.7-8.23 8.23-8.23m-4.53 4.7c-.16 0-.42.06-.64.3-.22.24-.85.83-.85 2.02 0 1.19.87 2.34.99 2.5.12.16 1.7 2.7 4.2 3.68 2.07.82 2.49.66 2.94.62.45-.04 1.44-.59 1.64-1.16.2-.57.2-1.05.14-1.16-.06-.1-.22-.16-.46-.28-.24-.12-1.44-.71-1.66-.79-.22-.08-.38-.12-.55.12-.16.24-.62.79-.76.95-.14.16-.28.18-.52.06-.24-.12-1.02-.38-1.94-1.2-.72-.64-1.2-1.44-1.34-1.68-.14-.24-.02-.37.1-.49.11-.11.24-.28.36-.42.11-.14.15-.24.23-.4.08-.16.04-.3-.02-.42-.06-.12-.55-1.34-.76-1.83-.2-.48-.4-.42-.55-.42h-.47Z"/></svg>
+                WhatsApp
+            </button>
+        </div>
     `;
     document.getElementById('factura-compartir-btn').onclick = async () => {
         try {
@@ -2887,7 +2913,7 @@ function _entregarFacturaPDF(doc, filename, esPagado, telefonoCliente, soloCompa
         window.open(waUrl, '_blank');
         toast('Se abrió WhatsApp — adjuntá el PDF ya descargado', true);
     };
-    setTimeout(() => { const el = document.getElementById('factura-lista-modal'); if (el) el.remove(); }, 14000);
+    setTimeout(() => { const el = document.getElementById('factura-lista-overlay'); if (el) el.remove(); }, 14000);
 }
 
 // 🆕 Número de pedido secuencial (#N) para mostrar en las facturas —
