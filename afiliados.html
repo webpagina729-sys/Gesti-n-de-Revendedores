@@ -127,6 +127,12 @@ input.i[readonly]{opacity:.8}
 /* ── Mis afiliados: paginado y Top 10 ── */
 .vermas{display:block;width:100%;margin-top:4px;background:none;border:1px solid var(--border2);color:var(--text2);border-radius:9px;padding:7px 10px;font-size:11.5px;font-weight:700;font-family:inherit;cursor:pointer;letter-spacing:.2px}
 .vermas:hover{color:var(--text);border-color:var(--text3)}
+.pe-rank .rhead{position:relative;padding-bottom:13px}
+.pe-pos{width:26px;height:26px;border-radius:8px;background:var(--blue-pale);color:var(--blue);font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.pe-rank .rname,.pe-rank .rsub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pe-meta{height:1px;background:var(--border);position:absolute;left:0;right:0;bottom:0}
+.pe-meta i{display:block;height:1px;background:var(--green);width:0;transition:width .6s ease}
+.pe-sep{height:1px;background:var(--border);margin:6px 0}
 .top-sub{font-size:11.5px;color:var(--text2);margin:2px 0 10px;line-height:1.4}
 #p-top svg{display:block;width:100%;height:auto;overflow:visible}
 #p-top .gl{stroke:var(--border);stroke-width:1;vector-effect:non-scaling-stroke}
@@ -376,6 +382,12 @@ button.btn-anim{animation:btnPop .38s ease,btnRing .5s ease-out}
       <h2>Mis afiliados</h2>
       <p class="muted" id="p-afil-res"></p>
       <div id="p-afils" style="margin-top:10px"></div>
+    </div>
+
+    <div class="card" id="c-prox">
+      <h2>Próximos pedidos esperados</h2>
+      <p class="top-sub">Tus afiliados con fecha de pago configurada, ordenados por fecha. La línea verde mide el avance de su objetivo.</p>
+      <div id="p-prox"></div>
     </div>
 
     <div class="card" id="c-top">
@@ -788,6 +800,7 @@ function pintarPanel(s) {
   AF_LISTA = s.referidos || []; AF_VISTOS = 3; pintarAfils();
   pintarTop(s.ranking || []);
   pintarCarrera(s);
+  pintarProx(s.referidos || []);
 
   $('p-retiros').innerHTML = s.retiros.length ? s.retiros.map(x => ribbon(IC.coin, x.estado === 'pagado' || x.estado === 'acreditado' ? 'g' : 'a',
     (x.metodo === 'credito' ? 'Crédito en Stock' : 'Transferencia') + ' · ' + money(x.monto), (x.numeroSolicitud ? 'Solicitud ' + esc(x.numeroSolicitud) + ' · ' : '') + fmtFecha(x.fecha), null,
@@ -820,6 +833,52 @@ function pintarAfils() {
 }
 function afVerMas() { AF_VISTOS += 3; pintarAfils(); }
 function afVerMenos() { AF_VISTOS = 3; pintarAfils(); }
+
+// ═════════════ Próximos pedidos esperados (de 5 en 5, orden por fecha programada) ═════════════
+let PE_LISTA = [], PE_VISTOS = 5; const PE_ABIERTOS = new Set();
+function peDia(f) { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(f || ''); return m ? `${m[3]}/${m[2]}/${m[1]}` : '—'; }
+function pePct(o) { return o && o.minimo > 0 ? Math.round((Number(o.actual) || 0) / o.minimo * 100) : 0; }
+function pintarProx(refs) {
+  const hoy = new Date(); const hoyS = hoy.getFullYear() + '-' + String(hoy.getMonth() + 1).padStart(2, '0') + '-' + String(hoy.getDate()).padStart(2, '0');
+  PE_LISTA = (refs || []).filter(a => a.vinculo !== 'libre' && a.enPrograma && a.fechaLimite && a.fechaLimite >= hoyS)
+    .sort((a, b) => a.fechaLimite.localeCompare(b.fechaLimite) || String(a.nombre).localeCompare(String(b.nombre)));
+  dibujarProx();
+}
+function dibujarProx() {
+  const box = $('p-prox'); if (!box) return;
+  if (!PE_LISTA.length) { box.innerHTML = '<p class="muted">Todavía ninguno de tus afiliados configuró su fecha de pago.</p>'; return; }
+  const ln = (a, b) => `<div class="line"><span>${a}</span><b>${b}</b></div>`;
+  let h = PE_LISTA.slice(0, PE_VISTOS).map((a, i) => {
+    const objs = (a.objetivos || []).slice().sort((x, y) => pePct(y) - pePct(x));
+    const top = objs[0];
+    const pct = top ? pePct(top) : 0;
+    const cat = top ? esc(top.nombre) + (objs.length > 1 ? ` +${objs.length - 1}` : '') : 'Sin pedidos en curso';
+    const cuerpo = (objs.length ? objs : [null]).map((o, k) =>
+      ln('Categoría', o ? esc(o.nombre) : '—') + (k === 0 ? ln('Fecha objetivo', peDia(a.fechaLimite)) : '') +
+      ln('Total de objetivo completado', (o ? pePct(o) : 0) + '%') + (k === 0 ? ln('Comisión hasta el momento', money(a.comisionGenerada)) : '')
+    ).join('<div class="pe-sep"></div>');
+    const id = 'pe_' + String(a.uid).replace(/[^a-zA-Z0-9]/g, '');
+    return `<div class="ribbon pe-rank${PE_ABIERTOS.has(id) ? ' open' : ''}" id="${id}"><button class="rhead" onclick="peToggle('${id}')">
+      <span class="pe-pos">${i + 1}</span><span class="l"><div class="rname">${esc(a.nombre)}</div><div class="rsub" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${peDia(a.fechaLimite)} · ${cat}</div></span>
+      <span class="rval">${pct}%</span>
+      <svg class="caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="6 9 12 15 18 9"/></svg>
+      <span class="pe-meta"><i style="width:${Math.min(100, pct)}%"></i></span>
+    </button><div class="rbody">${cuerpo}</div></div>`;
+  }).join('');
+  if (PE_LISTA.length > 5) {
+    const quedan = PE_LISTA.length - PE_VISTOS;
+    h += quedan > 0 ? `<button class="vermas" onclick="peVerMas()">Ver más · ${Math.min(5, quedan)} de ${quedan} restantes</button>` : `<button class="vermas" onclick="peVerMenos()">Ver menos</button>`;
+  }
+  box.innerHTML = h;
+}
+function peToggle(id) { const e = $(id); if (!e) return; e.classList.toggle('open'); e.classList.contains('open') ? PE_ABIERTOS.add(id) : PE_ABIERTOS.delete(id); }
+function peVerMas() { PE_VISTOS += 5; dibujarProx(); }
+function peVerMenos() { PE_VISTOS = 5; dibujarProx(); }
+// En vivo: se vuelve a consultar cada minuto (solo esta sección) mientras la pestaña está visible.
+setInterval(async () => {
+  if (document.hidden || !STATS || !$('v-panel') || $('v-panel').classList.contains('hide')) return;
+  try { const s = await api('/api/mis-stats'); if (s && s.ok && s.registrado) pintarProx(s.referidos || []); } catch (_) {}
+}, 60000);
 
 // ═════════════ Top 10 de afiliados (gráfico) ═════════════
 const TOP_COL = ['#00e5ff', '#ff2bd6', '#9dff00', '#ff8a00', '#8b5cff', '#ff3b3b', '#2f6bff', '#ffe600', '#00d68f', '#94a3b8'];
