@@ -5627,10 +5627,10 @@ function segAvisoIrSeguimiento() {
     cerrarSegAviso();
     openSeguimientoModal();
 }
-setInterval(() => { if (currentCode && !document.hidden) cargarSeguimiento(); }, 90000);
-// 🆕 Nivel real (propios + afiliados): se refresca solo cada 60s para que
+setInterval(() => { if (currentCode && !document.hidden) cargarSeguimiento(); }, 300000);
+// 🆕 Nivel real (propios + afiliados): se refresca solo cada 5 min para que
 // la barra/estrellas reflejen pedidos de afiliados pagados sin recargar.
-setInterval(() => { if (currentCode && !document.hidden) actualizarNivelServidor(true); }, 60000);
+setInterval(() => { if (currentCode && !document.hidden) actualizarNivelServidor(true); }, 300000);
 
 async function marcarRecibido(pedidoId) {
     if (!pedidoId) return;
@@ -7702,7 +7702,7 @@ window.addEventListener('load', init);
     // 🆕 Usado por el modal de "subiste de nivel" (showLevelUp) para saber si
     // ocultar la invitación a registrarse — ya está en el programa.
     window._afilEstaRegistrado = function () { return !!(_info && _info.registrado); };
-    setInterval(sincronizar, 120000);
+    setInterval(sincronizar, 300000);
     document.addEventListener('visibilitychange', function () {
         if (document.hidden) return;
         sincronizar();
