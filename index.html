@@ -3510,14 +3510,14 @@ function _fsFechasLectura(obj) {
 // Falla en silencio si no hay conexión: el dato ya quedó guardado en
 // localStorage, y quedará pendiente de sincronizar hasta la próxima carga.
 async function _fsGuardarGananciaOficial(item) {
-    if (!currentUid || !item?.id) return;
-    try {
-        await _db.collection('usuarios').doc(currentUid)
-            .collection('gananciasOficiales').doc(item.id)
-            .set(_fsFechasEscritura(item), { merge: true });
-    } catch(e) {
-        console.warn('No se pudo persistir ganancia oficial en Firestore:', e.message);
-    }
+    // 🔒 El navegador ya NO puede escribir acá (las reglas de Firestore lo
+    // niegan a propósito): la ganancia oficial de un pedido solo la registra
+    // el servidor (workerpagos), y solo después de confirmar el pago real
+    // con Mercado Pago — así nadie puede fabricar un "pago confirmado" sin
+    // pagar. Esta función queda como no-operación para no romper a quien la
+    // llama; el panel sigue viendo el dato real apenas el servidor lo
+    // escribe, vía _fsCargarGananciasOficiales() (que sí puede leer).
+    return;
 }
 
 // Agrega un lote de pedidos ya pagados al historial oficial (idempotente por id de pedido)
@@ -5014,7 +5014,15 @@ async function confirmSendAll() {
                 total: Math.round(totalMayorista),
                 codigoVendedor: currentCode,
                 nicho: nichoLote,
-                pedidosClientesIds: pedidoList.map(p => p.id).filter(Boolean)
+                pedidosClientesIds: pedidoList.map(p => p.id).filter(Boolean),
+                // 🔒 Detalle de ganancias del lote: el servidor lo fija ACÁ, antes
+                // de pagar, y recién lo registra como "ganancia oficial" cuando el
+                // webhook de Mercado Pago confirme el pago real (ver workerpagos.js).
+                detalleGanancias: pedidoList.map(p => ({
+                    id: p.id, numeroPedido: p.numeroPedido || null, cliente: p.cliente,
+                    total: p.total || 0, totalMayorista: p.totalMayorista || 0,
+                    ganancia: p.ganancia || 0, items: p.items || []
+                }))
             })
         });
         if (resPedido.ok) {
