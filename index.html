@@ -841,7 +841,7 @@
         .level-stars { display:flex; gap:2px; }
         .level-star { width:13px; height:13px; color:#3a3f55; transition:color .3s, transform .3s, filter .3s; }
         .level-star.on { color:#f5b400; filter:drop-shadow(0 0 4px rgba(245,180,0,.6)); }
-        .level-bar-wrap { flex:1; min-width:80px; height:5px; background:rgba(255,255,255,.06); border-radius:4px; overflow:hidden; position:relative; }
+        .level-bar-wrap { flex:1; min-width:80px; height:5px; background:rgba(255,255,255,.35); border-radius:4px; overflow:hidden; position:relative; }
         .level-bar-fill { height:100%; width:0%; border-radius:4px; background:#2d924c; transition:width 1.2s cubic-bezier(.4,0,.2,1), background .3s ease; box-shadow:0 0 8px rgba(45,146,76,.4); }
         .level-bar-fill.pendiente-pago { background:#f59e0b; box-shadow:0 0 8px rgba(245,158,11,.4); }
         .level-count { font-size:10px; color:var(--text2); white-space:nowrap; font-weight:600; }
@@ -904,13 +904,13 @@
 }
 </style>
 <style id="nivel-mejoras">
-/* Etiqueta "Registrado en el programa": una sola línea, verde, fina y alineada con el botón Afiliados */
-.lvl-reg-tag { display:none; align-items:center; gap:4px; margin-left:auto; color:#2d924c; font-size:10px; font-weight:600; line-height:1.6; white-space:nowrap; flex-shrink:0; letter-spacing:.1px; }
+/* Etiqueta "Registrado en el programa": fila propia, debajo del botón
+   Afiliados, alineada a su mismo borde derecho (y al del número de nivel)
+   — así el nombre, Reclamos y Afiliados nunca se mueven de lugar. */
+.lvl-reg-tag-row { display:flex; justify-content:flex-end; }
+.lvl-reg-tag { display:none; align-items:center; gap:4px; color:#2d924c; font-size:10px; font-weight:600; line-height:1.6; white-space:nowrap; flex-shrink:0; letter-spacing:.1px; margin-top:2px; }
 .lvl-reg-tag.on { display:inline-flex !important; }
-.lvl-reg-tag.on + .lvl-btn-afiliados { margin-left:8px !important; }
-/* Pantallas angostas: si no entra todo en una línea, la etiqueta pasa junto al botón Afiliados a la fila de abajo (nunca se parte el texto) */
 @media (max-width:380px) { .lvl-reg-tag { font-size:9px; gap:3px; } }
-@media (max-width:560px) { .lvl-top-row { flex-wrap:wrap; row-gap:5px; } .lvl-reg-tag.on { margin-left:auto; } }
 /* Pantallas horizontales: cuadro azul más alto y botones Reclamos / Afiliados más grandes (mismo lugar) */
 @media (min-width: 641px) {
     .level-strip .level-block { padding: 20px 26px; gap: 18px; }
@@ -928,10 +928,19 @@
 }
 </style>
 <style id="nivel-real-mejora">
-/* Flecha fina al final de la barra de nivel — abre el panel de detalle */
-.lvl-arrow { position:absolute; right:-3px; top:-10px; background:none; border:none; padding:3px; margin:0; cursor:pointer; color:rgba(255,255,255,.45); display:flex; align-items:center; justify-content:center; line-height:0; transition:color .15s; }
-.lvl-arrow:hover { color:#fff; }
-[data-theme="light"] .lvl-arrow, body.light-theme .lvl-arrow { color:rgba(0,0,0,.35); }
+/* Flecha fina al lado de las estrellitas de nivel — abre el panel de detalle */
+.level-stars-row { display:flex; align-items:center; gap:4px; }
+.lvl-arrow { position:relative; background:none; border:none; padding:3px; margin:0; cursor:pointer; color:#000; display:flex; align-items:center; justify-content:center; line-height:0; transition:color .15s; }
+.lvl-arrow:hover { color:#000; opacity:.6; }
+/* Animación "nudge": una sola vez, a los 5s de entrar o actualizar — como si acelera hacia el costado y vuelve */
+@keyframes lvlArrowNudge {
+    0%   { transform:translateX(0); }
+    20%  { transform:translateX(7px); }
+    45%  { transform:translateX(7px); }
+    70%  { transform:translateX(-2px); }
+    100% { transform:translateX(0); }
+}
+.lvl-arrow.lvl-arrow-nudge { animation:lvlArrowNudge .7s ease-out; }
 
 /* Modal "subiste de nivel" — texto + 2 botones apilados */
 .level-up-text { font-size:12px; color:rgba(255,255,255,.75); line-height:1.5; margin:0 0 10px; }
@@ -964,6 +973,26 @@
 .lvl-panel-empty { font-size:12px; color:var(--text3); padding:8px 2px; }
 .lvl-panel-vermas { width:100%; background:rgba(255,255,255,.06); border:1px solid var(--border); color:var(--text2); border-radius:8px; padding:8px; font-size:11.5px; font-weight:700; cursor:pointer; font-family:var(--font); margin-top:4px; }
 .lvl-panel-vermas:hover { background:rgba(255,255,255,.1); }
+/* Texto del panel: blanco en tema oscuro, negro en tema claro */
+.lvl-panel-title, .lvl-panel-close, .lvl-panel-row, .lvl-panel-row strong,
+.lvl-panel-top-head, .lvl-panel-top-row, .lvl-panel-top-pos, .lvl-panel-top-name,
+.lvl-panel-empty, .lvl-panel-vermas { color:#fff; }
+body.light-theme .lvl-panel-title, body.light-theme .lvl-panel-close, body.light-theme .lvl-panel-row,
+body.light-theme .lvl-panel-row strong, body.light-theme .lvl-panel-top-head, body.light-theme .lvl-panel-top-row,
+body.light-theme .lvl-panel-top-pos, body.light-theme .lvl-panel-top-name, body.light-theme .lvl-panel-empty,
+body.light-theme .lvl-panel-vermas { color:#000; }
+/* Pantallas horizontales/anchas: el panel se veía muy chico */
+@media (min-width:641px) {
+    .lvl-panel-box { max-width:440px; padding:24px 26px 20px; }
+    .lvl-panel-title { font-size:17px; }
+    .lvl-panel-close { font-size:24px; }
+    .lvl-panel-row { font-size:14px; padding:10px 14px; }
+    .lvl-panel-row strong { font-size:15px; }
+    .lvl-panel-top-head { font-size:12.5px; }
+    .lvl-panel-top-row { font-size:13.5px; padding:7px 2px; }
+    .lvl-panel-top-count { font-size:13.5px; }
+    .lvl-panel-vermas { font-size:13px; padding:10px; }
+}
 </style>
 <style id="iconos-header-mejora">
 /* La fila ocupa siempre todo el ancho disponible (antes se topaba en 480px en pantallas de 500–640px) */
@@ -1074,22 +1103,26 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="10" height="10"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
                     Reclamos
                 </button>
-                <span class="lvl-reg-tag" id="lvl-reg-tag" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" width="10" height="10"><polyline points="20 6 9 17 4 12"/></svg>Registrado en el programa</span>
                 <button class="lvl-btn-afiliados" onclick="this.blur();window.location.href='afiliados.html'" title="Afiliados" aria-label="Afiliados" style="margin-left:auto;display:inline-flex;align-items:center;gap:3px;background:#fff;border:1px solid #fff;color:#0b0d12;border-radius:10px;padding:2px 8px;font-size:10px;font-weight:700;cursor:pointer;line-height:1.6;flex-shrink:0;">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                     Afiliados
                 </button>
             </div>
+            <div class="lvl-reg-tag-row">
+                <span class="lvl-reg-tag" id="lvl-reg-tag" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" width="10" height="10"><polyline points="20 6 9 17 4 12"/></svg>Registrado en el programa</span>
+            </div>
             <div class="level-row">
                 <div class="level-bar-wrap" title="Progreso al siguiente nivel">
                     <div class="level-bar-fill" id="level-bar-fill"></div>
-                    <button class="lvl-arrow" id="lvl-arrow" onclick="abrirPanelNivel()" title="Ver detalle de nivel" aria-label="Ver detalle de nivel">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" width="9" height="9"><polyline points="6 9 12 15 18 9"/></svg>
-                    </button>
                 </div>
                 <div class="level-count" id="level-count">0/100</div>
             </div>
-            <div class="level-stars" id="level-stars"></div>
+            <div class="level-stars-row">
+                <div class="level-stars" id="level-stars"></div>
+                <button class="lvl-arrow" id="lvl-arrow" onclick="abrirPanelNivel()" title="Ver detalle de nivel" aria-label="Ver detalle de nivel">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" width="9" height="9"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -2507,6 +2540,23 @@ function fullName(o) {
 // ═══════════════════════════════════════════════════════════
 const LEVEL_THRESHOLDS = [0, 100, 200, 350, 500, 750];
 const LEVEL_KEY = 'rw_reseller_level_v1';
+// 🎨 Animación de la flecha del panel de nivel: una sola vez, a los 5s de
+// cada entrada o actualización de la barra (puramente estética).
+let _lvlArrowNudgeTimer = null;
+function _lvlArrowNudge() {
+    clearTimeout(_lvlArrowNudgeTimer);
+    _lvlArrowNudgeTimer = setTimeout(() => {
+        const arrow = document.getElementById('lvl-arrow');
+        if (!arrow) return;
+        arrow.classList.remove('lvl-arrow-nudge');
+        void arrow.offsetWidth; // fuerza reflow para poder reiniciar la animación
+        arrow.classList.add('lvl-arrow-nudge');
+        arrow.addEventListener('animationend', function _h() {
+            arrow.classList.remove('lvl-arrow-nudge');
+            arrow.removeEventListener('animationend', _h);
+        });
+    }, 5000);
+}
 
 function levelInfoFromCount(n) {
     n = Number(n) || 0;
@@ -2624,6 +2674,8 @@ function renderLevelBar() {
     } else if (info.stars !== prevStars) {
         try { localStorage.setItem(LEVEL_KEY, String(info.stars)); } catch(_) {}
     }
+
+    _lvlArrowNudge();
 }
 
 // Dispara la carga real del servidor y vuelve a pintar la barra cuando llega
