@@ -29,9 +29,12 @@ body.reg-light .top{box-shadow:0 1px 0 rgba(0,0,0,.04)}
 .reg-avatar{display:block;width:84px;height:84px;border-radius:50%;object-fit:cover;margin:0 auto 14px;border:3px solid var(--blue-pale);box-shadow:0 4px 16px rgba(0,102,255,.18)}
 body.reg-light .card{box-shadow:0 1px 3px rgba(16,24,40,.06)}
 body.reg-light .tab{box-shadow:none}
-/* Turnstile: centrado y compacto, sobre todo en celulares angostos
-   (se renderiza con size:'compact' — ver tsInit) */
-#ts-reg{display:flex;justify-content:center}
+/* Turnstile: franja rectangular chica (size:'normal', 300x65 — ver tsInit),
+   centrada de verdad y escalada un toque en celulares angostos para que
+   nunca se corte ni empuje el ancho de la tarjeta. */
+#ts-reg{display:flex;justify-content:center;align-items:center;width:100%;min-height:65px}
+#ts-reg iframe{margin:0 auto}
+@media(max-width:380px){ #ts-reg{transform:scale(.86);transform-origin:center} }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans-serif;font-size:14px;line-height:1.45;min-height:100vh}
 button{font-family:inherit;cursor:pointer}
@@ -603,8 +606,12 @@ function tsInit(k) {
   // compacto y en tema claro, para que se vea bien centrado y chico en
   // celulares — el de "join" (ya logueado, sumarse al programa) queda
   // exactamente igual que antes.
+  // 🔧 FIX: 'compact' de Cloudflare es el formato CUADRADO y grande (~150x140)
+  // — lo que se pidió es justo lo contrario: bajito y rectangular, chico. Eso
+  // es el tamaño 'normal' (300x65, una franja angosta), que además se ve
+  // prolijo y centrado al escalarlo levemente en celulares (ver CSS #ts-reg).
   const opts = { sitekey: TURNSTILE_SITEKEY, callback: t => { o.tok = t; }, 'expired-callback': () => { o.tok = ''; }, 'error-callback': () => { o.tok = ''; } };
-  if (k === 'reg') { opts.theme = 'light'; opts.size = 'compact'; }
+  if (k === 'reg') { opts.theme = 'light'; opts.size = 'normal'; }
   o.w = window.turnstile.render(o.sel, opts);
 }
 (function esperarTs() { if (window.turnstile) { tsInit('reg'); tsInit('join'); } else setTimeout(esperarTs, 300); })();
