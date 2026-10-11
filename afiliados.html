@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Revende Ways | Programa de Afiliados</title>
-<link rel="icon" type="image/png" href="favicom.png">
+<link rel="icon" type="image/png" href="programa.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -20,6 +20,18 @@
   --r:12px;
 }
 body.light{--bg:#f4f6fb;--bg2:#fff;--surface:#fff;--surface2:#eef1f8;--border:rgba(0,0,0,.08);--border2:rgba(0,0,0,.15);--text:#161a26;--text2:#4b5368;--text3:#8a91a4}
+/* 🆕 Panel de registro (sin sesión): siempre en tema claro y profesional,
+   mismo look que afiliados.html en tema claro — sin importar la
+   preferencia de tema guardada, ya que es la primera pantalla que ve
+   alguien invitado por el enlace. Se activa/desactiva en vista(). */
+body.reg-light{--bg:#f4f6fb;--bg2:#fff;--surface:#fff;--surface2:#eef1f8;--border:rgba(0,0,0,.08);--border2:rgba(0,0,0,.15);--text:#161a26;--text2:#4b5368;--text3:#8a91a4}
+body.reg-light .top{box-shadow:0 1px 0 rgba(0,0,0,.04)}
+.reg-avatar{display:block;width:84px;height:84px;border-radius:50%;object-fit:cover;margin:0 auto 14px;border:3px solid var(--blue-pale);box-shadow:0 4px 16px rgba(0,102,255,.18)}
+body.reg-light .card{box-shadow:0 1px 3px rgba(16,24,40,.06)}
+body.reg-light .tab{box-shadow:none}
+/* Turnstile: centrado y compacto, sobre todo en celulares angostos
+   (se renderiza con size:'compact' — ver tsInit) */
+#ts-reg{display:flex;justify-content:center}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans-serif;font-size:14px;line-height:1.45;min-height:100vh}
 button{font-family:inherit;cursor:pointer}
@@ -246,6 +258,7 @@ button.btn-anim{animation:btnPop .38s ease,btnRing .5s ease-out}
       <span id="invite-txt"></span>
     </div>
     <div class="card">
+      <img src="programa.png" alt="Revende Ways" class="reg-avatar">
       <h2>Empezá a vender con Revende Ways</h2>
       <p class="muted">Creá tu cuenta de revendedor en un minuto. Al terminar entrás directo a tu panel, sin volver a iniciar sesión.</p>
     </div>
@@ -471,6 +484,10 @@ let STATS = null, METODO = 'transferencia', registrando = false;
 function vista(v) {
   ['v-load', 'v-auth', 'v-join', 'v-panel'].forEach(x => $(x).classList.toggle('hide', x !== v));
   $('btn-back').classList.toggle('hide', v === 'v-auth' || v === 'v-load');
+  // 🆕 El panel de registro (sin sesión) siempre se ve en tema claro/
+  // profesional, sin importar la preferencia de tema guardada — es la
+  // primera pantalla que ve alguien invitado por el enlace.
+  document.body.classList.toggle('reg-light', v === 'v-auth');
   if (v === 'v-join' && typeof tsInit === 'function') setTimeout(() => tsInit('join'), 0);
 }
 // Tras registrarse, el usuario sigue en stock.html (otro dominio): se le pide un token de ingreso
@@ -582,7 +599,13 @@ const TS = { reg: { sel: '#ts-reg', w: null, tok: '' }, join: { sel: '#ts-join',
 function tsInit(k) {
   const o = TS[k];
   if (o.w !== null || !window.turnstile || !document.querySelector(o.sel)) return;
-  o.w = window.turnstile.render(o.sel, { sitekey: TURNSTILE_SITEKEY, callback: t => { o.tok = t; }, 'expired-callback': () => { o.tok = ''; }, 'error-callback': () => { o.tok = ''; } });
+  // 🆕 El widget de "reg" (panel de registro sin sesión) se renderiza
+  // compacto y en tema claro, para que se vea bien centrado y chico en
+  // celulares — el de "join" (ya logueado, sumarse al programa) queda
+  // exactamente igual que antes.
+  const opts = { sitekey: TURNSTILE_SITEKEY, callback: t => { o.tok = t; }, 'expired-callback': () => { o.tok = ''; }, 'error-callback': () => { o.tok = ''; } };
+  if (k === 'reg') { opts.theme = 'light'; opts.size = 'compact'; }
+  o.w = window.turnstile.render(o.sel, opts);
 }
 (function esperarTs() { if (window.turnstile) { tsInit('reg'); tsInit('join'); } else setTimeout(esperarTs, 300); })();
 async function verificarAntiBot(k) {
