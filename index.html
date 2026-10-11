@@ -928,6 +928,8 @@
 }
 </style>
 <style id="iconos-header-mejora">
+/* La fila ocupa siempre todo el ancho disponible (antes se topaba en 480px en pantallas de 500–640px) */
+#header-icon-row { width:100%!important; max-width:none!important; box-sizing:border-box; }
 /* Fila de íconos del header: mismo tamaño para los 6, un poco más grandes. Solo estética. */
 #header-icon-row .btn-guide-icon, #header-icon-row .btn-gift, #header-icon-row .btn-history,
 #header-icon-row .btn-seguimiento, #header-icon-row .btn-gear, #header-icon-row .btn-actualizar-icon { width:35px!important; height:35px!important; }
@@ -946,10 +948,15 @@
 }
 /* Pantallas horizontales / computadoras: se agrandan y quedan juntos (misma ubicación que en vertical), sin alejarse */
 @media (min-width: 641px) {
-    #header-icon-row { padding-right: max(0px, calc(100% - 560px)); box-sizing: border-box; }
     #header-icon-row .btn-guide-icon, #header-icon-row .btn-gift, #header-icon-row .btn-history,
     #header-icon-row .btn-seguimiento, #header-icon-row .btn-gear, #header-icon-row .btn-actualizar-icon { width:46px!important; height:46px!important; border-radius:12px!important; }
     #header-icon-row svg { width:21px!important; height:21px!important; }
+}
+/* Computadoras (pantallas grandes): ocupan todo el ancho, repartidos, y un poco más grandes */
+@media (min-width: 1024px) and (min-height: 600px) {
+    #header-icon-row .btn-guide-icon, #header-icon-row .btn-gift, #header-icon-row .btn-history,
+    #header-icon-row .btn-seguimiento, #header-icon-row .btn-gear, #header-icon-row .btn-actualizar-icon { width:56px!important; height:56px!important; border-radius:14px!important; }
+    #header-icon-row svg { width:25px!important; height:25px!important; }
 }
 </style>
 <style id="fecha-pago-css">
