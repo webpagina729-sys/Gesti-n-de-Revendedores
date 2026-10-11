@@ -903,6 +903,55 @@
     .wrap { padding-top: 16px; padding-bottom: 24px; }
 }
 </style>
+<style id="nivel-mejoras">
+/* Etiqueta "Registrado en el programa": una sola línea, verde, fina y alineada con el botón Afiliados */
+.lvl-reg-tag { display:none; align-items:center; gap:4px; margin-left:auto; color:#2d924c; font-size:10px; font-weight:600; line-height:1.6; white-space:nowrap; flex-shrink:0; letter-spacing:.1px; }
+.lvl-reg-tag.on { display:inline-flex !important; }
+.lvl-reg-tag.on + .lvl-btn-afiliados { margin-left:8px !important; }
+/* Pantallas angostas: si no entra todo en una línea, la etiqueta pasa junto al botón Afiliados a la fila de abajo (nunca se parte el texto) */
+@media (max-width:380px) { .lvl-reg-tag { font-size:9px; gap:3px; } }
+@media (max-width:560px) { .lvl-top-row { flex-wrap:wrap; row-gap:5px; } .lvl-reg-tag.on { margin-left:auto; } }
+/* Pantallas horizontales: cuadro azul más alto y botones Reclamos / Afiliados más grandes (mismo lugar) */
+@media (min-width: 641px) {
+    .level-strip .level-block { padding: 20px 26px; gap: 18px; }
+    .level-strip .level-info { gap: 10px; }
+    .level-strip .level-name { font-size: 16px; }
+    .level-strip .level-avatar { width: 48px; height: 48px; font-size: 19px; }
+    .level-strip .level-star { width: 17px; height: 17px; }
+    .level-strip .level-count { font-size: 13px; }
+    .level-strip .level-bar-wrap { height: 7px; }
+    .level-strip .lvl-btn-reclamos, .level-strip .lvl-btn-afiliados { font-size: 12.5px !important; padding: 5px 14px !important; gap: 5px !important; border-radius: 12px !important; }
+    .level-strip .lvl-btn-reclamos svg { width: 13px !important; height: 13px !important; }
+    .level-strip .lvl-btn-afiliados svg { width: 14px !important; height: 14px !important; }
+    .level-strip .lvl-reg-tag { font-size: 12px; gap: 5px; }
+    .level-strip .lvl-reg-tag svg { width: 12px; height: 12px; }
+}
+</style>
+<style id="iconos-header-mejora">
+/* Fila de íconos del header: mismo tamaño para los 6, un poco más grandes. Solo estética. */
+#header-icon-row .btn-guide-icon, #header-icon-row .btn-gift, #header-icon-row .btn-history,
+#header-icon-row .btn-seguimiento, #header-icon-row .btn-gear, #header-icon-row .btn-actualizar-icon { width:35px!important; height:35px!important; }
+#header-icon-row svg { width:17px!important; height:17px!important; }
+/* Personalizar panel: gris oscuro con ícono blanco */
+#header-icon-row .btn-gear { background:#2b2f3a!important; color:#fff!important; border:1px solid #3a3f4d!important; }
+@media (max-width: 480px) {
+    #header-icon-row .btn-guide-icon, #header-icon-row .btn-gift, #header-icon-row .btn-history,
+    #header-icon-row .btn-seguimiento, #header-icon-row .btn-gear, #header-icon-row .btn-actualizar-icon { width:33px!important; height:33px!important; }
+    #header-icon-row svg { width:16px!important; height:16px!important; }
+}
+@media (max-width: 360px) {
+    #header-icon-row .btn-guide-icon, #header-icon-row .btn-gift, #header-icon-row .btn-history,
+    #header-icon-row .btn-seguimiento, #header-icon-row .btn-gear, #header-icon-row .btn-actualizar-icon { width:30px!important; height:30px!important; }
+    #header-icon-row svg { width:15px!important; height:15px!important; }
+}
+/* Pantallas horizontales / computadoras: se agrandan y quedan juntos (misma ubicación que en vertical), sin alejarse */
+@media (min-width: 641px) {
+    #header-icon-row { padding-right: max(0px, calc(100% - 560px)); box-sizing: border-box; }
+    #header-icon-row .btn-guide-icon, #header-icon-row .btn-gift, #header-icon-row .btn-history,
+    #header-icon-row .btn-seguimiento, #header-icon-row .btn-gear, #header-icon-row .btn-actualizar-icon { width:46px!important; height:46px!important; border-radius:12px!important; }
+    #header-icon-row svg { width:21px!important; height:21px!important; }
+}
+</style>
 <style id="fecha-pago-css">
 /* Fecha de Pago: el botón nuevo queda arriba de "Pedidos Confirmados" y
    "Mis Pedidos" baja al mismo nivel que ese botón. Solo agrega estilos. */
@@ -974,13 +1023,14 @@
     <div class="level-block" id="level-block" style="display:none">
         <div class="level-avatar" id="level-avatar">R</div>
         <div class="level-info">
-            <div style="display:flex;align-items:center;gap:8px;">
+            <div class="lvl-top-row" style="display:flex;align-items:center;gap:8px;">
                 <div class="level-name" id="level-name">Revendedor</div>
-                <button onclick="this.blur();window.open('devolucion.html','_blank')" title="Reclamos" aria-label="Reclamos" style="display:inline-flex;align-items:center;gap:3px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:inherit;border-radius:10px;padding:2px 8px;font-size:10px;font-weight:600;cursor:pointer;line-height:1.6;flex-shrink:0;">
+                <button class="lvl-btn-reclamos" onclick="this.blur();window.open('devolucion.html','_blank')" title="Reclamos" aria-label="Reclamos" style="display:inline-flex;align-items:center;gap:3px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:inherit;border-radius:10px;padding:2px 8px;font-size:10px;font-weight:600;cursor:pointer;line-height:1.6;flex-shrink:0;">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="10" height="10"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
                     Reclamos
                 </button>
-                <button onclick="this.blur();window.location.href='afiliados.html'" title="Afiliados" aria-label="Afiliados" style="margin-left:auto;display:inline-flex;align-items:center;gap:3px;background:#fff;border:1px solid #fff;color:#0b0d12;border-radius:10px;padding:2px 8px;font-size:10px;font-weight:700;cursor:pointer;line-height:1.6;flex-shrink:0;">
+                <span class="lvl-reg-tag" id="lvl-reg-tag" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" width="10" height="10"><polyline points="20 6 9 17 4 12"/></svg>Registrado en el programa</span>
+                <button class="lvl-btn-afiliados" onclick="this.blur();window.location.href='afiliados.html'" title="Afiliados" aria-label="Afiliados" style="margin-left:auto;display:inline-flex;align-items:center;gap:3px;background:#fff;border:1px solid #fff;color:#0b0d12;border-radius:10px;padding:2px 8px;font-size:10px;font-weight:700;cursor:pointer;line-height:1.6;flex-shrink:0;">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                     Afiliados
                 </button>
@@ -2434,6 +2484,20 @@ function renderLevelBar() {
     // lote — recién vuelve a verde cuando los paga (o si no tiene
     // ninguno pendiente de pago todavía).
     fill.classList.toggle('pendiente-pago', getPedidoList().length > 0);
+    // 🔧 NUEVO: tramo verde = pedidos confirmados/pagados (de adelante para atrás);
+    // el resto del tramo ocupado queda ámbar (pendiente). Se completa en verde al confirmarse todos.
+    try {
+        const _pagados = new Set(getGananciasOficiales().map(g => String(g.id)));
+        const _confir = new Set(getPedidoList().map(x => String(x.id)));
+        let _verdes = 0;
+        pedidos.forEach(p => { if (p && p.estado === 'pagado' && (_pagados.has(String(p.id)) || _confir.has(String(p.id)))) _verdes++; });
+        const _enNivel = Math.max(0, count - info.prev);
+        const _verdeNivel = info.max ? _enNivel : Math.max(0, Math.min(_verdes, count) - info.prev);
+        const _gp = _enNivel > 0 ? Math.min(100, Math.round((_verdeNivel / _enNivel) * 100)) : 0;
+        if (_gp >= 100) { fill.style.background = '#2d924c'; fill.style.boxShadow = '0 0 8px rgba(45,146,76,.4)'; }
+        else if (_gp <= 0) { fill.style.background = '#f59e0b'; fill.style.boxShadow = '0 0 8px rgba(245,158,11,.4)'; }
+        else { fill.style.background = 'linear-gradient(90deg,#2d924c 0,#2d924c ' + _gp + '%,#f59e0b ' + _gp + '%,#f59e0b 100%)'; fill.style.boxShadow = '0 0 8px rgba(45,146,76,.3)'; }
+    } catch (_) {}
 
     const countEl = document.getElementById('level-count');
     countEl.textContent = info.max
@@ -4669,6 +4733,7 @@ function savePedidoList(list) {
     // (lee de localStorage, que ahora se mantiene igualado a la nube).
     const anterior = getPedidoList();
     localStorage.setItem(PEDIDO_LIST_KEY, JSON.stringify(list.slice(-500)));
+    try { if (typeof renderLevelBar === 'function') setTimeout(function(){ try { renderLevelBar(); } catch(_) {} }, 0); } catch(_) {}
     if (!currentUid) return; // sin sesión de Firebase todavía: se sincroniza solo local por ahora
     try {
         const idsNuevos = new Set(list.map(p => p.id));
@@ -7279,6 +7344,27 @@ window.addEventListener('load', init);
     // ── 1) Reporte de pedidos por etapa ──
     function sumUnid(items) { return (items || []).reduce(function (s, i) { return s + (Number(i.cantidad) || 1); }, 0); }
     function nombres(items) { return (items || []).map(function (i) { return i.nombre; }).filter(Boolean); }
+    // Fecha de pago configurada y avance de objetivo por categoría (sobre lo confirmado en la lista "Pedido", a precio mayorista).
+    function fechaLimiteSync() {
+        try { var u = (typeof currentUid !== 'undefined' && currentUid) || ''; var f = JSON.parse(localStorage.getItem('rw_fecha_pago_v1_' + u) || 'null'); return (typeof f === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(f)) ? f : ''; } catch (_) { return ''; }
+    }
+    function objetivosSync() {
+        var res = [];
+        try {
+            var por = {};
+            getPedidoList().forEach(function (p) {
+                var n = p.nicho || 'multishop';
+                if (!por[n]) por[n] = { monto: 0, unid: 0 };
+                por[n].monto += Number(p.totalMayorista) || 0;
+                por[n].unid += (p.items || []).reduce(function (s, it) { return s + (Number(it.cantidad) || 1); }, 0);
+            });
+            Object.keys(por).forEach(function (n) {
+                var m = (typeof MINIMO_POR_CATEGORIA !== 'undefined' && MINIMO_POR_CATEGORIA[n]) || { tipo: 'monto', valor: 0 };
+                res.push({ nicho: n, nombre: (typeof NICHO_LABEL_PEDLISTA !== 'undefined' && NICHO_LABEL_PEDLISTA[n]) || n, tipo: m.tipo, minimo: m.valor, actual: Math.round(m.tipo === 'unidades' ? por[n].unid : por[n].monto) });
+            });
+        } catch (_) {}
+        return res;
+    }
     function construirSync() {
         var out = [], ids = {}, ultimoPago = 0, ultimaVenta = 0;
         try {
@@ -7304,7 +7390,7 @@ window.addEventListener('load', init);
                 out.push({ id: p.id, etapa: 'pendiente', ganancia: resellerGainOf(p), total: totalFinalRevendedor(p), unidades: sumUnid(p.items), productos: nombres(p.items), numeroPedido: p.numeroPedido || null, fecha: f });
             });
         } catch (e) { console.warn('afiliados: no se pudo armar el reporte', e); }
-        return { pedidos: out, ultimoPago: ultimoPago, ultimaVenta: ultimaVenta };
+        return { pedidos: out, ultimoPago: ultimoPago, ultimaVenta: ultimaVenta, fechaLimite: fechaLimiteSync(), objetivos: objetivosSync() };
     }
     var _syncBusy = false;
     async function sincronizar() {
@@ -7326,6 +7412,7 @@ window.addEventListener('load', init);
             var e = await api('/api/estado');
             if (!e || !e.ok) return;
             _info = { registrado: !!e.registrado, referidoDe: e.referidoDe || null, cedeComision: !!e.cedeComision };
+            try { var _t = document.getElementById('lvl-reg-tag'); if (_t) _t.classList.toggle('on', !!_info.registrado); } catch (_) {}
             if (_info.registrado) cargarStats(true).catch(function () {});
             await sincronizar();
         } catch (_) {}
@@ -7334,6 +7421,7 @@ window.addEventListener('load', init);
     if (_ld) {
         loadData = function () { var r = _ld.apply(this, arguments); setTimeout(iniciar, 3500); return r; };
     }
+    window._afilSincronizar = function () { try { return sincronizar(); } catch (_) {} };
     setInterval(sincronizar, 120000);
     document.addEventListener('visibilitychange', function () {
         if (document.hidden) return;
@@ -7717,6 +7805,7 @@ window.addEventListener('load', init);
         estado('Guardando…');
         var ok = await post({ fechaLimite: f });
         estado(ok ? 'Guardado ✓' : 'Guardado en este dispositivo (sin conexión con el servidor)');
+        try { if (typeof window._afilSincronizar === 'function') window._afilSincronizar(); } catch (_) {}
         return ok;
     }
     window.openFechaPagoModal = function () {
