@@ -3475,9 +3475,9 @@ function downloadInvoicePDF(id) {
     };
 
     drawRow(0, 'Total venta (cliente)', '$' + Math.round(totalFin).toLocaleString('es-AR'), DARK, true);
-    drawRow(1, 'Costo (mayorista)', '$' + Math.round(totalInv).toLocaleString('es-AR'), GREEN, true);
-    drawRow(2, '% aplicado en esta venta', pctAplicado.toFixed(1) + ' %', BLUE, true);
-    drawRow(3, 'Ganancia neta', '$' + Math.round(ganancia).toLocaleString('es-AR'), RED, true);
+    drawRow(1, 'Costo (mayorista)', '$' + Math.round(totalInv).toLocaleString('es-AR'), DARK, true);
+    drawRow(2, '% aplicado en esta venta', pctAplicado.toFixed(1) + ' %', DARK, true);
+    drawRow(3, 'Ganancia neta', '$' + Math.round(ganancia).toLocaleString('es-AR'), GREEN, true);
 
     // Fecha y hora del pedido, en chiquito debajo del total
     doc.setFont('helvetica', 'normal');
