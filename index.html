@@ -927,6 +927,44 @@
     .level-strip .lvl-reg-tag svg { width: 12px; height: 12px; }
 }
 </style>
+<style id="nivel-real-mejora">
+/* Flecha fina al final de la barra de nivel — abre el panel de detalle */
+.lvl-arrow { position:absolute; right:-3px; top:-10px; background:none; border:none; padding:3px; margin:0; cursor:pointer; color:rgba(255,255,255,.45); display:flex; align-items:center; justify-content:center; line-height:0; transition:color .15s; }
+.lvl-arrow:hover { color:#fff; }
+[data-theme="light"] .lvl-arrow, body.light-theme .lvl-arrow { color:rgba(0,0,0,.35); }
+
+/* Modal "subiste de nivel" — texto + 2 botones apilados */
+.level-up-text { font-size:12px; color:rgba(255,255,255,.75); line-height:1.5; margin:0 0 10px; }
+.level-up-sub { margin-bottom:12px; }
+.level-up-stars { margin-bottom:14px; }
+.level-up-actions { display:flex; flex-direction:column; gap:8px; margin-top:2px; }
+.level-up-btn, .level-up-btn-cancel { width:100%; box-sizing:border-box; }
+.level-up-btn-cancel { background:#fff; color:#16181f; border:0; padding:12px 32px; border-radius:10px; font-weight:700; font-size:14px; cursor:pointer; transition:transform .15s, box-shadow .15s; font-family:var(--font); }
+.level-up-btn-cancel:hover { transform:translateY(-2px); box-shadow:0 4px 14px rgba(255,255,255,.22); }
+
+/* Panel de detalle de nivel (Personales / Afiliados / top 10) */
+.lvl-panel-overlay { position:fixed; inset:0; background:rgba(0,0,0,.6); backdrop-filter:blur(4px); display:none; align-items:center; justify-content:center; z-index:3000; padding:16px; }
+.lvl-panel-overlay.show { display:flex; }
+.lvl-panel-box { background:var(--bg2); border:1px solid var(--border); border-radius:16px; padding:18px 18px 16px; max-width:340px; width:100%; max-height:80vh; overflow-y:auto; font-family:var(--font); }
+.lvl-panel-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+.lvl-panel-title { font-size:14px; font-weight:800; color:var(--text1,#fff); }
+.lvl-panel-close { background:none; border:0; color:var(--text2); font-size:20px; line-height:1; cursor:pointer; padding:0 2px; }
+.lvl-panel-rows { display:flex; flex-direction:column; gap:6px; margin-bottom:14px; }
+.lvl-panel-row { display:flex; align-items:center; justify-content:space-between; background:rgba(255,255,255,.04); border-radius:8px; padding:7px 10px; font-size:12px; color:var(--text2); }
+.lvl-panel-row strong { color:#fff; font-size:13px; }
+[data-theme="light"] .lvl-panel-row, body.light-theme .lvl-panel-row { background:rgba(0,0,0,.035); }
+[data-theme="light"] .lvl-panel-row strong, body.light-theme .lvl-panel-row strong { color:#16181f; }
+.lvl-panel-top-head { font-size:11px; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:.3px; margin-bottom:8px; }
+.lvl-panel-top-list { display:flex; flex-direction:column; gap:5px; margin-bottom:8px; }
+.lvl-panel-top-row { display:grid; grid-template-columns:18px 1fr auto; align-items:center; gap:8px; font-size:12px; color:var(--text2); padding:5px 2px; border-bottom:1px solid var(--border); }
+.lvl-panel-top-row:last-child { border-bottom:none; }
+.lvl-panel-top-pos { color:var(--text3); font-weight:700; font-size:11px; }
+.lvl-panel-top-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.lvl-panel-top-count { font-weight:700; color:#2d924c; font-size:12px; }
+.lvl-panel-empty { font-size:12px; color:var(--text3); padding:8px 2px; }
+.lvl-panel-vermas { width:100%; background:rgba(255,255,255,.06); border:1px solid var(--border); color:var(--text2); border-radius:8px; padding:8px; font-size:11.5px; font-weight:700; cursor:pointer; font-family:var(--font); margin-top:4px; }
+.lvl-panel-vermas:hover { background:rgba(255,255,255,.1); }
+</style>
 <style id="iconos-header-mejora">
 /* La fila ocupa siempre todo el ancho disponible (antes se topaba en 480px en pantallas de 500–640px) */
 #header-icon-row { width:100%!important; max-width:none!important; box-sizing:border-box; }
@@ -1045,6 +1083,9 @@
             <div class="level-row">
                 <div class="level-bar-wrap" title="Progreso al siguiente nivel">
                     <div class="level-bar-fill" id="level-bar-fill"></div>
+                    <button class="lvl-arrow" id="lvl-arrow" onclick="abrirPanelNivel()" title="Ver detalle de nivel" aria-label="Ver detalle de nivel">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" width="9" height="9"><polyline points="6 9 12 15 18 9"/></svg>
+                    </button>
                 </div>
                 <div class="level-count" id="level-count">0/100</div>
             </div>
@@ -1846,10 +1887,33 @@
 <div class="level-up-overlay" id="level-up-modal" onclick="if(event.target===this)closeLevelUp()">
     <div class="level-up-box">
         <div class="level-up-trophy">🏆</div>
-        <div class="level-up-title">¡Subiste de nivel!</div>
-        <div class="level-up-sub" id="level-up-sub">Sumaste una nueva estrella</div>
+        <div class="level-up-title" id="level-up-title">¡Nivel 1 completado!</div>
+        <div class="level-up-sub" id="level-up-sub">A partir de ahora tenés -1% de descuento en todos tus pedidos.</div>
         <div class="level-up-stars" id="level-up-stars"></div>
-        <button class="level-up-btn" onclick="closeLevelUp()">¡Genial!</button>
+        <p class="level-up-text" id="level-up-text">Seguí así. Recordá que los pedidos de tus afiliados también te cuentan para subir de nivel.</p>
+        <p class="level-up-text" id="level-up-afiliado-text">Si todavía no estás en el programa, podés registrarte ahora mismo.</p>
+        <div class="level-up-actions">
+            <button class="level-up-btn" id="level-up-btn-registro" onclick="window.location.href='afiliados.html'">Ir a registro</button>
+            <button class="level-up-btn-cancel" onclick="closeLevelUp()">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- ══ PANEL DETALLE DE NIVEL (personales / afiliados / top) ══ -->
+<div class="lvl-panel-overlay" id="lvl-panel-modal" onclick="if(event.target===this)cerrarPanelNivel()">
+    <div class="lvl-panel-box">
+        <div class="lvl-panel-head">
+            <div class="lvl-panel-title">Tu nivel</div>
+            <button class="lvl-panel-close" onclick="cerrarPanelNivel()" aria-label="Cerrar">&times;</button>
+        </div>
+        <div class="lvl-panel-rows">
+            <div class="lvl-panel-row"><span>Personales</span><strong id="lvl-panel-propios">0</strong></div>
+            <div class="lvl-panel-row"><span>Afiliados</span><strong id="lvl-panel-afiliados">0</strong></div>
+        </div>
+        <div class="lvl-panel-top-head">Top afiliados por pedidos entregados</div>
+        <div class="lvl-panel-top-list" id="lvl-panel-top-list"></div>
+        <div class="lvl-panel-empty" id="lvl-panel-empty" style="display:none">Todavía no tenés afiliados con pedidos pagados.</div>
+        <button class="lvl-panel-vermas" id="lvl-panel-vermas" onclick="peNivelVerMas()" style="display:none">Ver todos</button>
     </div>
 </div>
 
@@ -2455,8 +2519,36 @@ function levelInfoFromCount(n) {
     const max = stars >= 5;
     const inLevel = n - prev;
     const need = max ? 1 : (next - prev);
-    const pct = max ? 100 : Math.min(100, Math.round((inLevel / need) * 100));
+    // 🔧 NUEVO: al completar una estrella la barra no vuelve a cero — arranca
+    // en 50% (como si ya llevara la mitad del camino de la próxima) y llega
+    // a 100% justo al completar la próxima estrella. Antes del primer nivel
+    // (stars===0) sigue yendo de 0% a 100% como siempre.
+    const floorPct = (stars > 0 && !max) ? 50 : 0;
+    const pct = max ? 100 : Math.min(100, Math.round(floorPct + (100 - floorPct) * (inLevel / need)));
     return { stars, prev, next, max, inLevel, need, pct, count: n };
+}
+
+// 🆕 Nivel real (servidor): cuenta pedidos propios YA pagados + pedidos
+// YA pagados de los afiliados que este revendedor trajo — nunca solo lo
+// que hay en el navegador. Se cachea 45s para no golpear el Worker en
+// cada repintado; se refresca sola cada 60s y después de enviar un lote.
+let _nivelServidor = null;
+let _nivelServidorAt = 0;
+async function cargarNivelServidor(forzar) {
+    if (!forzar && _nivelServidor && Date.now() - _nivelServidorAt < 45000) return _nivelServidor;
+    try {
+        const us = (typeof _auth !== 'undefined') ? _auth.currentUser : null;
+        if (!us) return _nivelServidor;
+        const idToken = await us.getIdToken();
+        const r = await fetch('https://afiliados.tuweb.workers.dev/api/nivel', {
+            headers: { 'Authorization': 'Bearer ' + idToken }
+        });
+        if (r.ok) {
+            const d = await r.json();
+            if (d && d.ok) { _nivelServidor = d; _nivelServidorAt = Date.now(); }
+        }
+    } catch (_) {}
+    return _nivelServidor;
 }
 
 function starsSvg(filled) {
@@ -2469,8 +2561,17 @@ function bigStarSvg() {
 function renderLevelBar() {
     const block = document.getElementById('level-block');
     if (!block) return;
-    const count = pedidos.length;
+    const countPropio = pedidos.length;
+    // 🆕 El nivel real (estrellas/% de descuento) ahora cuenta también los
+    // pedidos pagados de los afiliados — ver cargarNivelServidor(). Mientras
+    // no haya respuesta del servidor todavía, se muestra el estimado local
+    // (solo pedidos propios) para no dejar la barra vacía.
+    const count = (_nivelServidor && typeof _nivelServidor.total === 'number') ? _nivelServidor.total : countPropio;
     const info = levelInfoFromCount(count);
+    // El tramo pendiente/pagado (ámbar vs verde) sigue siendo solo sobre los
+    // pedidos propios — no se toca su cálculo, solo se le da su propio
+    // "info" para no mezclarlo con la escala combinada de arriba.
+    const infoPropio = levelInfoFromCount(countPropio);
     block.style.display = 'flex';
 
     const nameFull = [currentVendorNombre, currentVendorApellido].filter(Boolean).join(' ').trim() || 'Revendedor';
@@ -2498,20 +2599,23 @@ function renderLevelBar() {
         const _confir = new Set(getPedidoList().map(x => String(x.id)));
         let _verdes = 0;
         pedidos.forEach(p => { if (p && p.estado === 'pagado' && (_pagados.has(String(p.id)) || _confir.has(String(p.id)))) _verdes++; });
-        const _enNivel = Math.max(0, count - info.prev);
-        const _verdeNivel = info.max ? _enNivel : Math.max(0, Math.min(_verdes, count) - info.prev);
+        const _enNivel = Math.max(0, countPropio - infoPropio.prev);
+        const _verdeNivel = infoPropio.max ? _enNivel : Math.max(0, Math.min(_verdes, countPropio) - infoPropio.prev);
         const _gp = _enNivel > 0 ? Math.min(100, Math.round((_verdeNivel / _enNivel) * 100)) : 0;
         if (_gp >= 100) { fill.style.background = '#2d924c'; fill.style.boxShadow = '0 0 8px rgba(45,146,76,.4)'; }
         else if (_gp <= 0) { fill.style.background = '#f59e0b'; fill.style.boxShadow = '0 0 8px rgba(245,158,11,.4)'; }
         else { fill.style.background = 'linear-gradient(90deg,#2d924c 0,#2d924c ' + _gp + '%,#f59e0b ' + _gp + '%,#f59e0b 100%)'; fill.style.boxShadow = '0 0 8px rgba(45,146,76,.3)'; }
     } catch (_) {}
 
+    // 🔧 NUEVO: ya no muestra "0/100" al completar una estrella (parecía que
+    // el progreso desaparecía) — muestra el conteo real acumulado contra el
+    // próximo umbral (101/200, 102/200...), que sigue subiendo sin resetear.
     const countEl = document.getElementById('level-count');
     countEl.textContent = info.max
         ? `${count} · ¡Máximo!`
-        : `${info.inLevel}/${info.need}`;
+        : `${count}/${info.next}`;
 
-    // detectar subida de nivel
+    // detectar subida de nivel (sobre el conteo combinado: propios + afiliados)
     let prevStars = 0;
     try { prevStars = Number(localStorage.getItem(LEVEL_KEY)) || 0; } catch(_) {}
     if (info.stars > prevStars) {
@@ -2522,11 +2626,66 @@ function renderLevelBar() {
     }
 }
 
+// Dispara la carga real del servidor y vuelve a pintar la barra cuando llega
+// (así arranca con el estimado local y pasa al número real apenas está).
+function actualizarNivelServidor(forzar) {
+    cargarNivelServidor(forzar).then(function () { try { renderLevelBar(); } catch (_) {} });
+}
+
+// ─────────────────────────────────────────────
+// PANEL DE DETALLE DE NIVEL (Personales / Afiliados / top 10)
+// ─────────────────────────────────────────────
+let _nivelTopMostrados = 10;
+function abrirPanelNivel() {
+    const pintar = function (d) {
+        document.getElementById('lvl-panel-propios').textContent = d ? d.propios : 0;
+        document.getElementById('lvl-panel-afiliados').textContent = d ? d.afiliados : 0;
+        _nivelTopMostrados = 10;
+        pintarNivelTop(d);
+    };
+    pintar(_nivelServidor);
+    document.getElementById('lvl-panel-modal').classList.add('show');
+    cargarNivelServidor(true).then(pintar);
+}
+function pintarNivelTop(d) {
+    const list = document.getElementById('lvl-panel-top-list');
+    const empty = document.getElementById('lvl-panel-empty');
+    const btn = document.getElementById('lvl-panel-vermas');
+    const top = (d && Array.isArray(d.top)) ? d.top : [];
+    if (!top.length) {
+        list.innerHTML = '';
+        empty.style.display = 'block';
+        btn.style.display = 'none';
+        return;
+    }
+    empty.style.display = 'none';
+    const visibles = top.slice(0, _nivelTopMostrados);
+    list.innerHTML = visibles.map((a, i) =>
+        `<div class="lvl-panel-top-row"><span class="lvl-panel-top-pos">${i + 1}</span><span class="lvl-panel-top-name">${esc(a.nombre || a.codigo || 'Revendedor')}</span><span class="lvl-panel-top-count">${a.pedidos}</span></div>`
+    ).join('');
+    if (top.length > _nivelTopMostrados) {
+        btn.style.display = 'block';
+        btn.textContent = _nivelTopMostrados <= 10 ? 'Ver todos' : 'Ver más';
+    } else {
+        btn.style.display = 'none';
+    }
+}
+function peNivelVerMas() {
+    _nivelTopMostrados += 10;
+    pintarNivelTop(_nivelServidor);
+}
+function cerrarPanelNivel() {
+    document.getElementById('lvl-panel-modal').classList.remove('show');
+}
+
 function showLevelUp(stars) {
     const modal = document.getElementById('level-up-modal');
     if (!modal) return;
+    const pct = Math.max(1, Math.min(5, stars));
+    document.getElementById('level-up-title').textContent =
+        stars >= 5 ? '¡Nivel máximo completado!' : `¡Nivel ${stars} completado!`;
     document.getElementById('level-up-sub').textContent =
-        stars >= 5 ? '¡Alcanzaste el nivel máximo! 5 estrellas' : `Ahora tenés ${stars} de 5 estrellas`;
+        `A partir de ahora tenés -${pct}% de descuento en todos tus pedidos. ¡Seguí así!`;
     const cont = document.getElementById('level-up-stars');
     cont.innerHTML = '';
     for (let i = 1; i <= 5; i++) {
@@ -2538,6 +2697,14 @@ function showLevelUp(stars) {
         // animar entrada escalonada
         svg.style.animationDelay = (i * 0.12) + 's';
     }
+    // 🆕 Si ya está registrado en el programa de afiliados, no tiene sentido
+    // invitarlo a registrarse de nuevo — se oculta ese párrafo y el botón
+    // verde, y queda solo "Cancelar".
+    const registrado = (typeof window._afilEstaRegistrado === 'function') && window._afilEstaRegistrado();
+    const afilTxt = document.getElementById('level-up-afiliado-text');
+    const btnReg = document.getElementById('level-up-btn-registro');
+    if (afilTxt) afilTxt.style.display = registrado ? 'none' : '';
+    if (btnReg) btnReg.style.display = registrado ? 'none' : '';
     modal.classList.add('show');
 }
 function closeLevelUp() {
@@ -3621,6 +3788,9 @@ function _checkMercadoPagoReturn() {
             try { renderGananciasView(); } catch(_) {}
             try { _updatePedidoListaBadge(); } catch(_) {}
             try { renderLevelBar(); } catch(_) {}
+            // 🆕 Se acaba de pagar un lote: el conteo real de nivel (servidor)
+            // cambió — se refresca de una para que la barra/estrellas lo reflejen.
+            try { actualizarNivelServidor(true); } catch(_) {}
         } else if (status === 'pending' && pending) {
             toast('⏳ Tu pago está pendiente de aprobación en Mercado Pago', false);
         } else if (status === 'failure' || status === 'rejected') {
@@ -4343,6 +4513,10 @@ function loadData() {
     (async () => {
         try {
             pedidos = [];
+
+            // 🆕 Nivel real (propios + afiliados) — no se espera, se repinta
+            // la barra sola cuando llega.
+            try { actualizarNivelServidor(true); } catch(_) {}
 
             // Traer ganancias oficiales y regalos persistidos en Firestore.
             // No se espera (sin await) para no demorar la carga de pedidos;
@@ -5380,6 +5554,9 @@ function segAvisoIrSeguimiento() {
     openSeguimientoModal();
 }
 setInterval(() => { if (currentCode && !document.hidden) cargarSeguimiento(); }, 90000);
+// 🆕 Nivel real (propios + afiliados): se refresca solo cada 60s para que
+// la barra/estrellas reflejen pedidos de afiliados pagados sin recargar.
+setInterval(() => { if (currentCode && !document.hidden) actualizarNivelServidor(true); }, 60000);
 
 async function marcarRecibido(pedidoId) {
     if (!pedidoId) return;
@@ -6986,15 +7163,26 @@ function _clienteKeyOf(nombre, tel) {
     return (String(nombre||'') + '|' + String(tel||'')).toLowerCase().trim();
 }
 
-// Escribe/actualiza un regalo individual en Firestore (no bloqueante).
+// Escribe/actualiza un regalo individual (no bloqueante).
+// 🔒 NUEVO: ya no escribe directo a Firestore desde el navegador — pasa
+// por datosderevendedor, que toma el uid de la sesión verificada (nunca
+// de un dato que mande el navegador), así cada revendedor solo puede
+// escribir SUS propios regalos. La lectura (_fsCargarRegalos) sigue
+// igual, directa contra Firestore, porque leer el propio documento no
+// tiene este riesgo.
 async function _fsGuardarRegalo(gift) {
     if (!currentUid || !gift?.id) return;
     try {
-        await _db.collection('usuarios').doc(currentUid)
-            .collection('regalos').doc(gift.id)
-            .set(_fsFechasEscritura(gift), { merge: true });
+        const us = (typeof _auth !== 'undefined') ? _auth.currentUser : null;
+        if (!us) return;
+        const idToken = await us.getIdToken();
+        await fetch('https://datosderevendedor.tuweb.workers.dev/api/regalo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+            body: JSON.stringify({ gift })
+        });
     } catch(e) {
-        console.warn('No se pudo persistir el regalo en Firestore:', e.message);
+        console.warn('No se pudo persistir el regalo:', e.message);
     }
 }
 
@@ -7437,6 +7625,9 @@ window.addEventListener('load', init);
         loadData = function () { var r = _ld.apply(this, arguments); setTimeout(iniciar, 3500); return r; };
     }
     window._afilSincronizar = function () { try { return sincronizar(); } catch (_) {} };
+    // 🆕 Usado por el modal de "subiste de nivel" (showLevelUp) para saber si
+    // ocultar la invitación a registrarse — ya está en el programa.
+    window._afilEstaRegistrado = function () { return !!(_info && _info.registrado); };
     setInterval(sincronizar, 120000);
     document.addEventListener('visibilitychange', function () {
         if (document.hidden) return;
