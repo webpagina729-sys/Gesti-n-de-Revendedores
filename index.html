@@ -3617,6 +3617,32 @@ function rememberLocalDelete(id) {
 // (rememberLocalDelete) para no romper la experiencia del
 // revendedor, pero se intenta primero el borrado real.
 // ═══════════════════════════════════════════════════════════
+// 🔧 FIX: antes esta llamada era "dispara y olvida" — si fallaba (red,
+// CORS, el Worker caído un instante, etc.) no quedaba registro de que
+// falló, el pedido se sacaba igual de la pantalla de index(1).html y el
+// reseller creía que ya estaba eliminado — pero pedidos.html seguía
+// mostrándolo en Pendientes porque nunca llegó a marcarse como eliminado
+// ahí. Ahora: 1) se reintenta una vez si la primera llamada falla o
+// responde con error, y 2) devuelve si realmente quedó marcado, para que
+// confirmDelete() pueda avisarle al reseller si el pedido podría
+// reaparecer y conviene reintentar.
+async function _marcarPedidoEliminadoEnEstados(id) {
+    const body = JSON.stringify({ pedidoId: id, codigoVendedor: currentCode, motivo: 'eliminado_o_no_aprobado' });
+    for (let intento = 0; intento < 2; intento++) {
+        try {
+            const r = await fetch(`${WORKER_ESTADOS}/api/pedido-eliminado`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body
+            });
+            const j = await r.json().catch(() => null);
+            if (r.ok && j && j.ok) return true;
+        } catch(_) {}
+        if (intento === 0) await new Promise(res => setTimeout(res, 800)); // breve espera antes de reintentar
+    }
+    return false;
+}
+
 async function _eliminarPedidoBackend(id) {
     // Intenta eliminar en workerwebcliente, workerpagos y Firestore.
     // Es best-effort: si alguno falla, igual se oculta localmente.
@@ -3633,17 +3659,11 @@ async function _eliminarPedidoBackend(id) {
             await _db.collection('usuarios').doc(currentUid).collection('pedidos').doc(id).delete();
         } catch(_) {}
     }
-    // 🔧 NUEVO: sin importar si los borrados de arriba tuvieron éxito o
-    // no (workerpagos es un Worker externo que no puedo verificar acá),
-    // esto SIEMPRE se avisa — es la garantía real de que pedidos.html
-    // deje de mostrar este pedido apenas se elimina o no se aprueba.
-    try {
-        await fetch(`${WORKER_ESTADOS}/api/pedido-eliminado`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ pedidoId: id, codigoVendedor: currentCode, motivo: 'eliminado_o_no_aprobado' })
-        });
-    } catch(_) {}
+    // Sin importar si los borrados de arriba tuvieron éxito o no (workerpagos
+    // es un Worker externo que no puedo verificar acá), esto SIEMPRE se
+    // intenta (con reintento) — es la garantía real de que pedidos.html deje
+    // de mostrar este pedido apenas se elimina o no se aprueba.
+    return await _marcarPedidoEliminadoEnEstados(id);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -5429,15 +5449,19 @@ async function confirmDelete() {
     const btn = document.getElementById('del-confirm-btn');
     btn.textContent = 'Eliminando...'; btn.disabled = true;
 
-    await _eliminarPedidoBackend(id);
+    const quedoSincronizado = await _eliminarPedidoBackend(id);
 
+    // Se oculta localmente siempre (el reseller no quiere seguir viéndolo acá
+    // aunque la sincronización haya fallado), pero el aviso ahora refleja si
+    // realmente quedó registrado como eliminado en todos lados — si no, se
+    // avisa para que el reseller sepa que puede reaparecer y reintente.
     rememberLocalDelete(id);
     pedidos = pedidos.filter(p => p.id !== id);
 
     closeModal();
     renderAll();
     btn.textContent = 'Eliminar'; btn.disabled = false;
-    toast('Pedido eliminado', true);
+    toast(quedoSincronizado ? 'Pedido eliminado' : 'Pedido ocultado acá, pero no se pudo confirmar la eliminación — si reaparece, volvé a intentarlo', quedoSincronizado ? true : 'err');
 }
 
 document.getElementById('send-all-modal').addEventListener('click', function(e) { if (e.target === this) this.classList.remove('show'); });
