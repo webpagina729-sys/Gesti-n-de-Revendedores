@@ -3756,6 +3756,17 @@ function cat(p) {
         if (n === 'indumentaria' || n.includes('indumentaria') || n.includes('remera')) return 'indumentaria';
         if (n === 'suplementos' || n.includes('suplement') || n.includes('salud')) return 'suplementos';
         if (n === 'multishop') return 'multishop';
+        // 🆕 FIX: antes, si p.nicho no coincidía con ninguna categoría
+        // clásica de arriba (ej. una categoría creada con "Agregar
+        // Categoría" en pedidos.html, como "mascotas"), esto caía al
+        // fallback de palabras clave de abajo —pensado solo para pedidos
+        // VIEJOS que no traían nicho— que normalmente no encontraba
+        // ninguna coincidencia y devolvía null: el pedido quedaba sin
+        // categoría real en todo este panel (estadísticas, filtros, etc.).
+        // p.nicho SÍ está presente acá y es la fuente de verdad real
+        // (mismo criterio que ya usan index.html/mas-categorias.html al
+        // mandar el pedido), así que se confía en él directamente.
+        return n;
     }
     const items = p.items || [];
     const nm = i => (i.nombre || '').toUpperCase();
@@ -4638,22 +4649,29 @@ function ocultarOverlayActualizar() {
 
 function loadData() {
     mostrarOverlayActualizar();
-    ['perfumes','belleza','calzados','bazar','jugueteria','libreria','lenceria','indumentaria','suplementos','multishop'].forEach(k => {
-        document.getElementById('list-'+k).innerHTML =
-            '<div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div>';
-    });
-
-    if (!currentCode) {
-        ['perfumes','belleza','calzados','bazar','jugueteria','libreria','lenceria','indumentaria','suplementos','multishop'].forEach(k => {
-            document.getElementById('list-'+k).innerHTML =
-                `<div class="empty"><div class="empty-icon">⚠️</div><h3>Sin sesión</h3><p>No hay código de revendedor activo.</p></div>`;
-        });
-        ocultarOverlayActualizar();
-        return;
-    }
-
     // Carga asíncrona sin bloquear el hilo principal
     (async () => {
+        // 🆕 Antes de pintar nada: sincroniza las categorías creadas con
+        // "Agregar Categoría" (pedidos.html) y, si hace falta, inyecta su
+        // cinta dedicada en el drawer — recién ahí allCatKeys() incluye
+        // sus claves y los loops de abajo pueden tocar su DOM sin romper.
+        try { await _cargarCategoriasExtraGestion(); } catch(_) {}
+        const _claves = allCatKeys();
+
+        _claves.forEach(k => {
+            document.getElementById('list-'+k).innerHTML =
+                '<div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div>';
+        });
+
+        if (!currentCode) {
+            _claves.forEach(k => {
+                document.getElementById('list-'+k).innerHTML =
+                    `<div class="empty"><div class="empty-icon">⚠️</div><h3>Sin sesión</h3><p>No hay código de revendedor activo.</p></div>`;
+            });
+            ocultarOverlayActualizar();
+            return;
+        }
+
         try {
             pedidos = [];
 
@@ -4760,7 +4778,7 @@ function loadData() {
         } catch(e) {
             console.error('loadData error:', e);
             toast('Error al cargar: ' + e.message, 'err');
-            ['perfumes','belleza','calzados','bazar','jugueteria','libreria','lenceria','indumentaria','suplementos','multishop'].forEach(k => {
+            _claves.forEach(k => {
                 document.getElementById('list-'+k).innerHTML =
                     `<div class="empty"><div class="empty-icon">⚠️</div><h3>Error</h3><p>${esc(e.message)}</p></div>`;
             });
@@ -4827,15 +4845,31 @@ function renderAll() {
     // que todavía están pendientes de confirmar y se genera confusión.
     const confirmadosIds = new Set(getPedidoList().map(x => x.id));
     const filtered = pedidos.filter(p => p.estado === activeStatus && !(p.estado === 'pagado' && confirmadosIds.has(p.id)));
-    const cats = { perfumes:[], belleza:[], calzados:[], bazar:[], jugueteria:[], libreria:[], lenceria:[], indumentaria:[], suplementos:[], multishop:[] };
-    filtered.forEach(p => { const c = cat(p); if (cats[c]) cats[c].push(p); });
+    // 🆕 Cada categoría dinámica ("Agregar Categoría" en pedidos.html) ya
+    // tiene acá su propia cinta/pestaña (ver _inyectarCintasCategoriasExtra,
+    // llamada desde loadData() antes de que renderAll() corra), así que
+    // cats se construye con TODAS las claves conocidas — clásicas +
+    // dinámicas — en vez de una lista fija de 10. Ya no cae a "Multishop":
+    // Multishop tiene su propio proveedor real y mezclar ahí pedidos de
+    // otra categoría los misasignaría. El único fallback que queda es
+    // para una clave verdaderamente desconocida (sin cinta ni en
+    // allCatKeys ni en Multishop) — no debería pasar nunca en la práctica,
+    // pero evita que un pedido desaparezca en silencio si pasara.
+    const claves = allCatKeys();
+    const cats = {};
+    claves.forEach(k => { cats[k] = []; });
+    filtered.forEach(p => {
+        const c = cat(p);
+        (cats[c] || cats.multishop || (cats.multishop = [])).push(p);
+    });
     actualizarContadoresEstado();
 
     let totalTodas = 0;
-    ['perfumes','belleza','calzados','bazar','jugueteria','libreria','lenceria','indumentaria','suplementos','multishop'].forEach(k => {
+    claves.forEach(k => {
         const n = cats[k].length;
         totalTodas += n;
         const badge = document.getElementById('pill-'+k);
+        if (!badge) return; // cinta todavía no inyectada (carrera rara) — se repinta en el próximo loadData()
         badge.textContent = n;
         badge.classList.toggle('on', n > 0);
         renderStats(cats[k], k);
@@ -4996,6 +5030,101 @@ function toggleRibbon(id) { document.getElementById('oc-'+id)?.classList.toggle(
 // reemplazado por sendAllPedidos() (envío por categoría, desde
 // "Pedidos Confirmados"). Confirmado que _pendingSendId nunca se
 // seteaba desde ningún otro lado, así que todo el trío era inalcanzable.
+
+// ═══════════════════════════════════════════════════════════
+// CATEGORÍAS DINÁMICAS ("Agregar Categoría" en pedidos.html)
+// 🆕 Cada categoría creada ahí (vía /api/categorias/crear, listada
+// públicamente en /api/categorias/listar) necesita su PROPIA cinta en
+// "Pedidos Aprobados/Pendientes" — nunca debe mezclarse con Multishop,
+// que ya tiene su propio proveedor asignado en el mundo real. Esta
+// sección trae esas categorías, las suma a MINIMO_POR_CATEGORIA /
+// NICHO_LABEL_PEDLISTA (que renderPedidoListaView(), objetivosSync() y
+// la notificación "Objetivo cumplido" ya leen de forma genérica — ver
+// más abajo) e inyecta su cinta/pestaña dedicada en el drawer.
+// ═══════════════════════════════════════════════════════════
+const CATS_CLASICAS = ['perfumes','belleza','calzados','bazar','jugueteria','libreria','lenceria','indumentaria','suplementos','multishop'];
+
+// Todas las claves de categoría conocidas en este momento: las 10
+// clásicas (siempre, en el mismo orden de siempre) + las dinámicas ya
+// cargadas desde /api/categorias/listar. Reemplaza, en los 5 lugares
+// donde antes había un array fijo de 10 categorías, la fuente única de
+// verdad de "qué pestañas existen".
+function allCatKeys() {
+    const extra = (window._categoriasExtra || [])
+        .map(c => c.id)
+        .filter(id => id && !CATS_CLASICAS.includes(id));
+    return CATS_CLASICAS.concat(extra);
+}
+
+// Convierte el texto libre del campo "objetivo" de "Agregar Categoría"
+// (ej. "$150.000" o "15 productos") a la misma estructura que ya usa
+// MINIMO_POR_CATEGORIA: { tipo: 'monto'|'unidades', valor: number }.
+// Si el texto menciona "unidad(es)" o "producto(s)" se mide en unidades;
+// si no, se interpreta como un monto en pesos. Sin texto o sin números
+// reconocibles, el objetivo queda en 0 (igual que el fallback que ya
+// usan _categoriaCumpleObjetivo() y el resto de las lecturas de
+// MINIMO_POR_CATEGORIA para claves ausentes).
+function parseObjetivoTexto(txt) {
+    const s = String(txt || '').trim();
+    if (!s) return { tipo: 'monto', valor: 0 };
+    const mUnid = s.match(/([\d.,]+)\s*(unidad|producto)/i);
+    if (mUnid) {
+        const valor = parseInt(mUnid[1].replace(/[.,]/g, ''), 10) || 0;
+        return { tipo: 'unidades', valor };
+    }
+    const mMonto = s.match(/[\d.,]+/);
+    if (mMonto) {
+        const valor = parseInt(mMonto[0].replace(/[.,]/g, ''), 10) || 0;
+        return { tipo: 'monto', valor };
+    }
+    return { tipo: 'monto', valor: 0 };
+}
+
+// Trae las categorías creadas con "Agregar Categoría" (mismo endpoint
+// público de solo lectura que ya usan index.html/mas-categorias.html/
+// tienda.html), completa MINIMO_POR_CATEGORIA/NICHO_LABEL_PEDLISTA con
+// su objetivo real (parseado) y su nombre real, e inyecta su cinta en
+// el drawer si todavía no existe.
+async function _cargarCategoriasExtraGestion() {
+    const res = await fetch('https://preciosmayoristasrevendedores.tuweb.workers.dev/api/categorias/listar')
+        .then(r => r.json()).catch(() => null);
+    const cats = (res && res.ok && Array.isArray(res.categorias)) ? res.categorias : [];
+    window._categoriasExtra = cats;
+    window._categoriasExtraMap = {};
+    cats.forEach(c => {
+        if (!c || !c.id) return;
+        window._categoriasExtraMap[c.id] = c;
+        if (CATS_CLASICAS.includes(c.id)) return; // nunca pisa una clásica
+        MINIMO_POR_CATEGORIA[c.id] = parseObjetivoTexto(c.objetivo);
+        NICHO_LABEL_PEDLISTA[c.id] = c.nombre || c.id;
+    });
+    _inyectarCintasCategoriasExtra(cats);
+}
+
+// Agrega al drawer #cat-confirm-drawer un .cat-group por cada categoría
+// dinámica que todavía no tenga su cinta — mismo markup exacto (cat-
+// ribbon/tab-pane/stats-row/list) que usan las 10 categorías clásicas,
+// así switchTab()/renderStats()/renderList()/card() (totalmente
+// genéricas, operan solo por getElementById('...-'+k)) funcionan igual
+// de una categoría dinámica sin necesitar ningún cambio.
+function _inyectarCintasCategoriasExtra(cats) {
+    const drawer = document.getElementById('cat-confirm-drawer');
+    if (!drawer) return;
+    (cats || []).forEach(c => {
+        if (!c || !c.id || CATS_CLASICAS.includes(c.id)) return;
+        if (document.getElementById('tbtn-' + c.id)) return; // ya inyectada
+        const nombre = esc(c.nombre || c.id);
+        const grupo = document.createElement('div');
+        grupo.className = 'cat-group';
+        grupo.innerHTML = `
+                    <button class="cat-ribbon" id="tbtn-${c.id}" onclick="switchTab('${c.id}')">${nombre} <span class="cat-ribbon-badge" id="pill-${c.id}">0</span></button>
+                    <div class="tab-pane" id="pane-${c.id}">
+                        <div class="stats-row" id="stats-${c.id}"></div>
+                        <div id="list-${c.id}"><div class="loader"><div class="spin"></div><p>Cargando pedidos...</p></div></div>
+                    </div>`;
+        drawer.appendChild(grupo);
+    });
+}
 
 // ═══════════════════════════════════════════════════════════
 // APROBAR PEDIDO (botón "Aprobar" en cada tarjeta)
@@ -6416,8 +6545,14 @@ function renderStatsView() {
     html += sectionRibbon('sr-mayorista', 'Mi inversión por período', mayHtml);
     html += `</div>`;
 
-    // Distribución por nicho — 🔧 usa solo confirmados/pagados
-    const byNicho = { perfumes: 0, calzados: 0, belleza: 0, bazar: 0, jugueteria: 0, libreria: 0, lenceria: 0, indumentaria: 0, suplementos: 0, multishop: 0 };
+    // Distribución por nicho — 🔧 usa solo confirmados/pagados.
+    // 🆕 Incluye además cada categoría creada con "Agregar Categoría"
+    // (allCatKeys() = clásicas + dinámicas), con la misma lógica de
+    // estadísticas que las clásicas — ninguna categoría nueva queda
+    // afuera de este panel ni se mezcla con Multishop.
+    const _clavesStats = allCatKeys();
+    const byNicho = {};
+    _clavesStats.forEach(k => { byNicho[k] = 0; });
     pedidosConfirmadosOPagados.forEach(p => { const c = cat(p); if (byNicho[c] !== undefined) byNicho[c]++; });
 
     // Frecuencia de productos por categoría — 🔧 usa solo confirmados/pagados
@@ -6435,18 +6570,17 @@ function renderStatsView() {
     // Nombres cortos para el grid compacto — se ven completos igual, solo
     // más breves para que quepan sin cortarse en tarjetas chicas.
     const nichoLabelsCortos = { calzados:'Calzados Imp.', perfumes:'Perfumería', belleza:'Belleza y C.P.', bazar:'Bazar', jugueteria:'Juguetería', libreria:'Librería', lenceria:'Lencería', indumentaria:'Remeras Premium', suplementos:'Suplementos', multishop:'Multishop' };
+    // 🆕 Cada categoría dinámica usa su nombre real (NICHO_LABEL_PEDLISTA,
+    // ya poblado por _cargarCategoriasExtraGestion()) tanto en la versión
+    // larga como en la corta — no hay versión "corta" especial para estas,
+    // se muestra el nombre completo igual que en el resto del panel.
+    _clavesStats.forEach(k => {
+        if (!nichoLabels[k]) nichoLabels[k] = NICHO_LABEL_PEDLISTA[k] || k;
+        if (!nichoLabelsCortos[k]) nichoLabelsCortos[k] = nichoLabels[k];
+    });
     let catHtml = `<div class="section-block"><h2 class="section-title">Por categoría</h2>
         <div class="kpi-grid-compact">
-            <div class="kpi-compact"><div class="kpi-lbl">${nichoLabelsCortos.calzados}</div><div class="kpi-val">${byNicho.calzados || 0}</div></div>
-            <div class="kpi-compact"><div class="kpi-lbl">${nichoLabelsCortos.perfumes}</div><div class="kpi-val">${byNicho.perfumes || 0}</div></div>
-            <div class="kpi-compact"><div class="kpi-lbl">${nichoLabelsCortos.belleza}</div><div class="kpi-val">${byNicho.belleza || 0}</div></div>
-            <div class="kpi-compact"><div class="kpi-lbl">${nichoLabelsCortos.bazar}</div><div class="kpi-val">${byNicho.bazar || 0}</div></div>
-            <div class="kpi-compact"><div class="kpi-lbl">${nichoLabelsCortos.jugueteria}</div><div class="kpi-val">${byNicho.jugueteria || 0}</div></div>
-            <div class="kpi-compact"><div class="kpi-lbl">${nichoLabelsCortos.libreria}</div><div class="kpi-val">${byNicho.libreria || 0}</div></div>
-            <div class="kpi-compact"><div class="kpi-lbl">${nichoLabelsCortos.lenceria}</div><div class="kpi-val">${byNicho.lenceria || 0}</div></div>
-            <div class="kpi-compact"><div class="kpi-lbl">${nichoLabelsCortos.indumentaria}</div><div class="kpi-val">${byNicho.indumentaria || 0}</div></div>
-            <div class="kpi-compact"><div class="kpi-lbl">${nichoLabelsCortos.suplementos}</div><div class="kpi-val">${byNicho.suplementos || 0}</div></div>
-            <div class="kpi-compact"><div class="kpi-lbl">${nichoLabelsCortos.multishop}</div><div class="kpi-val">${byNicho.multishop || 0}</div></div>
+            ${_clavesStats.map(k => `<div class="kpi-compact"><div class="kpi-lbl">${esc(nichoLabelsCortos[k])}</div><div class="kpi-val">${byNicho[k] || 0}</div></div>`).join('')}
         </div>
     </div>`;
 
@@ -6457,7 +6591,7 @@ function renderStatsView() {
     // partir el contador de unidades, que siempre queda en una sola línea
     // al lado. Cada categoría ahora es su propia cinta colapsable.
     catHtml += `<div class="section-block"><h2 class="section-title">Productos más pedidos por categoría</h2>`;
-    ['calzados','perfumes','belleza','bazar','jugueteria','libreria','lenceria','indumentaria','suplementos','multishop'].forEach(c => {
+    _clavesStats.forEach(c => {
         const freq = freqMap[c];
         if (!freq || !Object.keys(freq).length) return;
         const sorted = Object.entries(freq).sort((a,b) => b[1]-a[1]).slice(0, 10);
@@ -6704,6 +6838,17 @@ function renderGananciasView() {
             { k:'suplementos', l:'Salud/Suplementos' },
             { k:'multishop', l:'Multishop' }
         ];
+        // 🆕 FIX: antes esta lista era fija, así que una categoría creada
+        // con "Agregar Categoría" (ej. "mascotas") nunca tenía su propia
+        // cinta de ganancia acá, aunque cat(p) ya la identifique bien. Se
+        // agrega una entrada por cada nicho real presente en el historial
+        // que no sea ninguno de los clásicos de arriba.
+        const nichosClasicos = new Set(nichos.map(n => n.k));
+        const nichosExtra = new Set(historial.map(h => cat(h)).filter(k => k && !nichosClasicos.has(k)));
+        // 🆕 usa el nombre real cargado desde "Agregar Categoría"
+        // (NICHO_LABEL_PEDLISTA, poblado por _cargarCategoriasExtraGestion())
+        // en vez de una capitalización genérica de la clave.
+        nichosExtra.forEach(k => nichos.push({ k, l: NICHO_LABEL_PEDLISTA[k] || (k.charAt(0).toUpperCase() + k.slice(1)) }));
         nichos.forEach((n, i) => {
             const hs = historial.filter(h => cat(h) === n.k);
             const gain = hs.reduce((s,h) => s + (h.ganancia || 0), 0);
@@ -6719,7 +6864,15 @@ function renderGananciasView() {
 
         // Configuración de márgenes activa
         html += `<div class="section-block"><h2 class="section-title">Mi configuración de márgenes</h2>`;
-        const cats = ['perfumes','belleza','calzados','bazar','jugueteria','libreria','lenceria','indumentaria','suplementos','multishop','general'];
+        // 🆕 FIX: antes esta lista era fija, así que el margen configurado
+        // para una categoría creada con "Agregar Categoría" (ej. "mascotas")
+        // nunca aparecía acá aunque estuviera guardado en configTienda. Se
+        // agregan también las claves reales que YA tiene configTienda (sin
+        // duplicar las clásicas de arriba).
+        const cats = Array.from(new Set([
+            'perfumes','belleza','calzados','bazar','jugueteria','libreria','lenceria','indumentaria','suplementos','multishop','general',
+            ...Object.keys(configTienda || {})
+        ]));
         cats.forEach(c => {
             const cfg = configTienda[c];
             if (!cfg || !Array.isArray(cfg.rangos) || !cfg.rangos.length) return;
