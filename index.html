@@ -2419,12 +2419,29 @@ function cerrarAvisoModal() {
     }
 }
 
-fetch('https://panelgestionestados.tuweb.workers.dev/api/aviso')
-    .then(r => r.json())
-    .then(data => {
-        if (data && data.ok) mostrarAvisoModalSi(data.aviso);
-    })
-    .catch(() => {});
+// 🔧 NUEVO: se repite cada 40 min de actividad (no solo al cargar la
+// página) — así, si desde pedidos.html se publica un aviso nuevo o se
+// elimina el que se estaba mostrando, se refleja sin que el revendedor
+// tenga que recargar. El "?_=" evita que algún caché intermedio (del
+// navegador o de red) devuelva una respuesta vieja.
+function _cargarAvisoPlataforma() {
+    fetch('https://panelgestionestados.tuweb.workers.dev/api/aviso?_=' + Date.now())
+        .then(r => r.json())
+        .then(data => {
+            if (!(data && data.ok)) return;
+            const aviso = data.aviso;
+            const modalAbierto = document.getElementById('aviso-modal');
+            if (modalAbierto && modalAbierto.classList.contains('show') && (!aviso || aviso.id !== window._avisoActualId)) {
+                // El aviso que se estaba mostrando ya no es el activo (lo
+                // eliminaron o se publicó otro) → se cierra.
+                modalAbierto.classList.remove('show');
+            }
+            mostrarAvisoModalSi(aviso);
+        })
+        .catch(() => {});
+}
+_cargarAvisoPlataforma();
+setInterval(_cargarAvisoPlataforma, 40 * 60 * 1000);
 
 let CATALOGO_PRECIOS_WORKER = {};
 (function cargarCatalogoPreciosWorker() {
