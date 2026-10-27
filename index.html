@@ -5390,6 +5390,14 @@ async function confirmarYActualizarDatos() {
         direccion,
         direccionAlternativa: document.getElementById('corregirDireccionAlt').value.trim(),
     };
+    // 🔧 NUEVO: antes de pagar no puede quedar ningún campo incompleto
+    // (la dirección alternativa es la única opcional). Si falta algo, se
+    // avisa y no se continúa.
+    if (!nombre || !apellido || !nuevo.cuit || !nuevo.whatsappRevendedor ||
+        !nuevo.provincia || !nuevo.ciudad || !nuevo.codigoPostal || !calle || !numero) {
+        toast('Completá todos los campos antes de continuar', 'err');
+        return;
+    }
     currentVendorNombre   = nombre;
     currentVendorApellido = apellido;
     currentVendorProfile  = Object.assign({}, currentVendorProfile, nuevo);
