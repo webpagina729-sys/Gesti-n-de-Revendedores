@@ -179,8 +179,9 @@ input.i[readonly]{opacity:.8}
 .rr .rn{width:78px;flex-shrink:0;font-size:11px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rr .rt{position:relative;flex:1;min-width:0;height:100%}
 .rr .rt:before{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:var(--border2);opacity:.6}
-.rr .rl{position:absolute;left:0;top:50%;height:1px;width:calc(var(--p,0) * 1%);transition:width .55s cubic-bezier(.4,0,.2,1)}
-.rr .rd{position:absolute;top:50%;left:calc(var(--p,0) * 1%);width:6px;height:6px;border-radius:50%;transform:translate(-50%,-50%);transition:left .55s cubic-bezier(.4,0,.2,1)}
+.rr .rof{position:absolute;left:0;top:50%;height:1px;width:calc(var(--po,0) * 1%);background:#00c96e;transition:width .55s cubic-bezier(.4,0,.2,1)}
+.rr .rpen{position:absolute;left:calc(var(--po,0) * 1%);top:50%;height:1px;width:calc((var(--pt,0) - var(--po,0)) * 1%);background:#ffd43b;opacity:.45;transition:width .55s cubic-bezier(.4,0,.2,1),left .55s cubic-bezier(.4,0,.2,1)}
+.rr .rd{position:absolute;top:50%;left:calc(var(--pt,0) * 1%);width:6px;height:6px;border-radius:50%;transform:translate(-50%,-50%);transition:left .55s cubic-bezier(.4,0,.2,1)}
 .rr .rv{width:74px;flex-shrink:0;text-align:right;font-size:11px;font-weight:700;white-space:nowrap;line-height:1.1}
 .rr .rv small{display:block;font-size:9.5px;font-weight:600;color:var(--text3)}
 .rr.first .rn{font-weight:800}.rr.first .rp{color:var(--text)}
@@ -978,47 +979,52 @@ let _topRz; window.addEventListener('resize', () => { clearTimeout(_topRz); _top
 
 
 // ═════════════ Carrera de afiliados (semana / quincena / mes / año · $ o nº) ═════════════
-let RACE_PER = 30, RACE_MET = '$', RACE_SRC = [], RACE_COL = {};
+let RACE_PER = 30, RACE_MET = '$', RACE_SRC = [];
 const RACE_H = 26;
 function pintarCarrera(s) {
   // Eventos [fecha, comisión] por afiliado. Si el servicio aún no envía "carrera", se arman desde el ranking.
+  // (El ranking no trae pendientes todavía, por eso este respaldo queda sin eventosPendientes.)
   RACE_SRC = (s.carrera && s.carrera.length) ? s.carrera : (s.ranking || []).map(a => ({
     uid: a.uid, nombre: a.nombre, codigo: a.codigo, vinculo: a.vinculo,
     eventos: a.serie.map((p, i) => [p[0], p[2] - (i ? a.serie[i - 1][2] : 0)])
   }));
-  RACE_COL = {};
-  const orden = (s.ranking || []).map(a => a.uid).concat(RACE_SRC.map(a => a.uid));
-  [...new Set(orden)].forEach((u, i) => { RACE_COL[u] = TOP_COL[i % TOP_COL.length]; });
   dibujarCarrera();
 }
 function dibujarCarrera() {
   const cut = Date.now() - RACE_PER * 864e5;
   const filas = RACE_SRC.map(a => {
     const ev = a.eventos.filter(e => e[0] >= cut);
-    return { a, c: ev.reduce((t, e) => t + e[1], 0), n: ev.length };
-  }).filter(x => x.n > 0);
+    // 🆕 NUEVO: pedidos ya aprobados por el cliente, todavía no pagos
+    // (eventosPendientes) — se suman aparte de "ev" (oficial/pagado) para
+    // poder mostrar ambos tramos con su propio color en la misma línea.
+    const evPend = (a.eventosPendientes || []).filter(e => e[0] >= cut);
+    return {
+      a, c: ev.reduce((t, e) => t + e[1], 0), n: ev.length,
+      cPend: evPend.reduce((t, e) => t + e[1], 0), nPend: evPend.length,
+    };
+  }).filter(x => x.n > 0 || x.nPend > 0);
   const k = RACE_MET === '$' ? 'c' : 'n', k2 = RACE_MET === '$' ? 'n' : 'c';
-  filas.sort((x, y) => (y[k] - x[k]) || (y[k2] - x[k2]));
+  const kPend = RACE_MET === '$' ? 'cPend' : 'nPend';
+  filas.sort((x, y) => ((y[k] + y[kPend]) - (x[k] + x[kPend])) || (y[k2] - x[k2]));
   const top = filas.slice(0, 10), box = $('race-lanes');
   document.querySelectorAll('#race-per button').forEach(b => b.classList.toggle('on', Number(b.dataset.p) === RACE_PER));
   document.querySelectorAll('#race-met button').forEach(b => b.classList.toggle('on', b.dataset.m === RACE_MET));
   if (!top.length) {
     box.style.height = 'auto';
-    box.innerHTML = '<div class="race-vacio">Sin pedidos pagados en este período todavía.<br>Acá vas a ver la carrera de tus afiliados.</div>';
+    box.innerHTML = '<div class="race-vacio">Sin pedidos pagados ni pendientes en este período todavía.<br>Acá vas a ver la carrera de tus afiliados.</div>';
     return;
   }
   if (box.querySelector('.race-vacio')) box.innerHTML = '';
   box.style.height = (top.length * RACE_H) + 'px';
-  const max = Math.max(1, ...top.map(x => x[k]));
+  const max = Math.max(1, ...top.map(x => x[k] + x[kPend]));
   const vivos = new Set(top.map(x => x.a.uid));
   [...box.children].forEach(el => { if (!vivos.has(el.dataset.u)) el.remove(); });
   top.forEach((x, i) => {
     let el = [...box.children].find(e => e.dataset.u === x.a.uid);
-    const col = RACE_COL[x.a.uid] || TOP_COL[i % TOP_COL.length];
     if (!el) {
       el = document.createElement('div'); el.className = 'rr'; el.dataset.u = x.a.uid;
       el.style.transform = `translateY(${i * RACE_H}px)`;
-      el.innerHTML = '<span class="rp"></span><span class="rn"></span><span class="rt"><i class="rl"></i><i class="rd"></i></span><span class="rv"></span>';
+      el.innerHTML = '<span class="rp"></span><span class="rn"></span><span class="rt"><i class="rof"></i><i class="rpen"></i><i class="rd"></i></span><span class="rv"></span>';
       box.appendChild(el);
       void el.offsetWidth;
     }
@@ -1027,16 +1033,24 @@ function dibujarCarrera() {
     el.style.transform = `translateY(${i * RACE_H}px)`;
     el.querySelector('.rp').textContent = i + 1;
     const nm = el.querySelector('.rn'); nm.textContent = x.a.nombre; nm.title = x.a.nombre;
-    const p = Math.max(2, Math.round(x[k] / max * 100));
-    const rt = el.querySelector('.rt'); rt.style.setProperty('--p', p);
-    const ln = el.querySelector('.rl'); ln.style.background = col; ln.style.opacity = first ? 1 : .6;
+    // Verde sólido = estadísticas oficiales (pagas); amarillo transparente
+    // clarito = estadísticas pendientes (aprobadas, todavía no pagas). Una
+    // sola línea de 1px que cambia de color en el punto donde termina lo
+    // oficial y empieza lo pendiente.
+    const pOf = Math.max(0, Math.round(x[k] / max * 100));
+    const pTotal = Math.max(x.nPend > 0 || x.n > 0 ? 2 : 0, Math.round((x[k] + x[kPend]) / max * 100));
+    const rt = el.querySelector('.rt'); rt.style.setProperty('--po', pOf); rt.style.setProperty('--pt', Math.max(pOf, pTotal));
+    const rof = el.querySelector('.rof'); rof.style.opacity = first ? 1 : .6;
+    const rpen = el.querySelector('.rpen');
     const dt = el.querySelector('.rd');
-    dt.style.background = col;
-    dt.style.boxShadow = first ? `0 0 0 3px ${col}33, 0 0 12px 2px ${col}` : `0 0 5px ${col}`;
+    const colDot = x.nPend > 0 && x[k] === 0 ? '#ffd43b' : '#00c96e';
+    dt.style.background = colDot;
+    dt.style.boxShadow = first ? `0 0 0 3px ${colDot}33, 0 0 12px 2px ${colDot}` : `0 0 5px ${colDot}`;
     dt.style.width = dt.style.height = first ? '8px' : '6px';
     el.querySelector('.rv').innerHTML = RACE_MET === '$'
-      ? `${money(x.c)}<small>${x.n} ped.</small>` : `${x.n} ped.<small>${money(x.c)}</small>`;
-    el.title = `#${i + 1} ${x.a.nombre} · ${money(x.c)} · ${x.n} pedido${x.n !== 1 ? 's' : ''}`;
+      ? `${money(x.c)}<small>${x.n} ped.${x.nPend ? ' · ' + money(x.cPend) + ' pend.' : ''}</small>`
+      : `${x.n} ped.<small>${money(x.c)}${x.nPend ? ' · ' + x.nPend + ' pend.' : ''}</small>`;
+    el.title = `#${i + 1} ${x.a.nombre} · ${money(x.c)} · ${x.n} pedido${x.n !== 1 ? 's' : ''}` + (x.nPend ? ` · ${x.nPend} pendiente${x.nPend !== 1 ? 's' : ''} (${money(x.cPend)})` : '');
   });
 }
 document.addEventListener('click', e => {
