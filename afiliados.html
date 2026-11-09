@@ -450,6 +450,21 @@ button.btn-anim{animation:btnPop .38s ease,btnRing .5s ease-out}
   </div>
 </div>
 
+<!-- 🆕 Modal: aviso de la plataforma (publicado desde pedidos.html → 📢
+     Avisos). A diferencia de index.html/index(1).html, NO se muestra
+     automáticamente: solo cuando el dueño tilda "También mostrarlo en
+     Afiliados.html" al publicarlo. -->
+<div class="ovl" id="m-aviso">
+  <div class="modal">
+    <h3 id="av-titulo"></h3>
+    <p class="muted" id="av-subtitulo" style="margin-top:2px"></p>
+    <img id="av-imagen" src="" alt="" style="display:none;width:100%;border-radius:10px;margin:10px 0;max-height:220px;object-fit:cover" onerror="this.style.display='none'">
+    <p id="av-texto" style="font-size:13.5px;white-space:pre-wrap;margin:8px 0"></p>
+    <a id="av-boton" href="#" target="_blank" rel="noopener" class="btn" style="display:none;text-decoration:none;margin-top:10px" onclick="cerrarAvisoModal()">Ver más</a>
+    <button class="btn sec" style="margin-top:10px" onclick="cerrarAvisoModal()">Cerrar</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -1095,6 +1110,77 @@ async function confirmarCobro() {
   cerrar('m-cobro'); const nro = d.retiro && d.retiro.numeroSolicitud ? ' ' + d.retiro.numeroSolicitud : ''; toast(METODO === 'credito' ? 'Crédito acreditado en tu cuenta · Solicitud' + nro : 'Cobro solicitado · Solicitud' + nro); cargarPanel();
 }
 
+// ═════════════ Aviso de la plataforma ═════════════
+// 🆕 Igual que index.html/index(1).html, pero NO automático: solo se
+// muestra si el aviso activo tiene mostrarEnAfiliados:true (tildado desde
+// el panel "📢 Avisos" de pedidos.html al publicarlo). Reutiliza la misma
+// clave de localStorage ("avisosVistos") que esos otros 2 archivos, así
+// cerrar el aviso en cualquiera de las 3 páginas no lo vuelve a mostrar
+// en las demás.
+const WORKER_ESTADOS_AF = 'https://panelgestionestados.tuweb.workers.dev';
+let _avisoFechaAlta = null;
+
+function mostrarAvisoModalSi(aviso) {
+  if (!aviso || !aviso.publicado || !aviso.id || !aviso.mostrarEnAfiliados) return;
+  let vistos = [];
+  try { vistos = JSON.parse(localStorage.getItem('avisosVistos') || '[]'); } catch (_) {}
+  if (vistos.includes(aviso.id)) return;
+  // Mismo criterio que index.html: cuentas sin fechaAlta guardada (de
+  // antes de este cambio) siempre se consideran activas.
+  if (_avisoFechaAlta && aviso.timestamp && _avisoFechaAlta > aviso.timestamp) return;
+
+  $('av-titulo').textContent = aviso.titulo || '';
+  $('av-subtitulo').textContent = aviso.subtitulo || '';
+  $('av-subtitulo').style.display = aviso.subtitulo ? 'block' : 'none';
+  const imagen = $('av-imagen');
+  if (aviso.imagen) {
+    imagen.src = 'https://raw.githubusercontent.com/webpagina729-sys/Avisos/main/' + aviso.imagen;
+    imagen.alt = aviso.titulo || '';
+    imagen.style.display = 'block';
+  } else {
+    imagen.style.display = 'none';
+  }
+  $('av-texto').textContent = aviso.texto || '';
+  $('av-texto').style.display = aviso.texto ? 'block' : 'none';
+  const boton = $('av-boton');
+  if (aviso.enlace && aviso.textoBoton) {
+    boton.href = aviso.enlace;
+    boton.textContent = aviso.textoBoton;
+    boton.style.display = 'block';
+  } else {
+    boton.style.display = 'none';
+  }
+  window._avisoActualId = aviso.id;
+  $('m-aviso').classList.add('show');
+}
+
+function cerrarAvisoModal() {
+  cerrar('m-aviso');
+  if (window._avisoActualId) {
+    try {
+      let vistos = [];
+      try { vistos = JSON.parse(localStorage.getItem('avisosVistos') || '[]'); } catch (_) {}
+      if (!vistos.includes(window._avisoActualId)) vistos.push(window._avisoActualId);
+      localStorage.setItem('avisosVistos', JSON.stringify(vistos.slice(-50)));
+    } catch (_) {}
+  }
+}
+
+function _cargarAvisoPlataforma() {
+  fetch(WORKER_ESTADOS_AF + '/api/aviso?_=' + Date.now())
+    .then(r => r.json())
+    .then(data => {
+      if (!(data && data.ok)) return;
+      const aviso = data.aviso;
+      const modalAbierto = $('m-aviso');
+      if (modalAbierto && modalAbierto.classList.contains('show') && (!aviso || aviso.id !== window._avisoActualId)) {
+        modalAbierto.classList.remove('show');
+      }
+      mostrarAvisoModalSi(aviso);
+    })
+    .catch(() => {});
+}
+
 // ═════════════ Sesión ═════════════
 async function iniciarSesionUI(user) {
   // Hay sesión: ¿es revendedor de la plataforma?
@@ -1103,6 +1189,12 @@ async function iniciarSesionUI(user) {
     await auth.signOut().catch(() => {});
     vista('v-auth'); verTab('log'); showErr('e-log', 'No encontramos una cuenta de revendedor con ese acceso. Creá tu cuenta primero.');
     return;
+  }
+  _avisoFechaAlta = p.perfil.fechaAlta || null;
+  if (!window._avisoIntervalIniciado) {
+    window._avisoIntervalIniciado = true;
+    _cargarAvisoPlataforma();
+    setInterval(_cargarAvisoPlataforma, 40 * 60 * 1000);
   }
   await cargarPanel();
 }
