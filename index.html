@@ -3284,7 +3284,7 @@ function downloadClientInvoicePDF(id) {
 
     if (mostrarSegundoBox) {
         const esPendiente = estadoFactura === 'pendiente';
-        const labelSegundo = esPendiente ? 'SEÑA (mayorista)' : 'SALDO RESTANTE A ABONAR';
+        const labelSegundo = esPendiente ? 'Primer pago (Pendiente hasta la fecha pactada)' : 'SALDO RESTANTE A ABONAR';
         const valorSegundo = esPendiente ? totalMayoristaPedido : gananciaPedido;
         doc.setDrawColor(230, 140, 20);
         doc.roundedRect(boxXSegundo, y, boxW, 14, 2, 2, 'S');
@@ -3303,7 +3303,7 @@ function downloadClientInvoicePDF(id) {
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(7.5);
         doc.setTextColor(200, 120, 10);
-        doc.text('Fecha límite para entregar la seña: ' + fpFechaTxt, boxXSegundo, y + 19);
+        doc.text('Fecha de Pago: ' + fpFechaTxt, boxXSegundo, y + 19);
     }
 
     // 🆕 Pedido confirmado: seña abonada + resto a abonar (la factura sigue pendiente de pago)
