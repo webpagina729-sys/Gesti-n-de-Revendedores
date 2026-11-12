@@ -3283,9 +3283,14 @@ function downloadClientInvoicePDF(id) {
     doc.text('$' + Math.round(totalFin).toLocaleString('es-AR'), boxXTotal + boxW - 3, y + 9, { align: 'right' });
 
     if (mostrarSegundoBox) {
-        const esPendiente = estadoFactura === 'pendiente';
-        const labelSegundo = esPendiente ? 'Primer pago (Pendiente hasta la fecha pactada)' : 'SALDO RESTANTE A ABONAR';
-        const valorSegundo = esPendiente ? totalMayoristaPedido : gananciaPedido;
+        // 🔧 FIX: "pendiente" y "aprobado" (todavía no pasó a Pedidos
+        // Confirmados) deben emitir la MISMA factura, con la seña
+        // calculada del worker preciosmayoristasrevendedores — nunca el
+        // restante. El restante ("SALDO RESTANTE A ABONAR") solo se
+        // muestra una vez que el pedido está en Pedidos Confirmados
+        // (ver el bloque aparte de estadoFactura === 'confirmado' más abajo).
+        const labelSegundo = 'SEÑA DE ESTE PEDIDO';
+        const valorSegundo = totalMayoristaPedido;
         doc.setDrawColor(230, 140, 20);
         doc.roundedRect(boxXSegundo, y, boxW, 14, 2, 2, 'S');
         doc.setFont('helvetica', 'normal');
