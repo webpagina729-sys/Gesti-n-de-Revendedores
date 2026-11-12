@@ -2869,8 +2869,17 @@ function _agregarMarcaPagado(doc, W, H) {
     doc.restoreGraphicsState?.();
 }
 
-function _entregarFacturaPDF(doc, filename, esPagado, telefonoCliente, soloCompartir) {
+function _entregarFacturaPDF(doc, filename, estadoFactura, telefonoCliente, soloCompartir) {
     // Factura de cliente: NO se descarga, solo se ofrece enviarla (WhatsApp / compartir).
+    const esPagado = estadoFactura === 'pagado';
+    // 🆕 Mensaje adaptado a cada estado real de la factura (antes solo
+    // distinguía pagado/no-pagado). Se usa tanto en el texto de WhatsApp
+    // como en el "text" del panel nativo de Compartir.
+    const mensajeFactura = estadoFactura === 'pagado'
+        ? 'Hola! Acá te dejo tu factura paga. ¡Gracias por tu compra! ♥'
+        : (estadoFactura === 'confirmado'
+            ? 'Hola, Acá te dejo la factura con el saldo restante a abonar. Muchas Gracias!♥'
+            : 'Acá te dejo la factura pendiente de pago con su fecha límite. Muchas Gracias!♥'); // pendiente / aprobado
     if (!soloCompartir) doc.save(filename);
     const blob = doc.output('blob');
     const url = URL.createObjectURL(blob);
@@ -2919,7 +2928,7 @@ function _entregarFacturaPDF(doc, filename, esPagado, telefonoCliente, soloCompa
         // y igual funciona).
         try {
             if (navigator.share) {
-                await navigator.share({ files: [file], title: filename });
+                await navigator.share({ files: [file], title: filename, text: mensajeFactura });
                 return;
             }
         } catch (e) {
@@ -2943,7 +2952,7 @@ function _entregarFacturaPDF(doc, filename, esPagado, telefonoCliente, soloCompa
         } catch (_e) { /* sin link público: se sigue al último fallback */ }
         if (linkPublico) {
             try {
-                if (navigator.share) { await navigator.share({ url: linkPublico, title: filename }); return; }
+                if (navigator.share) { await navigator.share({ url: linkPublico, title: filename, text: mensajeFactura }); return; }
             } catch (e) { if (e && e.name === 'AbortError') return; }
             // Sin Web Share en absoluto: se abre directo el selector de
             // Facebook (el único de los tres que funciona desde web sin
@@ -2957,9 +2966,7 @@ function _entregarFacturaPDF(doc, filename, esPagado, telefonoCliente, soloCompa
         toast('Se abrió la factura para compartir manualmente', true);
     };
     document.getElementById('factura-whatsapp-btn').onclick = () => {
-        const mensaje = esPagado === false
-            ? 'Te comparto la factura pendiente (todavía sin pagar) de tu pedido.'
-            : 'Te comparto tu factura.';
+        const mensaje = mensajeFactura;
         // 🔧 FIX: antes se intentaba primero navigator.share({files}), que
         // deja que el SISTEMA elija a dónde mandarlo (panel nativo con
         // cualquier contacto o app) — nunca abría el chat de WhatsApp del
@@ -3371,7 +3378,7 @@ function downloadClientInvoicePDF(id) {
 
     if (estadoFactura === 'pagado') _agregarMarcaPagado(doc, W, H);
     else _agregarMarcaPendiente(doc, W, H);
-    _entregarFacturaPDF(doc, `Factura_Cliente_${nroFact}.pdf`, esPagado, env.telefono, true);
+    _entregarFacturaPDF(doc, `Factura_Cliente_${nroFact}.pdf`, estadoFactura, env.telefono, true);
     toast('Factura del cliente descargada', true);
 }
 
@@ -3612,7 +3619,7 @@ function downloadInvoicePDF(id) {
 
     if (estadoFactura === 'pagado') _agregarMarcaPagado(doc, W, H);
     else _agregarMarcaPendiente(doc, W, H);
-    _entregarFacturaPDF(doc, `Factura_Revendedor_${nroFact}.pdf`, esPagado, env.telefono);
+    _entregarFacturaPDF(doc, `Factura_Revendedor_${nroFact}.pdf`, estadoFactura, env.telefono);
     toast('Factura descargada', true);
 }
 function toast(m, type) {
@@ -8174,7 +8181,19 @@ window.addEventListener('load', init);
         // revendedor, según el botón que lo disparó).
         try { body = JSON.stringify({ filename: c.name, pdfBase64: b64(c) }); } catch (_) { return origOpen.apply(window, args); }
         var w = origOpen('', '_blank');           // se abre ya (dentro del toque) y se completa al terminar la subida
-        var ir = function (url) { if (w) { try { w.location.href = url; return; } catch (_) {} } origOpen(url, '_blank'); };
+        // 🔧 FIX: en celular (sobre todo iOS) el redirect tardío de una
+        // pestaña en blanco a veces no se completaba — se agrega un
+        // .focus() antes (algunos navegadores móviles necesitan la pestaña
+        // enfocada para aceptar la navegación) y un segundo intento con
+        // .replace() antes de rendirse al último fallback.
+        var ir = function (url) {
+            if (w) {
+                try { w.focus(); } catch (_) {}
+                try { w.location.href = url; return; } catch (_) {}
+                try { w.location.replace(url); return; } catch (_) {}
+            }
+            origOpen(url, '_blank');
+        };
         Promise.resolve().then(auth).then(function (h) {
             if (!h) throw new Error('sin auth');
             h['Content-Type'] = 'application/json';
