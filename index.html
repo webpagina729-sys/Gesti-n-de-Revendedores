@@ -1455,6 +1455,28 @@ body.light-theme .lvl-panel-vermas { color:#000; }
     </div>
 </div>
 
+<!-- 🆕 TAREA 60 — Aviso por pedido/cliente: un producto de un pedido
+     propio (todavía sin pagar a precio mayorista) se quedó sin stock.
+     Ver _mostrarSiguienteAvisoStockPedidoCliente. Cada pedido/cliente
+     afectado reutiliza este MISMO modal en cola, uno a la vez — nunca
+     agrupados — así cada cliente se notifica (o no) por separado. -->
+<div class="modal-overlay" id="avisoStockPedidoModal">
+    <div class="modal-box">
+        <div class="modal-icon" style="background:var(--red-pale)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </div>
+        <h3>Producto sin stock en un pedido tuyo</h3>
+        <p id="avisoStockPedidoTexto" style="margin-top:-8px"></p>
+        <div class="modal-actions" style="flex-direction:column;gap:8px">
+            <button type="button" id="avisoStockPedidoBtnNotificar" style="background:#25D366;color:#fff;border:none;border-radius:11px;width:100%;box-sizing:border-box;padding:12px 16px;display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;font-family:inherit" onclick="_notificarClienteAvisoStockPedido()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38c1.45.79 3.08 1.21 4.78 1.21h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2zm0 1.67c2.27 0 4.4.89 6 2.49a8.26 8.26 0 0 1 2.43 5.85c0 4.55-3.7 8.25-8.25 8.25h-.01c-1.46 0-2.9-.39-4.15-1.13l-.3-.17-3.12.82.83-3.04-.19-.31a8.19 8.19 0 0 1-1.28-4.42c0-4.56 3.72-8.25 8.26-8.25z"/><path d="M8.9 7.15c-.18-.4-.37-.4-.54-.41h-.46c-.16 0-.42.06-.64.3-.22.24-.84.82-.84 2s.86 2.32.98 2.48c.12.16 1.7 2.59 4.17 3.63.58.25 1.03.4 1.38.51.58.19 1.11.16 1.53.1.47-.07 1.44-.59 1.64-1.16.2-.57.2-1.06.14-1.16-.06-.1-.22-.16-.46-.28-.24-.12-1.44-.71-1.66-.79-.22-.08-.39-.12-.55.12-.16.24-.63.79-.78.95-.14.16-.28.18-.52.06-.24-.12-1.03-.38-1.96-1.21-.72-.65-1.21-1.44-1.35-1.68-.14-.24-.01-.37.11-.49.11-.11.24-.28.36-.42.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.54-1.32-.75-1.8z"/></svg>
+                <span style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Notificar del Cambio al Cliente</span>
+            </button>
+            <button type="button" class="modal-cancel" style="width:100%" onclick="_continuarSinNotificarAvisoStockPedido()">Continuar sin Notificar</button>
+        </div>
+    </div>
+</div>
+
 <!-- ══ MODAL COMPLETA TUS DATOS DE ENVÍO ══ -->
 <!-- 🔧 NUEVO: antes de llegar al pago, se piden los datos de envío
      del revendedor (los que pedidos.html usa para "Ejecutar Pedido").
@@ -4795,6 +4817,9 @@ function loadData() {
 
             renderAll();
             try { _updatePedidoListaBadge(); } catch(_) {}
+            // 🆕 TAREA 60: no se espera (sin await) — es un aviso informativo,
+            // no debe demorar la carga del panel. Ver _chequearAvisoStockPedidoCliente.
+            _chequearAvisoStockPedidoCliente();
 
             const { pend, apro } = contarPedidosPorEstado();
             const tot = pend + apro;
@@ -4914,6 +4939,145 @@ function renderAll() {
 
     refreshActiveView();
     try { renderLevelBar(); } catch(_) {}
+}
+
+// ═══════════════════════════════════════════════════════════
+// 🆕 TAREA 60 — Aviso por pedido/cliente: cuando un producto de UN
+// pedido PROPIO (todavía sin pagar a precio mayorista) se queda sin
+// stock, se le ofrece al revendedor notificar a SU cliente por
+// WhatsApp. Es DISTINTO del aviso general de "cambios de stock" que
+// usan index.html/mas-categorias.html (ese avisa de la plataforma en
+// general, con imágenes, a cualquiera que entra a una categoría) — este
+// otro es puntual, por cada pedido afectado, y vive solo acá en
+// "Mi Panel" (Index(1).html).
+//
+// Fuente de datos: el mismo registro /api/cambios-stock
+// (panelgestionestados) que ya usa index.html para avisar variantes —
+// ahora también lo escribe workerproveedores_worker.js cuando es el
+// PROVEEDOR quien togglea el stock (ver handleToggleStockProveedor),
+// además de pedidos.html cuando lo togglea el admin (ya existía). Se
+// cruza por NOMBRE de producto porque los items del pedido
+// (p.items = [{nombre,cantidad,precio}]) no guardan id ni categoría —
+// riesgo ya señalado y aceptado: no se cambia cómo se guardan los
+// pedidos para no romper nada.
+//
+// "Ya decidido" (notificó o no) por pedido+producto se guarda en el
+// servidor (colección avisosStockPedidoCliente, por identidad
+// verificada del revendedor) — nunca en localStorage — así el aviso no
+// vuelve a aparecer para ese mismo par en otro dispositivo, y si el
+// cliente queda sin seguimiento (todavía sin decidir) sigue apareciendo
+// hasta que el revendedor elija una de las dos opciones.
+// ═══════════════════════════════════════════════════════════
+let AVISO_STOCK_PEDIDO_VISTO = {};
+let _colaAvisoStockPedidoCliente = [];
+let _avisoStockPedidoActual = null;
+
+function _limpiarNombreAvisoStock(s) {
+    return String(s || '').trim().toUpperCase()
+        .replace(/\s*\(T\.?\s*\d+\)\s*/gi, '')
+        .replace(/\s+/g, ' ').trim();
+}
+
+async function _chequearAvisoStockPedidoCliente() {
+    if (!currentCode) return;
+    try {
+        const [resCambios, resVisto] = await Promise.all([
+            fetch(WORKER_ESTADOS + '/api/cambios-stock').then(r => r.json()).catch(() => null),
+            fetch('https://datosderevendedor.tuweb.workers.dev/api/aviso-stock-pedido/obtener', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ codigo: currentCode, uid: currentUid || '' })
+            }).then(r => r.json()).catch(() => null),
+        ]);
+        AVISO_STOCK_PEDIDO_VISTO = (resVisto && resVisto.ok && resVisto.visto) || {};
+        const cambiosPorCatalogo = (resCambios && resCambios.ok && resCambios.cambios) || {};
+
+        // Último estado conocido por nombre de producto — cada lista está
+        // en orden cronológico de inserción, así que el último "quitado"/
+        // "agregado" que aparece para un nombre es el vigente (si se quitó
+        // y se repuso varias veces, lo que importa es cómo quedó ahora).
+        const ultimoEstadoPorNombre = {};
+        Object.keys(cambiosPorCatalogo).forEach(cat => {
+            const lista = Array.isArray(cambiosPorCatalogo[cat]) ? cambiosPorCatalogo[cat] : [];
+            lista.forEach(c => {
+                if (!c || c.tipo !== 'producto' || !c.productNombre) return;
+                const n = _limpiarNombreAvisoStock(c.productNombre);
+                const prevTs = ultimoEstadoPorNombre[n] ? ultimoEstadoPorNombre[n].timestamp : -1;
+                if ((c.timestamp || 0) >= prevTs) ultimoEstadoPorNombre[n] = { accion: c.accion, timestamp: c.timestamp || 0 };
+            });
+        });
+
+        const gananciasIds = new Set(getGananciasOficiales().map(g => g.id));
+        const cola = [];
+        pedidos.forEach(p => {
+            if (gananciasIds.has(p.id)) return; // ya pagado a precio mayorista: no corresponde avisar
+            const items = Array.isArray(p.items) ? p.items : [];
+            items.forEach(it => {
+                const n = _limpiarNombreAvisoStock(it && it.nombre);
+                if (!n) return;
+                const estado = ultimoEstadoPorNombre[n];
+                if (!estado || estado.accion !== 'quitado') return;
+                const clave = p.id + '|' + n;
+                if (AVISO_STOCK_PEDIDO_VISTO[clave]) return; // ya decidido para este pedido+producto
+                cola.push({ clave, pedido: p, nombreProducto: it.nombre });
+            });
+        });
+
+        _colaAvisoStockPedidoCliente = cola;
+        _mostrarSiguienteAvisoStockPedidoCliente();
+    } catch (e) { /* silencioso: es un aviso informativo, no algo crítico */ }
+}
+
+function _mostrarSiguienteAvisoStockPedidoCliente() {
+    if (!_colaAvisoStockPedidoCliente.length) return;
+    // No interrumpe si ya hay un modal de este tipo abierto (ej. llamado
+    // dos veces seguidas antes de que el primero se cierre).
+    const modal = document.getElementById('avisoStockPedidoModal');
+    if (modal && modal.classList.contains('show')) return;
+    _avisoStockPedidoActual = _colaAvisoStockPedidoCliente.shift();
+    const { pedido, nombreProducto } = _avisoStockPedidoActual;
+    const cli = pedido._clienteName || [pedido.cliente?.nombre, pedido.cliente?.apellido].filter(Boolean).join(' ') || 'tu cliente';
+    document.getElementById('avisoStockPedidoTexto').textContent =
+        `El producto "${nombreProducto}" que le vendiste a ${cli} se quedó sin stock. Todavía podés avisarle para que elija otro mientras el pedido no se pasó a precio mayorista.`;
+    if (modal) modal.classList.add('show');
+}
+
+async function _marcarAvisoStockPedidoDecidido() {
+    if (!_avisoStockPedidoActual) return;
+    try {
+        await fetch('https://datosderevendedor.tuweb.workers.dev/api/aviso-stock-pedido/guardar', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ codigo: currentCode, uid: currentUid || '', claves: [_avisoStockPedidoActual.clave] })
+        });
+    } catch (_) {}
+    AVISO_STOCK_PEDIDO_VISTO[_avisoStockPedidoActual.clave] = true;
+}
+
+async function _notificarClienteAvisoStockPedido() {
+    if (!_avisoStockPedidoActual) return;
+    const { pedido, nombreProducto } = _avisoStockPedidoActual;
+    const env = pedido.envio || pedido.cliente || {};
+    const nombreCliente = (pedido._clienteName || env.nombre || '').toString().trim() || 'Hola';
+    const telLimpio = (env.telefono || '').toString().replace(/\D/g, '');
+    const linkTienda = 'https://tutiendapropia.revendeways.shop/?tienda=' + encodeURIComponent(currentCode);
+    const mensaje = `Hola ${nombreCliente} te escribo para informarte que nuestro proveedor agotó el stock de ${nombreProducto} pero podemos hacer el cambió ya que todavía no se paso el pedido! Te dejo mi tienda para que elijas otro producto similar al mismo o diferente y al terminar coordinamos con el total de la seña. (${linkTienda})`;
+    const waUrl = telLimpio
+        ? `https://wa.me/${telLimpio}?text=${encodeURIComponent(mensaje)}`
+        : `https://wa.me/?text=${encodeURIComponent(mensaje)}`;
+    window.open(waUrl, '_blank');
+    if (!telLimpio) toast('Este cliente no tiene WhatsApp registrado — se abrió WhatsApp sin un número cargado', 'err');
+    await _marcarAvisoStockPedidoDecidido();
+    const modal = document.getElementById('avisoStockPedidoModal');
+    if (modal) modal.classList.remove('show');
+    _avisoStockPedidoActual = null;
+    _mostrarSiguienteAvisoStockPedidoCliente();
+}
+
+async function _continuarSinNotificarAvisoStockPedido() {
+    await _marcarAvisoStockPedidoDecidido();
+    const modal = document.getElementById('avisoStockPedidoModal');
+    if (modal) modal.classList.remove('show');
+    _avisoStockPedidoActual = null;
+    _mostrarSiguienteAvisoStockPedidoCliente();
 }
 
 function renderStats(ps, k) {
