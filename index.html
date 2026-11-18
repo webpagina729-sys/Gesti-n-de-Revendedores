@@ -5898,6 +5898,12 @@ let seguimientoPedidos = [];
 let _segDocs = [];
 
 const WORKER_PROVEEDORES = 'https://workerproveedores.tuweb.workers.dev';
+// 🆕 Sociedades: el despacho de un pedido de sociedad queda a nombre de
+// quien la creó, así que workerproveedores_worker.js (sin tocarse) solo le
+// muestra el seguimiento a esa persona. Este Worker aparte expone /seguimiento
+// para que TODOS los integrantes vean el mismo estado — se mezcla de forma
+// aditiva en cargarSeguimiento(), nunca reemplaza lo que ya se cargaba ahí.
+const WORKER_SOCIEDADES = 'https://sociedadesworker.tuweb.workers.dev';
 const SEG_AVISO_KEY = 'rw_seg_aviso_visto';
 function _segAvisoLocal() {
     try { return new Set(JSON.parse(localStorage.getItem(SEG_AVISO_KEY) || '[]').map(String)); } catch(_) { return new Set(); }
@@ -5932,9 +5938,10 @@ async function _segFetch(url, ms) {
 async function cargarSeguimiento() {
     if (!currentCode) return;
     const cod = encodeURIComponent(currentCode);
-    const [rStock, rDocs] = await Promise.all([
+    const [rStock, rDocs, rSociedad] = await Promise.all([
         _segFetch(`${WORKER_MAYORISTA}/api/pedidos-stock?codigoVendedor=${cod}&estadoPedido=CONFIRMADO`).catch(e => { console.error('cargarSeguimiento stock:', e); return null; }),
         _segFetch(`${WORKER_PROVEEDORES}/api/pedidos-proveedor/revendedor?codigoVendedor=${cod}`).catch(e => { console.error('cargarSeguimiento docs:', e); return null; }),
+        _segFetch(`${WORKER_SOCIEDADES}/seguimiento?codigo=${cod}`).catch(e => { console.error('cargarSeguimiento sociedad:', e); return null; }),
     ]);
     // Si falla la red se conserva lo último cargado (no se vacía la lista).
     if (!rStock && !rDocs) { renderSeguimiento(); return; }
@@ -5954,6 +5961,24 @@ async function cargarSeguimiento() {
             pedidoId: d.id, _soloDoc: true, _docs: [d], _estado: _segEstadoDe([d]),
             fechaISO: d.enviadoEn || '', totalMayorista: d.totalMayorista,
             productos: d.cantidadProductos ? [{ cantidad: d.cantidadProductos }] : [],
+        });
+    });
+    // 🆕 Sociedades: se suman de forma ADITIVA los pedidos de sociedad en los
+    // que participo (aunque el despacho esté a nombre de otra persona, la que
+    // creó la sociedad) — sin pisar nada de lo que ya se armó arriba. Si el
+    // pedido de la sociedad coincide con uno ya mostrado (soy yo el creador,
+    // y ya me apareció vía WORKER_PROVEEDORES), no se duplica.
+    const pedidosSociedadYaVistos = new Set(lista.map(p => String(p.pedidoId || '')));
+    (Array.isArray(rSociedad?.seguimiento) ? rSociedad.seguimiento : []).forEach(s => {
+        const pid = String(s.pedidoId || '');
+        if (!pid || pedidosSociedadYaVistos.has(pid)) return;
+        pedidosSociedadYaVistos.add(pid);
+        const docFalso = { estado: s.estado, seguimientoEnviadoEn: s.seguimientoEnviadoEn || '' };
+        lista.push({
+            pedidoId: pid, _soloDoc: true, _esSociedad: true,
+            _docs: [docFalso], _estado: _segEstadoDe([docFalso]),
+            fechaISO: s.estadoActualizadoEn || '', totalMayorista: null,
+            productos: [], _sociedadCategoriaLabel: s.categoriaLabel, _sociedadCreador: s.creadorNombre,
         });
     });
     // Solo los que el dueño ya envió en camino o están recibidos, o siguen procesando.
@@ -5983,7 +6008,13 @@ function renderSeguimiento() {
         const total = p.totalMayorista ? `$${Number(p.totalMayorista).toLocaleString('es-AR')}` : '';
         const pid = esc(String(p.pedidoId || ''));
         const est = p._estado || 'procesando';
-        const activo = est === 'en_camino';
+        // 🆕 En un pedido de sociedad, el despacho queda a nombre de quien
+        // pagó — solo esa persona puede marcarlo "Recibido" (ese botón ya le
+        // aparece habilitado en SU propia tarjeta, sin el flag _esSociedad,
+        // vía el circuito normal de WORKER_PROVEEDORES). Para el resto de
+        // los integrantes este botón queda deshabilitado, para no intentar
+        // una acción que el servidor va a rechazar por no ser el dueño.
+        const activo = est === 'en_camino' && !p._esSociedad;
         return `
         <div class="seg-card" data-pedido-id="${pid}">
             <div class="seg-card-top">
@@ -5991,7 +6022,9 @@ function renderSeguimiento() {
                 ${p.numeroPedido ? `<span class="seg-num">#${esc(String(p.numeroPedido))}</span>` : ''}
             </div>
             <div class="seg-card-body">
+                ${p._esSociedad ? `<div class="seg-row">👥 Sociedad${p._sociedadCategoriaLabel ? ' · ' + esc(p._sociedadCategoriaLabel) : ''}</div>` : ''}
                 <div class="seg-row"><strong>${cant} producto${cant !== 1 ? 's' : ''}</strong>${total ? ` · ${total}` : ''}</div>
+                ${p._esSociedad && p._sociedadCreador ? `<div class="seg-row seg-fecha">Paga y recibe: ${esc(p._sociedadCreador)}</div>` : ''}
                 ${fecha ? `<div class="seg-row seg-fecha">${fecha}</div>` : ''}
             </div>
             <div class="seg-card-actions">
