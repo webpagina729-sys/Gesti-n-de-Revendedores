@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Sociedades | Revende Ways</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<style>
+:root{
+    --bg:#0b0d12; --bg2:#111318; --bg3:#16181f; --surface:#1c1f2a; --surface2:#222536;
+    --border:rgba(255,255,255,.07); --border2:rgba(255,255,255,.12);
+    --text:#e8eaf0; --text2:#9aa0b4; --text3:#5a6070;
+    --green:#00c96e; --green-pale:rgba(0,201,110,.12);
+    --amber:#f59e0b; --amber-pale:rgba(245,158,11,.12);
+    --red:#f43f5e; --red-pale:rgba(244,63,94,.12);
+    --blue:#0066ff; --blue-pale:rgba(0,102,255,.12);
+    --radius:10px; --font:'DM Sans',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+    background:var(--bg); color:var(--text); font-family:var(--font);
+    min-height:100vh; padding-bottom:40px; -webkit-font-smoothing:antialiased;
+}
+.topbar{
+    display:flex; align-items:center; gap:10px; padding:14px 16px;
+    background:var(--bg2); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:20;
+}
+.topbar .back{
+    background:var(--surface); border:1px solid var(--border2); color:var(--text);
+    border-radius:10px; width:36px; height:36px; display:flex; align-items:center; justify-content:center;
+    cursor:pointer; flex-shrink:0;
+}
+.topbar h1{font-size:16px; font-weight:800}
+.topbar .sub{font-size:11px; color:var(--text2)}
+.wrap{max-width:640px; margin:0 auto; padding:16px}
+.card{
+    background:var(--surface); border:1px solid var(--border); border-radius:14px;
+    padding:16px; margin-bottom:14px;
+}
+.card h2{font-size:14px; font-weight:700; margin-bottom:10px; display:flex; align-items:center; gap:6px}
+.card h2 svg{flex-shrink:0}
+label{font-size:11.5px; color:var(--text2); font-weight:600; display:block; margin-bottom:5px; margin-top:10px}
+label:first-child{margin-top:0}
+select,input{
+    width:100%; background:var(--bg3); border:1px solid var(--border2); color:var(--text);
+    border-radius:9px; padding:10px 12px; font-size:13.5px; font-family:var(--font);
+}
+select:focus,input:focus{outline:none; border-color:var(--blue)}
+.btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:7px;
+    border:none; border-radius:10px; padding:11px 16px; font-size:13.5px; font-weight:700;
+    cursor:pointer; font-family:var(--font); width:100%; margin-top:14px;
+}
+.btn-primary{background:var(--blue); color:#fff}
+.btn-green{background:var(--green); color:#0b0d12}
+.btn-outline{background:transparent; border:1px solid var(--border2); color:var(--text)}
+.btn-red{background:var(--red-pale); color:var(--red); border:1px solid rgba(244,63,94,.2)}
+.btn:disabled{opacity:.45; cursor:not-allowed}
+.btn-sm{width:auto; padding:7px 12px; font-size:12px; margin-top:0}
+.row{display:flex; gap:8px}
+.row>*{flex:1}
+.pill{
+    display:inline-flex; align-items:center; gap:4px; font-size:10.5px; font-weight:700;
+    padding:3px 9px; border-radius:20px;
+}
+.pill-abierta{background:var(--green-pale); color:var(--green)}
+.pill-pagada{background:var(--blue-pale); color:var(--blue)}
+.pill-cerrada{background:rgba(255,255,255,.08); color:var(--text2)}
+.pill-pendiente{background:var(--amber-pale); color:var(--amber)}
+.empty{text-align:center; color:var(--text3); font-size:12.5px; padding:22px 10px}
+.empty svg{opacity:.4; margin-bottom:8px}
+.soc-item{
+    background:var(--bg3); border:1px solid var(--border); border-radius:12px;
+    padding:12px 14px; margin-bottom:10px; cursor:pointer;
+}
+.soc-item:active{opacity:.85}
+.soc-head{display:flex; align-items:center; justify-content:space-between; gap:8px}
+.soc-head strong{font-size:13px}
+.soc-meta{font-size:11px; color:var(--text2); margin-top:4px}
+.bar-track{background:rgba(255,255,255,.08); border-radius:20px; height:8px; margin-top:8px; overflow:hidden}
+.bar-fill{background:var(--green); height:100%; border-radius:20px; transition:width .3s}
+.bar-fill.falta{background:var(--amber)}
+.member-row{
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    padding:9px 0; border-top:1px solid var(--border);
+}
+.member-row:first-child{border-top:none}
+.member-row .m-name{font-size:12.5px; font-weight:600}
+.member-row .m-sub{font-size:10.5px; color:var(--text2)}
+.toast{
+    position:fixed; bottom:20px; left:50%; transform:translateX(-50%) translateY(20px);
+    background:var(--surface2); border:1px solid var(--border2); color:var(--text);
+    padding:11px 18px; border-radius:10px; font-size:12.5px; font-weight:600;
+    opacity:0; transition:all .25s; z-index:999; max-width:88vw; text-align:center;
+    box-shadow:0 8px 24px rgba(0,0,0,.5);
+}
+.toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
+.toast.err{background:var(--red-pale); color:var(--red); border-color:rgba(244,63,94,.25)}
+.hidden{display:none !important}
+.loading-screen{
+    position:fixed; inset:0; background:var(--bg); display:flex; align-items:center;
+    justify-content:center; z-index:999; flex-direction:column; gap:10px;
+}
+.spinner{width:28px; height:28px; border:3px solid var(--border2); border-top-color:var(--blue); border-radius:50%; animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.sep{height:1px; background:var(--border); margin:14px 0}
+.tag-list{display:flex; flex-wrap:wrap; gap:6px; margin-top:6px}
+.tag{background:var(--bg3); border:1px solid var(--border2); border-radius:8px; padding:5px 9px; font-size:11.5px; display:flex; align-items:center; gap:6px}
+.tag button{background:var(--blue); color:#fff; border:none; border-radius:6px; padding:3px 8px; font-size:10px; font-weight:700; cursor:pointer}
+</style>
+</head>
+<body>
+
+<div class="loading-screen" id="loadingScreen">
+    <div class="spinner"></div>
+    <div style="font-size:12px;color:var(--text2)">Cargando...</div>
+</div>
+
+<div class="topbar">
+    <button class="back" onclick="window.location.href='index (1).html'" aria-label="Volver">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+    <div>
+        <h1>Sociedades</h1>
+        <div class="sub" id="topbarSub">Juntate con otro revendedor de tu ciudad</div>
+    </div>
+</div>
+
+<div class="wrap" id="appWrap" style="display:none">
+
+    <!-- Mis sociedades -->
+    <div class="card" id="cardMias">
+        <h2>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--blue)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Mis sociedades
+        </h2>
+        <div id="listaMias"><div class="empty">Buscando tus sociedades...</div></div>
+    </div>
+
+    <!-- Crear nueva -->
+    <div class="card">
+        <h2>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--green)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Formar una sociedad nueva
+        </h2>
+        <label>Categoría</label>
+        <select id="selCategoria"></select>
+        <label>Ciudad</label>
+        <input id="inputCiudad" type="text" placeholder="Tu ciudad" readonly style="opacity:.75">
+        <div style="font-size:10.5px;color:var(--text3);margin-top:4px">Se usa la ciudad de tu perfil. Si está mal, corregila desde "Completar Datos" en tu panel.</div>
+        <button class="btn btn-green" id="btnCrear" onclick="crearSociedad()">Crear sociedad en mi ciudad y categoría</button>
+    </div>
+
+    <!-- Buscar / unirse -->
+    <div class="card">
+        <h2>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--amber)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            Buscar sociedades abiertas
+        </h2>
+        <label>Categoría a buscar</label>
+        <select id="selCategoriaBuscar"></select>
+        <button class="btn btn-outline" onclick="buscarSociedades()">Buscar en mi ciudad</button>
+        <div id="resultadosBusqueda" style="margin-top:12px"></div>
+    </div>
+
+</div>
+
+<!-- Modal detalle de sociedad -->
+<div id="modalDetalle" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;display:flex;align-items:flex-end;justify-content:center">
+    <div style="background:var(--bg2);border-radius:18px 18px 0 0;max-width:640px;width:100%;max-height:88vh;overflow-y:auto;padding:18px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <strong style="font-size:15px" id="detTitulo">Sociedad</strong>
+            <button onclick="cerrarDetalle()" style="background:var(--surface);border:1px solid var(--border2);color:var(--text);border-radius:8px;width:30px;height:30px;cursor:pointer">✕</button>
+        </div>
+        <div id="detBody"></div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// Sociedades — se conecta ÚNICAMENTE a sociedadesworker.tuweb.workers.dev
+// Reutiliza la MISMA sesión de Firebase que index (1).html (mismo
+// firebaseConfig, mismas claves de localStorage) para identificar al
+// revendedor logueado, sin tocar ni depender de ningún otro archivo.
+// ═══════════════════════════════════════════════════════════════
+
+const WORKER_SOCIEDADES = 'https://sociedadesworker.tuweb.workers.dev';
+const S_KEY = 'rw_reseller_v1';
+
+const NICHO_LABEL = {
+    perfumes: 'Perfumería', belleza: 'Belleza y Cuidado Personal', calzados: 'Calzados Importados',
+    bazar: 'Bazar', jugueteria: 'Juguetería', libreria: 'Librería', lenceria: 'Conjuntos/Lencería',
+    indumentaria: 'Remeras Premium brn', suplementos: 'Salud/Suplementos', multishop: 'Multishop'
+};
+
+let miCodigo = '';
+let miUid = '';
+let miNombre = '';
+let miCiudad = '';
+
+function toast(msg, ok) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (ok ? '' : ' err');
+    clearTimeout(window._toastTimer);
+    window._toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+function poblarSelect(sel) {
+    sel.innerHTML = Object.keys(NICHO_LABEL).map(k => `<option value="${k}">${NICHO_LABEL[k]}</option>`).join('');
+}
+
+const firebaseConfig = {
+    apiKey: "AIzaSyBRzd3HXbY6xIBIBNkzATo70kredodhKwc",
+    authDomain: "revende-weys.firebaseapp.com",
+    projectId: "revende-weys",
+    storageBucket: "revende-weys.firebasestorage.app",
+    messagingSenderId: "606182275212",
+    appId: "1:606182275212:web:69089eb56f10b8a02063a9",
+    measurementId: "G-MBX4GSRCBL"
+};
+if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+const _auth = firebase.auth();
+const _db = firebase.firestore();
+_auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
+
+function irALogin() {
+    document.getElementById('loadingScreen').innerHTML =
+        '<div style="text-align:center;padding:0 24px">' +
+        '<div style="font-size:13px;color:var(--text2);margin-bottom:12px">Necesitás iniciar sesión en tu panel para usar Sociedades.</div>' +
+        '<button class="btn btn-primary" style="width:auto" onclick="window.location.href=\'index (1).html\'">Ir a mi panel</button>' +
+        '</div>';
+}
+
+_auth.onAuthStateChanged(async (fbUser) => {
+    if (!fbUser) { irALogin(); return; }
+    try {
+        const stored = sessionStorage.getItem(S_KEY) || localStorage.getItem(S_KEY);
+        let sess = stored ? JSON.parse(stored) : null;
+        if (!sess || !sess.code || sess.uid !== fbUser.uid) {
+            // Sesión guardada no coincide — se resuelve directo por uid, igual que el panel.
+            const snap = await _db.collection('usuarios').doc(fbUser.uid).get();
+            if (!snap.exists) { irALogin(); return; }
+            const d = snap.data();
+            sess = { code: d.codigoVendedor, uid: fbUser.uid, nombre: d.nombre || '', apellido: d.apellido || '' };
+        }
+        miCodigo = sess.code;
+        miUid = sess.uid;
+        miNombre = [sess.nombre, sess.apellido].filter(Boolean).join(' ') || miCodigo;
+
+        const perfil = await _db.collection('usuarios').doc(miUid).get();
+        miCiudad = (perfil.exists && perfil.data().ciudad) ? perfil.data().ciudad : '';
+
+        document.getElementById('inputCiudad').value = miCiudad || 'Sin ciudad cargada';
+        document.getElementById('topbarSub').textContent = miNombre + (miCiudad ? ' · ' + miCiudad : '');
+        poblarSelect(document.getElementById('selCategoria'));
+        poblarSelect(document.getElementById('selCategoriaBuscar'));
+
+        document.getElementById('loadingScreen').style.display = 'none';
+        document.getElementById('appWrap').style.display = 'block';
+
+        if (!miCiudad) {
+            toast('Cargá tu ciudad en "Completar Datos" desde el panel para poder usar Sociedades', false);
+        }
+
+        cargarMisSociedades();
+    } catch (e) {
+        console.error(e);
+        irALogin();
+    }
+});
+
+async function cargarMisSociedades() {
+    const cont = document.getElementById('listaMias');
+    if (!miCodigo) { cont.innerHTML = '<div class="empty">No se pudo identificar tu código de revendedor.</div>'; return; }
+    try {
+        const res = await fetch(`${WORKER_SOCIEDADES}/mias?codigo=${encodeURIComponent(miCodigo)}`);
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Error');
+        if (!data.sociedades.length) {
+            cont.innerHTML = '<div class="empty"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><div>Todavía no formás parte de ninguna sociedad.</div></div>';
+            return;
+        }
+        cont.innerHTML = data.sociedades.map(s => renderSociedadItem(s)).join('');
+    } catch (e) {
+        cont.innerHTML = '<div class="empty">No se pudieron cargar tus sociedades.</div>';
+    }
+}
+
+function pillEstado(s) {
+    if (s.estado === 'pagada') return '<span class="pill pill-pagada">Pagada</span>';
+    if (s.estado === 'cerrada') return '<span class="pill pill-cerrada">Cerrada</span>';
+    return '<span class="pill pill-abierta">Abierta</span>';
+}
+
+function renderSociedadItem(s) {
+    const cat = NICHO_LABEL[s.categoria] || s.categoria;
+    const pendientes = (s.miembros || []).filter(m => m.codigo === miCodigo && (m.estado === 'pendiente_invitacion')).length;
+    return `<div class="soc-item" onclick="abrirDetalle('${s.id}')">
+        <div class="soc-head">
+            <strong>${esc(cat)} · ${esc(s.ciudadLabel || s.ciudad)}</strong>
+            ${pillEstado(s)}
+        </div>
+        <div class="soc-meta">Creada por ${esc(s.creadorNombre || s.creadorCodigo)} · ${(s.miembros||[]).filter(m=>m.estado==='aceptado').length} integrante(s)</div>
+        ${pendientes ? '<div class="soc-meta" style="color:var(--amber);margin-top:4px">📩 Tenés una invitación pendiente — tocá para responder</div>' : ''}
+    </div>`;
+}
+
+function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+async function crearSociedad() {
+    if (!miCiudad) { toast('Primero completá tu ciudad en el panel', false); return; }
+    const categoria = document.getElementById('selCategoria').value;
+    const btn = document.getElementById('btnCrear');
+    btn.disabled = true; btn.textContent = 'Creando...';
+    try {
+        const res = await fetch(`${WORKER_SOCIEDADES}/crear`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ codigoVendedor: miCodigo, ciudad: miCiudad, categoria })
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Error');
+        toast('✅ Sociedad creada', true);
+        cargarMisSociedades();
+        abrirDetalle(data.sociedadId);
+    } catch (e) {
+        toast('No se pudo crear: ' + e.message, false);
+    } finally {
+        btn.disabled = false; btn.textContent = 'Crear sociedad en mi ciudad y categoría';
+    }
+}
+
+async function buscarSociedades() {
+    if (!miCiudad) { toast('Primero completá tu ciudad en el panel', false); return; }
+    const categoria = document.getElementById('selCategoriaBuscar').value;
+    const cont = document.getElementById('resultadosBusqueda');
+    cont.innerHTML = '<div class="empty">Buscando...</div>';
+    try {
+        const res = await fetch(`${WORKER_SOCIEDADES}/buscar?ciudad=${encodeURIComponent(miCiudad)}&categoria=${categoria}&codigo=${encodeURIComponent(miCodigo)}`);
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Error');
+
+        let html = '';
+        if (data.sociedades.length) {
+            html += '<div style="font-size:11px;color:var(--text2);margin-bottom:6px;font-weight:700">SOCIEDADES ABIERTAS</div>';
+            html += data.sociedades.map(s => `<div class="soc-item" onclick="abrirDetalle('${s.id}')">
+                <div class="soc-head"><strong>Creada por ${esc(s.creadorNombre)}</strong>${pillEstado(s)}</div>
+                <div class="soc-meta">${(s.miembros||[]).filter(m=>m.estado==='aceptado').length} integrante(s) — tocá para pedir unirte</div>
+            </div>`).join('');
+        }
+        if (data.revendedores && data.revendedores.length) {
+            html += '<div style="font-size:11px;color:var(--text2);margin:12px 0 6px;font-weight:700">REVENDEDORES DE TU CIUDAD</div>';
+            html += data.revendedores.map(r => `<div class="member-row">
+                <div><div class="m-name">${esc(r.nombre)}</div><div class="m-sub">${esc(r.codigo)}</div></div>
+                <button class="btn btn-sm btn-primary" onclick="crearEInvitar('${categoria}','${esc(r.codigo)}')">Invitar</button>
+            </div>`).join('');
+        }
+        if (!html) html = '<div class="empty">No encontramos sociedades ni revendedores en tu ciudad para esta categoría todavía.</div>';
+        cont.innerHTML = html;
+    } catch (e) {
+        cont.innerHTML = '<div class="empty">No se pudo buscar.</div>';
+    }
+}
+
+async function crearEInvitar(categoria, codigoInvitado) {
+    try {
+        const resCrear = await fetch(`${WORKER_SOCIEDADES}/crear`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ codigoVendedor: miCodigo, ciudad: miCiudad, categoria })
+        });
+        const dataCrear = await resCrear.json();
+        if (!dataCrear.ok) throw new Error(dataCrear.error || 'Error al crear');
+
+        const resInv = await fetch(`${WORKER_SOCIEDADES}/invitar`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sociedadId: dataCrear.sociedadId, codigoInvitado })
+        });
+        const dataInv = await resInv.json();
+        if (!dataInv.ok) throw new Error(dataInv.error || 'Error al invitar');
+
+        toast('✅ Sociedad creada e invitación enviada', true);
+        cargarMisSociedades();
+        abrirDetalle(dataCrear.sociedadId);
+    } catch (e) {
+        toast('No se pudo invitar: ' + e.message, false);
+    }
+}
+
+let sociedadActual = null;
+
+async function abrirDetalle(sociedadId) {
+    document.getElementById('modalDetalle').classList.remove('hidden');
+    document.getElementById('detBody').innerHTML = '<div class="empty">Cargando...</div>';
+    await refrescarDetalle(sociedadId);
+}
+function cerrarDetalle() {
+    document.getElementById('modalDetalle').classList.add('hidden');
+    sociedadActual = null;
+}
+
+async function refrescarDetalle(sociedadId) {
+    try {
+        const [resObj, resMias] = await Promise.all([
+            fetch(`${WORKER_SOCIEDADES}/objetivo?sociedadId=${encodeURIComponent(sociedadId)}`),
+            fetch(`${WORKER_SOCIEDADES}/mias?codigo=${encodeURIComponent(miCodigo)}`)
+        ]);
+        const obj = await resObj.json();
+        const mias = await resMias.json();
+        if (!obj.ok) throw new Error(obj.error || 'Error');
+        const sociedad = (mias.sociedades || []).find(s => s.id === sociedadId);
+        sociedadActual = sociedad || { id: sociedadId };
+        renderDetalle(sociedadId, obj, sociedadActual);
+    } catch (e) {
+        document.getElementById('detBody').innerHTML = `<div class="empty">No se pudo cargar: ${esc(e.message)}</div>`;
+    }
+}
+
+function renderDetalle(sociedadId, obj, sociedad) {
+    document.getElementById('detTitulo').textContent = `${obj.categoriaLabel} · ${sociedad.ciudadLabel || sociedad.ciudad || ''}`;
+
+    const unidad = obj.tipo === 'unidades' ? 'unidades' : '$';
+    const actualTxt = obj.tipo === 'unidades' ? obj.valorActual : `$${Math.round(obj.valorActual).toLocaleString()}`;
+    const objTxt = obj.tipo === 'unidades' ? obj.objetivo : `$${Math.round(obj.objetivo).toLocaleString()}`;
+
+    const miMiembro = (sociedad.miembros || []).find(m => m.codigo === miCodigo);
+    const soyCreador = sociedad.creadorCodigo === miCodigo;
+    const tienePendiente = miMiembro && miMiembro.estado === 'pendiente_invitacion';
+    const puedoSolicitar = !miMiembro;
+
+    let html = `
+        <div style="font-size:12px;color:var(--text2);margin-bottom:4px">Progreso hacia el objetivo (${unidad === 'unidades' ? 'unidades' : 'monto mayorista'})</div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;margin-bottom:2px">
+            <span style="color:${obj.cumplido ? 'var(--green)' : 'var(--amber)'}">${actualTxt}</span>
+            <span style="color:var(--text2);font-weight:600">de ${objTxt}</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill ${obj.cumplido ? '' : 'falta'}" style="width:${obj.porcentaje}%"></div></div>
+        <div style="font-size:11px;margin-top:6px;color:${obj.cumplido ? 'var(--green)' : 'var(--text2)'}">
+            ${obj.cumplido ? '✅ Objetivo alcanzado — ya se puede pagar el lote' : 'Todavía falta sumar pedidos para llegar al mínimo de la categoría'}
+        </div>
+        <div class="sep"></div>
+        <div style="font-size:11px;color:var(--text2);font-weight:700;margin-bottom:4px">INTEGRANTES</div>
+    `;
+
+    (sociedad.miembros || []).forEach(m => {
+        const prog = (obj.porMiembro || []).find(p => p.codigo === m.codigo);
+        let estadoTxt = '';
+        if (m.estado === 'pendiente_invitacion') estadoTxt = '<span class="pill pill-pendiente">Invitado — sin responder</span>';
+        else if (m.estado === 'pendiente_solicitud') estadoTxt = '<span class="pill pill-pendiente">Pidió unirse</span>';
+        else if (m.estado === 'rechazado') estadoTxt = '<span class="pill pill-cerrada">Rechazó</span>';
+        html += `<div class="member-row">
+            <div>
+                <div class="m-name">${esc(m.nombre)} ${m.rol === 'creador' ? '👑' : ''}</div>
+                <div class="m-sub">${prog ? (obj.tipo === 'unidades' ? prog.unidades + ' unidades' : '$' + Math.round(prog.totalMayorista).toLocaleString()) + ' · ' + prog.cantidadPedidos + ' pedido(s)' : (m.estado === 'aceptado' ? 'sin pedidos todavía' : '')}</div>
+            </div>
+            ${estadoTxt}
+        </div>`;
+    });
+
+    html += '<div class="sep"></div>';
+
+    if (tienePendiente) {
+        html += `<div class="row">
+            <button class="btn btn-green" onclick="responder('${sociedadId}', true)">Aceptar invitación</button>
+            <button class="btn btn-red" onclick="responder('${sociedadId}', false)">Rechazar</button>
+        </div>`;
+    } else if (puedoSolicitar && sociedad.estado === 'abierta') {
+        html += `<button class="btn btn-outline" onclick="solicitarUnirme('${sociedadId}')">Pedir unirme a esta sociedad</button>`;
+    } else if (soyCreador && sociedad.estado === 'abierta') {
+        html += `
+            <label>Invitar por código de revendedor</label>
+            <div class="row">
+                <input id="inputCodigoInvitar" type="text" placeholder="Código del revendedor (ej: RW-ABC123)">
+                <button class="btn btn-sm btn-primary" style="flex:0 0 auto" onclick="invitarPorCodigo('${sociedadId}')">Invitar</button>
+            </div>
+            <div class="sep"></div>
+            <button class="btn btn-green" id="btnPagar" ${obj.cumplido ? '' : 'disabled'} onclick="pagarLote('${sociedadId}')">
+                ${obj.cumplido ? 'Pagar lote con Mercado Pago' : 'Todavía falta alcanzar el objetivo'}
+            </button>
+        `;
+    } else if (sociedad.estado === 'pagada') {
+        html += `<div class="empty" style="color:var(--green)">✅ Esta sociedad ya pagó su lote conjunto.</div>`;
+    }
+
+    if (!soyCreador && miMiembro && miMiembro.estado === 'aceptado' && sociedad.estado === 'abierta') {
+        html += `<button class="btn btn-outline" style="margin-top:10px" onclick="salirSociedad('${sociedadId}')">Salir de esta sociedad</button>`;
+    }
+
+    document.getElementById('detBody').innerHTML = html;
+}
+
+async function responder(sociedadId, aceptar) {
+    try {
+        const res = await fetch(`${WORKER_SOCIEDADES}/responder`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sociedadId, codigoVendedor: miCodigo, aceptar })
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Error');
+        toast(aceptar ? '✅ Te uniste a la sociedad' : 'Invitación rechazada', true);
+        cargarMisSociedades();
+        refrescarDetalle(sociedadId);
+    } catch (e) {
+        toast('No se pudo responder: ' + e.message, false);
+    }
+}
+
+async function solicitarUnirme(sociedadId) {
+    try {
+        const res = await fetch(`${WORKER_SOCIEDADES}/solicitar`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sociedadId, codigoVendedor: miCodigo })
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Error');
+        toast('✅ Solicitud enviada — esperá que el creador la acepte', true);
+        refrescarDetalle(sociedadId);
+    } catch (e) {
+        toast('No se pudo enviar la solicitud: ' + e.message, false);
+    }
+}
+
+async function invitarPorCodigo(sociedadId) {
+    const codigoInvitado = (document.getElementById('inputCodigoInvitar').value || '').trim();
+    if (!codigoInvitado) { toast('Escribí un código de revendedor', false); return; }
+    try {
+        const res = await fetch(`${WORKER_SOCIEDADES}/invitar`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sociedadId, codigoInvitado })
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Error');
+        toast('✅ Invitación enviada', true);
+        refrescarDetalle(sociedadId);
+    } catch (e) {
+        toast('No se pudo invitar: ' + e.message, false);
+    }
+}
+
+async function pagarLote(sociedadId) {
+    const btn = document.getElementById('btnPagar');
+    if (btn) { btn.disabled = true; btn.textContent = 'Generando pago...'; }
+    try {
+        const res = await fetch(`${WORKER_SOCIEDADES}/pagar`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sociedadId, codigoVendedor: miCodigo })
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Error');
+        window.location.href = data.init_point;
+    } catch (e) {
+        toast('No se pudo generar el pago: ' + e.message, false);
+        if (btn) { btn.disabled = false; btn.textContent = 'Pagar lote con Mercado Pago'; }
+    }
+}
+
+async function salirSociedad(sociedadId) {
+    try {
+        const res = await fetch(`${WORKER_SOCIEDADES}/salir`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sociedadId, codigoVendedor: miCodigo })
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Error');
+        toast('Saliste de la sociedad', true);
+        cerrarDetalle();
+        cargarMisSociedades();
+    } catch (e) {
+        toast('No se pudo salir: ' + e.message, false);
+    }
+}
+</script>
+</body>
+</html>
