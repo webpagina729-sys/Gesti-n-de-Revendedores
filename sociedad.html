@@ -270,6 +270,7 @@ _auth.onAuthStateChanged(async (fbUser) => {
         }
 
         cargarMisSociedades();
+        _checkRetornoMercadoPago();
     } catch (e) {
         console.error(e);
         irALogin();
@@ -372,23 +373,38 @@ async function buscarSociedades() {
 
 async function crearEInvitar(categoria, codigoInvitado) {
     try {
-        const resCrear = await fetch(`${WORKER_SOCIEDADES}/crear`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ codigoVendedor: miCodigo, ciudad: miCiudad, categoria })
-        });
-        const dataCrear = await resCrear.json();
-        if (!dataCrear.ok) throw new Error(dataCrear.error || 'Error al crear');
+        // 🔧 FIX: si ya tengo una sociedad abierta para esta misma categoría,
+        // invito ahí en vez de crear una duplicada — antes este botón SIEMPRE
+        // creaba una sociedad nueva, aunque ya hubiera una mía esperando gente.
+        let sociedadId = null;
+        try {
+            const resMias = await fetch(`${WORKER_SOCIEDADES}/mias?codigo=${encodeURIComponent(miCodigo)}`);
+            const dataMias = await resMias.json();
+            const existente = (dataMias.sociedades || []).find(s =>
+                s.creadorCodigo === miCodigo && s.categoria === categoria && s.estado === 'abierta');
+            if (existente) sociedadId = existente.id;
+        } catch (_) {}
+
+        if (!sociedadId) {
+            const resCrear = await fetch(`${WORKER_SOCIEDADES}/crear`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ codigoVendedor: miCodigo, ciudad: miCiudad, categoria })
+            });
+            const dataCrear = await resCrear.json();
+            if (!dataCrear.ok) throw new Error(dataCrear.error || 'Error al crear');
+            sociedadId = dataCrear.sociedadId;
+        }
 
         const resInv = await fetch(`${WORKER_SOCIEDADES}/invitar`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sociedadId: dataCrear.sociedadId, codigoInvitado })
+            body: JSON.stringify({ sociedadId, codigoInvitado })
         });
         const dataInv = await resInv.json();
         if (!dataInv.ok) throw new Error(dataInv.error || 'Error al invitar');
 
-        toast('✅ Sociedad creada e invitación enviada', true);
+        toast('✅ Invitación enviada', true);
         cargarMisSociedades();
-        abrirDetalle(dataCrear.sociedadId);
+        abrirDetalle(sociedadId);
     } catch (e) {
         toast('No se pudo invitar: ' + e.message, false);
     }
@@ -466,6 +482,26 @@ function renderDetalle(sociedadId, obj, sociedad) {
 
     html += '<div class="sep"></div>';
 
+    // 🔧 NUEVO: el creador tiene que poder aceptar/rechazar a quien pidió
+    // unirse (estado "pendiente_solicitud") — antes esto no tenía ningún
+    // botón y la solicitud quedaba trabada para siempre.
+    if (soyCreador) {
+        const solicitudes = (sociedad.miembros || []).filter(m => m.estado === 'pendiente_solicitud');
+        if (solicitudes.length) {
+            html += '<div style="font-size:11px;color:var(--text2);font-weight:700;margin-bottom:6px">SOLICITUDES PARA UNIRSE</div>';
+            solicitudes.forEach(m => {
+                html += `<div class="member-row">
+                    <div class="m-name">${esc(m.nombre)}</div>
+                    <div class="row" style="margin-top:0">
+                        <button class="btn btn-sm btn-green" onclick="responderMiembro('${sociedadId}','${esc(m.codigo)}', true)">Aceptar</button>
+                        <button class="btn btn-sm btn-red" onclick="responderMiembro('${sociedadId}','${esc(m.codigo)}', false)">Rechazar</button>
+                    </div>
+                </div>`;
+            });
+            html += '<div class="sep"></div>';
+        }
+    }
+
     if (tienePendiente) {
         html += `<div class="row">
             <button class="btn btn-green" onclick="responder('${sociedadId}', true)">Aceptar invitación</button>
@@ -512,6 +548,26 @@ async function responder(sociedadId, aceptar) {
     }
 }
 
+// Variante de responder() para cuando el CREADOR acepta/rechaza la
+// solicitud de OTRO integrante (responder() siempre usa miCodigo, que acá
+// no corresponde — el que responde es el creador, pero a quien se le
+// cambia el estado es al solicitante).
+async function responderMiembro(sociedadId, codigoSolicitante, aceptar) {
+    try {
+        const res = await fetch(`${WORKER_SOCIEDADES}/responder`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sociedadId, codigoVendedor: codigoSolicitante, aceptar })
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Error');
+        toast(aceptar ? '✅ Se sumó a la sociedad' : 'Solicitud rechazada', true);
+        cargarMisSociedades();
+        refrescarDetalle(sociedadId);
+    } catch (e) {
+        toast('No se pudo responder: ' + e.message, false);
+    }
+}
+
 async function solicitarUnirme(sociedadId) {
     try {
         const res = await fetch(`${WORKER_SOCIEDADES}/solicitar`, {
@@ -548,9 +604,10 @@ async function pagarLote(sociedadId) {
     const btn = document.getElementById('btnPagar');
     if (btn) { btn.disabled = true; btn.textContent = 'Generando pago...'; }
     try {
+        const returnBase = window.location.origin + window.location.pathname;
         const res = await fetch(`${WORKER_SOCIEDADES}/pagar`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sociedadId, codigoVendedor: miCodigo })
+            body: JSON.stringify({ sociedadId, codigoVendedor: miCodigo, returnBase })
         });
         const data = await res.json();
         if (!data.ok) throw new Error(data.error || 'Error');
@@ -559,6 +616,48 @@ async function pagarLote(sociedadId) {
         toast('No se pudo generar el pago: ' + e.message, false);
         if (btn) { btn.disabled = false; btn.textContent = 'Pagar lote con Mercado Pago'; }
     }
+}
+
+// 🔧 FASE 3: al volver de Mercado Pago (mismo patrón que
+// _checkMercadoPagoReturn en index(1).html), se detecta el regreso por
+// los parámetros de la URL y se le pregunta al Worker si workerpagos ya
+// confirmó el pago real. Si todavía está "pendiente" (el webhook de MP a
+// veces tarda unos segundos más que el redirect), se reintenta un par de
+// veces antes de avisarle a la persona.
+async function _checkRetornoMercadoPago() {
+    const params = new URLSearchParams(window.location.search);
+    const sociedadId = params.get('sociedad');
+    const status = params.get('status');
+    if (!sociedadId || !status) return;
+
+    // Limpia los parámetros de la URL para no volver a disparar esto si
+    // la persona refresca la página.
+    const urlLimpia = window.location.origin + window.location.pathname;
+    window.history.replaceState({}, '', urlLimpia);
+
+    if (status !== 'approved' && status !== 'pending') {
+        toast(status === 'failure' ? 'El pago no se completó' : 'Pago pendiente de aprobación', status !== 'failure');
+        return;
+    }
+
+    toast('Confirmando el pago...', true);
+    for (let intento = 0; intento < 6; intento++) {
+        try {
+            const res = await fetch(`${WORKER_SOCIEDADES}/confirmar-pago`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sociedadId })
+            });
+            const data = await res.json();
+            if (data.ok && (data.estado === 'confirmado' || data.estado === 'ya_confirmado')) {
+                toast('✅ Pago confirmado — ganancias repartidas', true);
+                cargarMisSociedades();
+                abrirDetalle(sociedadId);
+                return;
+            }
+        } catch (_) {}
+        await new Promise(r => setTimeout(r, 4000));
+    }
+    toast('El pago todavía se está procesando — volvé a entrar en unos minutos', false);
 }
 
 async function salirSociedad(sociedadId) {
