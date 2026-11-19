@@ -130,6 +130,36 @@ select:focus,input:focus{outline:none; border-color:var(--blue)}
 }
 .confirm-cancel{background:var(--bg3); color:var(--text2); border:1px solid var(--border2) !important}
 .confirm-ok{color:#fff}
+.cat-trigger{
+    width:100%; background:var(--bg3); border:1px solid var(--border2); color:var(--text);
+    border-radius:9px; padding:10px 12px; font-size:13.5px; font-family:var(--font);
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    cursor:pointer; text-align:left;
+}
+.cat-trigger:active{opacity:.85}
+.cat-trigger svg{flex-shrink:0; color:var(--text2)}
+.picker-overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:700;
+    display:none; align-items:flex-end; justify-content:center; padding:0;
+}
+.picker-overlay.show{display:flex}
+.picker-sheet{
+    background:var(--bg2); border-radius:18px 18px 0 0; max-width:640px; width:100%;
+    max-height:70vh; overflow-y:auto; padding:16px; box-shadow:0 -10px 40px rgba(0,0,0,.5);
+}
+.picker-sheet h3{font-size:14px; font-weight:800; margin-bottom:10px}
+.picker-option{
+    padding:13px 10px; font-size:13.5px; border-top:1px solid var(--border);
+    cursor:pointer; display:flex; align-items:center; justify-content:space-between;
+}
+.picker-option:first-child{border-top:none}
+.picker-option:active{background:var(--bg3)}
+.picker-option.selected{color:var(--green); font-weight:700}
+.picker-cancelar{
+    width:100%; margin-top:10px; padding:11px; border-radius:9px; font-size:13px; font-weight:700;
+    cursor:pointer; font-family:var(--font); border:1px solid var(--border2);
+    background:var(--bg3); color:var(--text2);
+}
 </style>
 </head>
 <body>
@@ -167,7 +197,11 @@ select:focus,input:focus{outline:none; border-color:var(--blue)}
             Formar una sociedad nueva
         </h2>
         <label>Categoría</label>
-        <select id="selCategoria"></select>
+        <select id="selCategoria" style="display:none"></select>
+        <button type="button" class="cat-trigger" id="selCategoriaTrigger" onclick="abrirPickerCategoria('selCategoria')">
+            <span id="selCategoriaTriggerLabel">Elegir categoría</span>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
         <label>Ciudad</label>
         <input id="inputCiudad" type="text" placeholder="Tu ciudad" readonly style="opacity:.75">
         <div style="font-size:10.5px;color:var(--text3);margin-top:4px">Se usa la ciudad de tu perfil. Si está mal, corregila desde "Completar Datos" en tu panel.</div>
@@ -181,7 +215,11 @@ select:focus,input:focus{outline:none; border-color:var(--blue)}
             Buscar sociedades abiertas
         </h2>
         <label>Categoría a buscar</label>
-        <select id="selCategoriaBuscar"></select>
+        <select id="selCategoriaBuscar" style="display:none"></select>
+        <button type="button" class="cat-trigger" id="selCategoriaBuscarTrigger" onclick="abrirPickerCategoria('selCategoriaBuscar')">
+            <span id="selCategoriaBuscarTriggerLabel">Elegir categoría</span>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
         <button class="btn btn-outline" onclick="buscarSociedades()">Buscar en mi ciudad</button>
         <div id="resultadosBusqueda" style="margin-top:12px"></div>
     </div>
@@ -281,6 +319,58 @@ function poblarSelect(sel) {
     sel.innerHTML = Object.keys(NICHO_LABEL).map(k => `<option value="${k}">${NICHO_LABEL[k]}</option>`).join('');
 }
 
+// Reemplazo compacto y prolijo del <select> nativo del navegador para elegir
+// categoría. El <select> real queda oculto y sigue siendo la única fuente
+// de verdad de su .value — esto solo agrega una capa visual encima.
+function actualizarTriggerCategoria(selectId) {
+    const sel = document.getElementById(selectId);
+    const label = document.getElementById(selectId + 'TriggerLabel');
+    if (!sel || !label) return;
+    const opt = sel.options[sel.selectedIndex];
+    label.textContent = opt ? opt.textContent : 'Elegir categoría';
+}
+
+function abrirPickerCategoria(selectId) {
+    const sel = document.getElementById(selectId);
+    if (!sel) return;
+
+    let overlay = document.getElementById('pickerCategoriaGlobal');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'pickerCategoriaGlobal';
+        overlay.className = 'picker-overlay';
+        overlay.innerHTML = `
+            <div class="picker-sheet">
+                <h3>Elegí una categoría</h3>
+                <div id="pickerCategoriaLista"></div>
+                <button type="button" class="picker-cancelar" id="pickerCategoriaCancelar">Cancelar</button>
+            </div>`;
+        document.body.appendChild(overlay);
+        overlay.addEventListener('click', e => { if (e.target === overlay) cerrarPickerCategoria(); });
+        overlay.querySelector('#pickerCategoriaCancelar').addEventListener('click', cerrarPickerCategoria);
+    }
+
+    const lista = overlay.querySelector('#pickerCategoriaLista');
+    lista.innerHTML = Array.from(sel.options).map(opt => `
+        <div class="picker-option${opt.value === sel.value ? ' selected' : ''}" data-value="${esc(opt.value)}">
+            ${esc(opt.textContent)}
+        </div>`).join('');
+    lista.querySelectorAll('.picker-option').forEach(el => {
+        el.addEventListener('click', () => {
+            sel.value = el.getAttribute('data-value');
+            actualizarTriggerCategoria(selectId);
+            cerrarPickerCategoria();
+        });
+    });
+
+    overlay.classList.add('show');
+}
+
+function cerrarPickerCategoria() {
+    const overlay = document.getElementById('pickerCategoriaGlobal');
+    if (overlay) overlay.classList.remove('show');
+}
+
 const firebaseConfig = {
     apiKey: "AIzaSyBRzd3HXbY6xIBIBNkzATo70kredodhKwc",
     authDomain: "revende-weys.firebaseapp.com",
@@ -326,6 +416,8 @@ _auth.onAuthStateChanged(async (fbUser) => {
         document.getElementById('topbarSub').textContent = miNombre + (miCiudad ? ' · ' + miCiudad : '');
         poblarSelect(document.getElementById('selCategoria'));
         poblarSelect(document.getElementById('selCategoriaBuscar'));
+        actualizarTriggerCategoria('selCategoria');
+        actualizarTriggerCategoria('selCategoriaBuscar');
 
         document.getElementById('loadingScreen').style.display = 'none';
         document.getElementById('appWrap').style.display = 'block';
