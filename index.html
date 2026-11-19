@@ -3655,6 +3655,29 @@ function toast(m, type) {
     clearTimeout(window._t);
     window._t = setTimeout(()=>{ e.className='toast'; }, 3200);
 }
+
+// Reemplazo compacto y prolijo del alert() nativo del navegador para
+// avisos informativos largos (el toast de arriba es de una sola línea,
+// no alcanza para estos). Reutiliza el CSS .modal-overlay/.modal-box.
+function avisoModal(mensaje, titulo) {
+    let overlay = document.getElementById('avisoModalGlobal');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'avisoModalGlobal';
+        overlay.className = 'modal-overlay';
+        overlay.innerHTML = `
+            <div class="modal-box" style="text-align:center">
+                <h3 id="avisoModalTitulo" style="font-size:16px;font-weight:800;margin-bottom:8px"></h3>
+                <p id="avisoModalMensaje" style="font-size:12.5px;color:var(--text2);margin-bottom:18px;white-space:pre-line;text-align:left"></p>
+                <button type="button" class="modal-confirm-btn" style="width:100%;background:var(--blue)" onclick="document.getElementById('avisoModalGlobal').classList.remove('active')">Entendido</button>
+            </div>`;
+        document.body.appendChild(overlay);
+        overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('active'); });
+    }
+    overlay.querySelector('#avisoModalTitulo').textContent = titulo || 'Aviso';
+    overlay.querySelector('#avisoModalMensaje').textContent = mensaje;
+    overlay.classList.add('active');
+}
 function localDeletedIds() {
     try { return JSON.parse(localStorage.getItem(D_KEY) || '[]'); } catch(_) { return []; }
 }
@@ -4279,7 +4302,7 @@ function esNavegadorInApp() {
 // Login con Google
 async function doGoogleLogin() {
     if (esNavegadorInApp()) {
-        alert('Para iniciar sesión con Google necesitás abrir esta página en tu navegador (Chrome, Safari, etc.), no dentro de esta app.\n\nTocá los ⋮ o ••• (los 3 puntitos) arriba a la derecha y elegí "Abrir en el navegador".');
+        avisoModal('Tocá los ⋮ o ••• (los 3 puntitos) arriba a la derecha y elegí "Abrir en el navegador".', 'Abrí esta página en tu navegador');
         return;
     }
     const btn = document.getElementById('btn-google-login');
