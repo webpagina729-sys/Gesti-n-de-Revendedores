@@ -1142,9 +1142,10 @@ body.light-theme .lvl-panel-vermas { color:#000; }
                 <button class="lvl-arrow" id="lvl-arrow" onclick="abrirPanelNivel()" title="Ver detalle de nivel" aria-label="Ver detalle de nivel">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" width="9" height="9"><polyline points="6 9 12 15 18 9"/></svg>
                 </button>
-                <button class="lvl-btn-sociedad" onclick="this.blur();window.location.href='sociedad.html'" title="Formar sociedad" aria-label="Formar sociedad" style="margin-left:auto;display:inline-flex;align-items:center;gap:3px;background:#fff;border:1px solid #fff;color:#0b0d12;border-radius:10px;padding:2px 8px;font-size:10px;font-weight:700;cursor:pointer;line-height:1.6;flex-shrink:0;">
+                <button class="lvl-btn-sociedad" onclick="this.blur();window.location.href='sociedad.html'" title="Formar sociedad" aria-label="Formar sociedad" style="margin-left:auto;position:relative;display:inline-flex;align-items:center;gap:3px;background:#fff;border:1px solid #fff;color:#0b0d12;border-radius:10px;padding:2px 8px;font-size:10px;font-weight:700;cursor:pointer;line-height:1.6;flex-shrink:0;">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M19 8l-5 5-2-2"/></svg>
                     Formar Sociedad
+                    <span class="seg-badge" id="cnt-sociedad">0</span>
                 </button>
             </div>
         </div>
@@ -5958,14 +5959,24 @@ async function _segFetch(url, ms) {
     } finally { clearTimeout(t); }
 }
 
+// 🆕 Invitaciones de sociedad pendientes de responder — se actualiza en
+// cada cargarSeguimiento() y se refleja en el badge rojo del botón
+// "Formar Sociedad" (ver renderSeguimiento()).
+let _invitacionesSociedadPendientes = 0;
 async function cargarSeguimiento() {
     if (!currentCode) return;
     const cod = encodeURIComponent(currentCode);
-    const [rStock, rDocs, rSociedad] = await Promise.all([
+    const [rStock, rDocs, rSociedad, rMiasSociedad] = await Promise.all([
         _segFetch(`${WORKER_MAYORISTA}/api/pedidos-stock?codigoVendedor=${cod}&estadoPedido=CONFIRMADO`).catch(e => { console.error('cargarSeguimiento stock:', e); return null; }),
         _segFetch(`${WORKER_PROVEEDORES}/api/pedidos-proveedor/revendedor?codigoVendedor=${cod}`).catch(e => { console.error('cargarSeguimiento docs:', e); return null; }),
         _segFetch(`${WORKER_SOCIEDADES}/seguimiento?codigo=${cod}`).catch(e => { console.error('cargarSeguimiento sociedad:', e); return null; }),
+        // 🆕 Invitaciones de sociedad pendientes de responder — mismo endpoint
+        // y mismo filtro que ya usa sociedad.html (ver /mias + miembros[].estado).
+        _segFetch(`${WORKER_SOCIEDADES}/mias?codigo=${cod}`).catch(e => { console.error('cargarSeguimiento mias (sociedad):', e); return null; }),
     ]);
+    _invitacionesSociedadPendientes = Array.isArray(rMiasSociedad?.sociedades)
+        ? rMiasSociedad.sociedades.reduce((acc, s) => acc + ((s.miembros || []).filter(m => m.codigo === currentCode && m.estado === 'pendiente_invitacion').length), 0)
+        : _invitacionesSociedadPendientes;
     // Si falla la red se conserva lo último cargado (no se vacía la lista).
     if (!rStock && !rDocs) { renderSeguimiento(); return; }
     const stock = Array.isArray(rStock?.pedidos) ? rStock.pedidos : (seguimientoPedidos.filter(p => !p._soloDoc));
@@ -6012,6 +6023,13 @@ async function cargarSeguimiento() {
 }
 
 function renderSeguimiento() {
+    // 🆕 Badge rojo del botón "Formar Sociedad" — mismo criterio que el
+    // badge de Seguimiento (número con tope "9+", oculto si es 0).
+    const badgeSociedad = document.getElementById('cnt-sociedad');
+    if (badgeSociedad) {
+        badgeSociedad.textContent = _invitacionesSociedadPendientes > 9 ? '9+' : String(_invitacionesSociedadPendientes);
+        badgeSociedad.classList.toggle('show', _invitacionesSociedadPendientes > 0);
+    }
     const pendientes = seguimientoPedidos.filter(p => p._estado !== 'recibido').length;
     const badge = document.getElementById('cnt-seguimiento');
     if (badge) {
