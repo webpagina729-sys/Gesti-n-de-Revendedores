@@ -107,6 +107,21 @@ select:focus,input:focus{outline:none; border-color:var(--blue)}
 }
 .spinner{width:28px; height:28px; border:3px solid var(--border2); border-top-color:var(--blue); border-radius:50%; animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+/* 🆕 Cuadro de Aceptar/Rechazar invitación: llama la atención al entrar
+   con un leve "shake" + resplandor ámbar (mismo color que ya usa el
+   resto del archivo para "pendiente"). Se reproduce unas pocas veces y
+   se detiene — no queda animando para siempre. */
+.inv-pendiente-box{border:1px solid var(--amber); border-radius:10px; padding:10px; background:var(--amber-pale); animation:invAtencion 2.6s ease-in-out 2;}
+.inv-pendiente-box .row{margin:0}
+@keyframes invAtencion{
+    0%, 100% { transform:translateX(0); box-shadow:0 0 0 0 rgba(245,158,11,.35); }
+    6%  { transform:translateX(-4px); }
+    12% { transform:translateX(4px); }
+    18% { transform:translateX(-3px); }
+    24% { transform:translateX(3px); }
+    30% { transform:translateX(0); box-shadow:0 0 0 6px rgba(245,158,11,.18); }
+    55% { box-shadow:0 0 0 0 rgba(245,158,11,.35); }
+}
 .sep{height:1px; background:var(--border); margin:14px 0}
 .tag-list{display:flex; flex-wrap:wrap; gap:6px; margin-top:6px}
 .tag{background:var(--bg3); border:1px solid var(--border2); border-radius:8px; padding:5px 9px; font-size:11.5px; display:flex; align-items:center; gap:6px}
@@ -730,9 +745,11 @@ function renderDetalle(sociedadId, obj, sociedad) {
     }
 
     if (tienePendiente) {
-        html += `<div class="row">
-            <button class="btn btn-green" onclick="responder('${sociedadId}', true)">Aceptar invitación</button>
-            <button class="btn btn-red" onclick="responder('${sociedadId}', false)">Rechazar</button>
+        html += `<div class="inv-pendiente-box">
+            <div class="row">
+                <button class="btn btn-green" onclick="responder('${sociedadId}', true)">Aceptar invitación</button>
+                <button class="btn btn-red" onclick="responder('${sociedadId}', false)">Rechazar</button>
+            </div>
         </div>`;
     } else if (puedoSolicitar && sociedad.estado === 'abierta') {
         html += `<button class="btn btn-outline" onclick="solicitarUnirme('${sociedadId}')">Pedir unirme a esta sociedad</button>`;
