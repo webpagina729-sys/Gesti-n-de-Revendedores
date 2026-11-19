@@ -111,6 +111,25 @@ select:focus,input:focus{outline:none; border-color:var(--blue)}
 .tag-list{display:flex; flex-wrap:wrap; gap:6px; margin-top:6px}
 .tag{background:var(--bg3); border:1px solid var(--border2); border-radius:8px; padding:5px 9px; font-size:11.5px; display:flex; align-items:center; gap:6px}
 .tag button{background:var(--blue); color:#fff; border:none; border-radius:6px; padding:3px 8px; font-size:10px; font-weight:700; cursor:pointer}
+.confirm-overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:600;
+    display:none; align-items:center; justify-content:center; padding:16px;
+}
+.confirm-overlay.show{display:flex}
+.confirm-box{
+    background:var(--surface); border:1px solid var(--border2); border-radius:14px;
+    padding:22px 20px; width:100%; max-width:340px; text-align:center;
+    box-shadow:0 20px 50px rgba(0,0,0,.5);
+}
+.confirm-box h3{font-size:15px; font-weight:800; margin-bottom:8px}
+.confirm-box p{font-size:12.5px; color:var(--text2); margin-bottom:18px; white-space:pre-line}
+.confirm-actions{display:flex; gap:9px}
+.confirm-actions button{
+    flex:1; padding:10px; border-radius:9px; font-size:12.5px; font-weight:700;
+    cursor:pointer; font-family:var(--font); border:none;
+}
+.confirm-cancel{background:var(--bg3); color:var(--text2); border:1px solid var(--border2) !important}
+.confirm-ok{color:#fff}
 </style>
 </head>
 <body>
@@ -210,6 +229,52 @@ function toast(msg, ok) {
     t.className = 'toast show' + (ok ? '' : ' err');
     clearTimeout(window._toastTimer);
     window._toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+// Reemplazo compacto y prolijo del confirm() nativo del navegador.
+// Devuelve una Promise<boolean> — usar con `await`.
+function confirmarModal(mensaje, opciones = {}) {
+    const { titulo = '¿Confirmar?', textoConfirmar = 'Confirmar', danger = true } = opciones;
+    return new Promise(resolve => {
+        let overlay = document.getElementById('confirmModalGlobal');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'confirmModalGlobal';
+            overlay.className = 'confirm-overlay';
+            overlay.innerHTML = `
+                <div class="confirm-box">
+                    <h3 id="confirmModalTitulo"></h3>
+                    <p id="confirmModalMensaje"></p>
+                    <div class="confirm-actions">
+                        <button class="confirm-cancel" id="confirmModalCancelar">Cancelar</button>
+                        <button class="confirm-ok" id="confirmModalOk"></button>
+                    </div>
+                </div>`;
+            document.body.appendChild(overlay);
+        }
+        overlay.querySelector('#confirmModalTitulo').textContent = titulo;
+        overlay.querySelector('#confirmModalMensaje').textContent = mensaje;
+        const btnOk = overlay.querySelector('#confirmModalOk');
+        const btnCancelar = overlay.querySelector('#confirmModalCancelar');
+        btnOk.textContent = textoConfirmar;
+        btnOk.style.background = danger ? 'var(--red)' : 'var(--green)';
+        btnOk.style.color = danger ? '#fff' : '#0b0d12';
+        overlay.classList.add('show');
+
+        const cerrar = resultado => {
+            overlay.classList.remove('show');
+            btnOk.removeEventListener('click', onOk);
+            btnCancelar.removeEventListener('click', onCancelar);
+            overlay.removeEventListener('click', onOverlayClick);
+            resolve(resultado);
+        };
+        const onOk = () => cerrar(true);
+        const onCancelar = () => cerrar(false);
+        const onOverlayClick = e => { if (e.target === overlay) cerrar(false); };
+        btnOk.addEventListener('click', onOk);
+        btnCancelar.addEventListener('click', onCancelar);
+        overlay.addEventListener('click', onOverlayClick);
+    });
 }
 
 function poblarSelect(sel) {
@@ -355,7 +420,7 @@ function _rerenderListaRevendedores(idLista) {
         html += `<div class="empty">${st.lista.length ? 'No encontramos coincidencias.' : 'No encontramos revendedores en tu ciudad para esta categoría todavía.'}</div>`;
     } else {
         html += pageItems.map(r => `<div class="member-row">
-            <div><div class="m-name">${esc(r.nombre)}${r.apellido ? ' ' + esc(r.apellido) : ''}</div>
+            <div><div class="m-name">${esc(r.nombre)}</div>
             <div class="m-sub">${esc(r.whatsapp || r.codigo || '')}</div></div>
             <button class="btn btn-sm btn-primary" onclick="${st.onInvitar}('${esc(r.codigo)}')">Invitar</button>
         </div>`).join('');
@@ -789,7 +854,7 @@ async function salirSociedad(sociedadId) {
 // Complemento de salirSociedad(): solo el creador puede cerrar/cancelar su
 // propia sociedad (mientras siga 'abierta', sin pedido pagado).
 async function cerrarSociedad(sociedadId) {
-    if (!confirm('¿Cerrar esta sociedad? Los integrantes ya no van a poder sumar pedidos a ella.')) return;
+    if (!(await confirmarModal('Los integrantes ya no van a poder sumar pedidos a ella.', { titulo: '¿Cerrar esta sociedad?', textoConfirmar: 'Cerrar sociedad', danger: true }))) return;
     try {
         const res = await fetch(`${WORKER_SOCIEDADES}/cerrar`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -822,7 +887,7 @@ async function reactivarSociedad(sociedadId) {
 }
 
 async function eliminarSociedad(sociedadId) {
-    if (!confirm('¿Eliminar esta sociedad cerrada? Esta acción no se puede deshacer.')) return;
+    if (!(await confirmarModal('Esta acción no se puede deshacer.', { titulo: '¿Eliminar esta sociedad?', textoConfirmar: 'Eliminar', danger: true }))) return;
     try {
         const res = await fetch(`${WORKER_SOCIEDADES}/eliminar-sociedad`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
