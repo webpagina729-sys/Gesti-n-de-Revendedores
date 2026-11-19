@@ -520,9 +520,12 @@ function renderDetalle(sociedadId, obj, sociedad) {
             <button class="btn btn-green" id="btnPagar" ${obj.cumplido ? '' : 'disabled'} onclick="pagarLote('${sociedadId}')">
                 ${obj.cumplido ? 'Pagar lote con Mercado Pago' : 'Todavía falta alcanzar el objetivo'}
             </button>
+            <button class="btn btn-outline" style="margin-top:8px" onclick="cerrarSociedad('${sociedadId}')">Cerrar esta sociedad</button>
         `;
     } else if (sociedad.estado === 'pagada') {
         html += `<div class="empty" style="color:var(--green)">✅ Esta sociedad ya pagó su lote conjunto.</div>`;
+    } else if (sociedad.estado === 'cerrada') {
+        html += `<div class="empty">Esta sociedad fue cerrada por el creador.</div>`;
     }
 
     if (!soyCreador && miMiembro && miMiembro.estado === 'aceptado' && sociedad.estado === 'abierta') {
@@ -673,6 +676,25 @@ async function salirSociedad(sociedadId) {
         cargarMisSociedades();
     } catch (e) {
         toast('No se pudo salir: ' + e.message, false);
+    }
+}
+
+// Complemento de salirSociedad(): solo el creador puede cerrar/cancelar su
+// propia sociedad (mientras siga 'abierta', sin pedido pagado).
+async function cerrarSociedad(sociedadId) {
+    if (!confirm('¿Cerrar esta sociedad? Los integrantes ya no van a poder sumar pedidos a ella.')) return;
+    try {
+        const res = await fetch(`${WORKER_SOCIEDADES}/cerrar`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sociedadId, codigoVendedor: miCodigo })
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Error');
+        toast('Sociedad cerrada', true);
+        cerrarDetalle();
+        cargarMisSociedades();
+    } catch (e) {
+        toast('No se pudo cerrar: ' + e.message, false);
     }
 }
 </script>
