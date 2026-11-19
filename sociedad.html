@@ -317,6 +317,75 @@ function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+// ===== Componente reutilizable: lista de revendedores con buscador + paginado de 5 =====
+const _listaRevState = {};
+
+function montarListaRevendedores(idLista, contenedorId, lista, onInvitarFnName) {
+    _listaRevState[idLista] = {
+        contenedorId, lista: lista || [], onInvitar: onInvitarFnName,
+        filtro: '', pagina: 0,
+    };
+    _rerenderListaRevendedores(idLista);
+}
+
+function _rerenderListaRevendedores(idLista) {
+    const st = _listaRevState[idLista];
+    if (!st) return;
+    const cont = document.getElementById(st.contenedorId);
+    if (!cont) return;
+
+    const f = st.filtro.trim().toLowerCase();
+    const filtrados = !f ? st.lista : st.lista.filter(r => {
+        const campos = [r.nombre, r.apellido, r.whatsapp, r.codigo].map(x => String(x || '').toLowerCase());
+        return campos.some(c => c.includes(f));
+    });
+
+    const porPagina = 5;
+    const totalPaginas = Math.max(1, Math.ceil(filtrados.length / porPagina));
+    if (st.pagina >= totalPaginas) st.pagina = totalPaginas - 1;
+    if (st.pagina < 0) st.pagina = 0;
+    const inicio = st.pagina * porPagina;
+    const pageItems = filtrados.slice(inicio, inicio + porPagina);
+
+    let html = `<input type="text" placeholder="Buscar por nombre, apellido o WhatsApp..."
+        value="${esc(st.filtro)}" style="margin-bottom:8px"
+        oninput="_listaRevState['${idLista}'].filtro = this.value; _listaRevState['${idLista}'].pagina = 0; _rerenderListaRevendedores('${idLista}')">`;
+
+    if (!filtrados.length) {
+        html += `<div class="empty">${st.lista.length ? 'No encontramos coincidencias.' : 'No encontramos revendedores en tu ciudad para esta categoría todavía.'}</div>`;
+    } else {
+        html += pageItems.map(r => `<div class="member-row">
+            <div><div class="m-name">${esc(r.nombre)}${r.apellido ? ' ' + esc(r.apellido) : ''}</div>
+            <div class="m-sub">${esc(r.whatsapp || r.codigo || '')}</div></div>
+            <button class="btn btn-sm btn-primary" onclick="${st.onInvitar}('${esc(r.codigo)}')">Invitar</button>
+        </div>`).join('');
+
+        if (totalPaginas > 1) {
+            html += `<div class="row" style="margin-top:8px;align-items:center;justify-content:space-between">
+                <button class="btn btn-sm btn-outline" ${st.pagina <= 0 ? 'disabled' : ''}
+                    onclick="_listaRevState['${idLista}'].pagina--; _rerenderListaRevendedores('${idLista}')">Anterior</button>
+                <span style="font-size:11px;color:var(--text2)">Página ${st.pagina + 1} de ${totalPaginas}</span>
+                <button class="btn btn-sm btn-outline" ${st.pagina >= totalPaginas - 1 ? 'disabled' : ''}
+                    onclick="_listaRevState['${idLista}'].pagina++; _rerenderListaRevendedores('${idLista}')">Siguiente</button>
+            </div>`;
+        }
+    }
+
+    const inputPrevio = cont.querySelector('input');
+    const teniaFoco = inputPrevio && document.activeElement === inputPrevio;
+    const cursorPos = teniaFoco ? inputPrevio.selectionStart : null;
+
+    cont.innerHTML = html;
+
+    if (teniaFoco) {
+        const inputNuevo = cont.querySelector('input');
+        if (inputNuevo) {
+            inputNuevo.focus();
+            try { inputNuevo.setSelectionRange(cursorPos, cursorPos); } catch (_) {}
+        }
+    }
+}
+
 async function crearSociedad() {
     if (!miCiudad) { toast('Primero completá tu ciudad en el panel', false); return; }
     const categoria = document.getElementById('selCategoria').value;
@@ -357,18 +426,19 @@ async function buscarSociedades() {
                 <div class="soc-meta">${(s.miembros||[]).filter(m=>m.estado==='aceptado').length} integrante(s) — tocá para pedir unirte</div>
             </div>`).join('');
         }
-        if (data.revendedores && data.revendedores.length) {
-            html += '<div style="font-size:11px;color:var(--text2);margin:12px 0 6px;font-weight:700">REVENDEDORES DE TU CIUDAD</div>';
-            html += data.revendedores.map(r => `<div class="member-row">
-                <div><div class="m-name">${esc(r.nombre)}</div><div class="m-sub">${esc(r.codigo)}</div></div>
-                <button class="btn btn-sm btn-primary" onclick="crearEInvitar('${categoria}','${esc(r.codigo)}')">Invitar</button>
-            </div>`).join('');
-        }
-        if (!html) html = '<div class="empty">No encontramos sociedades ni revendedores en tu ciudad para esta categoría todavía.</div>';
+        html += '<div style="font-size:11px;color:var(--text2);margin:12px 0 6px;font-weight:700">REVENDEDORES DE TU CIUDAD</div>';
+        html += '<div id="listaRevendedoresBuscar"></div>';
         cont.innerHTML = html;
+
+        window._categoriaBusquedaActual = categoria;
+        montarListaRevendedores('buscar-ciudad', 'listaRevendedoresBuscar', data.revendedores || [], '_invitarDesdeBusqueda');
     } catch (e) {
         cont.innerHTML = '<div class="empty">No se pudo buscar.</div>';
     }
+}
+
+function _invitarDesdeBusqueda(codigo) {
+    crearEInvitar(window._categoriaBusquedaActual, codigo);
 }
 
 async function crearEInvitar(categoria, codigoInvitado) {
@@ -511,7 +581,10 @@ function renderDetalle(sociedadId, obj, sociedad) {
         html += `<button class="btn btn-outline" onclick="solicitarUnirme('${sociedadId}')">Pedir unirme a esta sociedad</button>`;
     } else if (soyCreador && sociedad.estado === 'abierta') {
         html += `
-            <label>Invitar por código de revendedor</label>
+            <label>Invitar revendedores de tu ciudad</label>
+            <div id="listaRevendedoresInvitar"><div class="empty">Buscando revendedores de tu ciudad...</div></div>
+            <div class="sep"></div>
+            <label style="font-size:11px;color:var(--text2)">¿Ya tenés el código de alguien? Escribilo directo:</label>
             <div class="row">
                 <input id="inputCodigoInvitar" type="text" placeholder="Código del revendedor (ej: RW-ABC123)">
                 <button class="btn btn-sm btn-primary" style="flex:0 0 auto" onclick="invitarPorCodigo('${sociedadId}')">Invitar</button>
@@ -526,6 +599,12 @@ function renderDetalle(sociedadId, obj, sociedad) {
         html += `<div class="empty" style="color:var(--green)">✅ Esta sociedad ya pagó su lote conjunto.</div>`;
     } else if (sociedad.estado === 'cerrada') {
         html += `<div class="empty">Esta sociedad fue cerrada por el creador.</div>`;
+        if (soyCreador) {
+            html += `<div class="row" style="margin-top:8px">
+                <button class="btn btn-sm btn-green" onclick="reactivarSociedad('${sociedadId}')">Volver a activar</button>
+                <button class="btn btn-sm btn-red" onclick="eliminarSociedad('${sociedadId}')">Eliminar</button>
+            </div>`;
+        }
     }
 
     if (!soyCreador && miMiembro && miMiembro.estado === 'aceptado' && sociedad.estado === 'abierta') {
@@ -533,6 +612,30 @@ function renderDetalle(sociedadId, obj, sociedad) {
     }
 
     document.getElementById('detBody').innerHTML = html;
+
+    if (soyCreador && sociedad.estado === 'abierta') {
+        cargarListaInvitar(sociedadId, sociedad);
+    }
+}
+
+async function cargarListaInvitar(sociedadId, sociedad) {
+    const cont = document.getElementById('listaRevendedoresInvitar');
+    if (!cont) return;
+    try {
+        const res = await fetch(`${WORKER_SOCIEDADES}/buscar?ciudad=${encodeURIComponent(sociedad.ciudad || miCiudad)}&categoria=${encodeURIComponent(sociedad.categoria)}&codigo=${encodeURIComponent(miCodigo)}`);
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Error');
+        const yaEnSociedad = new Set((sociedad.miembros || []).map(m => m.codigo));
+        const revendedores = (data.revendedores || []).filter(r => !yaEnSociedad.has(r.codigo));
+        window._sociedadInvitarActual = sociedadId;
+        montarListaRevendedores('invitar-' + sociedadId, 'listaRevendedoresInvitar', revendedores, '_invitarDesdeSociedad');
+    } catch (e) {
+        cont.innerHTML = '<div class="empty">No se pudo cargar la lista de revendedores.</div>';
+    }
+}
+
+function _invitarDesdeSociedad(codigo) {
+    invitarDirecto(window._sociedadInvitarActual, codigo);
 }
 
 async function responder(sociedadId, aceptar) {
@@ -589,6 +692,10 @@ async function solicitarUnirme(sociedadId) {
 async function invitarPorCodigo(sociedadId) {
     const codigoInvitado = (document.getElementById('inputCodigoInvitar').value || '').trim();
     if (!codigoInvitado) { toast('Escribí un código de revendedor', false); return; }
+    await invitarDirecto(sociedadId, codigoInvitado);
+}
+
+async function invitarDirecto(sociedadId, codigoInvitado) {
     try {
         const res = await fetch(`${WORKER_SOCIEDADES}/invitar`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -695,6 +802,39 @@ async function cerrarSociedad(sociedadId) {
         cargarMisSociedades();
     } catch (e) {
         toast('No se pudo cerrar: ' + e.message, false);
+    }
+}
+
+async function reactivarSociedad(sociedadId) {
+    try {
+        const res = await fetch(`${WORKER_SOCIEDADES}/reactivar`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sociedadId, codigoVendedor: miCodigo })
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Error');
+        toast('✅ Sociedad reactivada', true);
+        cargarMisSociedades();
+        refrescarDetalle(sociedadId);
+    } catch (e) {
+        toast('No se pudo reactivar: ' + e.message, false);
+    }
+}
+
+async function eliminarSociedad(sociedadId) {
+    if (!confirm('¿Eliminar esta sociedad cerrada? Esta acción no se puede deshacer.')) return;
+    try {
+        const res = await fetch(`${WORKER_SOCIEDADES}/eliminar-sociedad`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sociedadId, codigoVendedor: miCodigo })
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Error');
+        toast('Sociedad eliminada', true);
+        cerrarDetalle();
+        cargarMisSociedades();
+    } catch (e) {
+        toast('No se pudo eliminar: ' + e.message, false);
     }
 }
 </script>
