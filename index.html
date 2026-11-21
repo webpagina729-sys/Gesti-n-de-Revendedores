@@ -5963,6 +5963,14 @@ async function _segFetch(url, ms) {
 // cada cargarSeguimiento() y se refleja en el badge rojo del botón
 // "Formar Sociedad" (ver renderSeguimiento()).
 let _invitacionesSociedadPendientes = 0;
+
+// 🆕 Sociedades activas (el usuario es miembro aceptado, pedido todavía
+// sin pagar) del usuario actual, indexadas por categoría/nicho. Se usa en
+// renderPedidoListaView() para bloquear el pago individual mayorista de
+// esa categoría cuando no es el creador de la sociedad — así el pedido
+// pooled llega completo cuando el creador paga, en vez de perder
+// integrantes que ya pagaron por su cuenta.
+let _sociedadesActivasPorNicho = {};
 async function cargarSeguimiento() {
     if (!currentCode) return;
     const cod = encodeURIComponent(currentCode);
@@ -5977,6 +5985,19 @@ async function cargarSeguimiento() {
     _invitacionesSociedadPendientes = Array.isArray(rMiasSociedad?.sociedades)
         ? rMiasSociedad.sociedades.reduce((acc, s) => acc + ((s.miembros || []).filter(m => m.codigo === currentCode && m.estado === 'pendiente_invitacion').length), 0)
         : _invitacionesSociedadPendientes;
+
+    // 🆕 Sociedades activas por categoría (ver _sociedadesActivasPorNicho
+    // arriba): solo las que el usuario integra como miembro ACEPTADO y que
+    // todavía no se pagaron (estadoPago !== 'APROBADO').
+    if (Array.isArray(rMiasSociedad?.sociedades)) {
+        const activas = {};
+        rMiasSociedad.sociedades.forEach(s => {
+            const miCodigo = (s.miembros || []).find(m => m.codigo === currentCode && m.estado === 'aceptado');
+            if (!miCodigo || !s.categoria || s.estadoPago === 'APROBADO') return;
+            activas[s.categoria] = { creadorCodigo: s.creadorCodigo || null, creadorNombre: s.creadorNombre || '' };
+        });
+        _sociedadesActivasPorNicho = activas;
+    }
     // Si falla la red se conserva lo último cargado (no se vacía la lista).
     if (!rStock && !rDocs) { renderSeguimiento(); return; }
     const stock = Array.isArray(rStock?.pedidos) ? rStock.pedidos : (seguimientoPedidos.filter(p => !p._soloDoc));
@@ -6321,6 +6342,23 @@ function renderPedidoListaView() {
                    Falta ${min.tipo === 'unidades' ? faltante + ' unidad' + (faltante!==1?'es':'') : '$' + Math.round(faltante).toLocaleString()} para poder realizar
                </div>`;
 
+        // 🆕 Si esta categoría tiene una sociedad activa (miembro aceptado,
+        // pedido todavía sin pagar) y el usuario NO es quien la creó, se
+        // bloquea el envío individual: ese pago lo debe generar el creador
+        // desde "Formar Sociedad" para que el pedido llegue completo y
+        // junto. No cambia nada para categorías sin sociedad.
+        const sociedadCat = _sociedadesActivasPorNicho[nicho] || null;
+        const bloqueadoPorSociedad = !!(sociedadCat && sociedadCat.creadorCodigo && sociedadCat.creadorCodigo !== currentCode);
+
+        const accionHtml = bloqueadoPorSociedad
+            ? `<div style="width:100%;text-align:center;padding:14px;border-radius:12px;background:rgba(255,255,255,.06);border:1px dashed var(--border);font-size:12.5px;color:var(--text3)">
+                   Solo el creador de la sociedad puede generar el pago.
+               </div>`
+            : `<button class="btn-head btn-send-all" style="width:100%;justify-content:center;padding:14px${cumple ? '' : ';opacity:.5;cursor:not-allowed'}" onclick="sendAllPedidos('${nicho}')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    Enviar a precio mayorista ($${Math.round(totalMayoristaCat).toLocaleString()})
+                </button>`;
+
         html += `<div class="ribbon" id="${ribbonId}" style="margin-bottom:14px;border:1px solid var(--border)">
             <div class="ribbon-head" onclick="this.closest('.ribbon').classList.toggle('expanded')" style="cursor:pointer;background:#6b7280">
                 <div class="ribbon-main">
@@ -6332,11 +6370,8 @@ function renderPedidoListaView() {
             <div class="ribbon-body">
                 <div class="ribbon-inner" style="padding:12px 14px">
                     ${items.map(pedidoCardHtml).join('')}
-                    ${textoEstado}
-                    <button class="btn-head btn-send-all" style="width:100%;justify-content:center;padding:14px${cumple ? '' : ';opacity:.5;cursor:not-allowed'}" onclick="sendAllPedidos('${nicho}')">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                        Enviar a precio mayorista ($${Math.round(totalMayoristaCat).toLocaleString()})
-                    </button>
+                    ${bloqueadoPorSociedad ? '' : textoEstado}
+                    ${accionHtml}
                 </div>
             </div>
         </div>`;
