@@ -5964,6 +5964,11 @@ async function _segFetch(url, ms) {
 // "Formar Sociedad" (ver renderSeguimiento()).
 let _invitacionesSociedadPendientes = 0;
 
+// 🆕 Sociedades cerradas por el creador que este usuario todavía no marcó
+// como vistas (ver cargarSeguimiento() y el botón Aceptar en sociedad.html).
+// Se suma al mismo puntito rojo de "Formar Sociedad" que las invitaciones.
+let _cierresSociedadSinVer = 0;
+
 // 🆕 Sociedades activas (el usuario es miembro aceptado, pedido todavía
 // sin pagar) del usuario actual, indexadas por categoría/nicho. Se usa en
 // renderPedidoListaView() para bloquear el pago individual mayorista de
@@ -5986,14 +5991,30 @@ async function cargarSeguimiento() {
         ? rMiasSociedad.sociedades.reduce((acc, s) => acc + ((s.miembros || []).filter(m => m.codigo === currentCode && m.estado === 'pendiente_invitacion').length), 0)
         : _invitacionesSociedadPendientes;
 
+    // 🆕 Sociedades cerradas por el creador que este integrante todavía no
+    // "aceptó" ver (ver sociedad.html, aviso compacto + botón Aceptar, y
+    // POST /cierre-visto). Se suma también al puntito de "Formar Sociedad".
+    _cierresSociedadSinVer = Array.isArray(rMiasSociedad?.sociedades)
+        ? rMiasSociedad.sociedades.reduce((acc, s) => {
+            if (s.estado !== 'cerrada') return acc;
+            const mi = (s.miembros || []).find(m => m.codigo === currentCode);
+            return (mi && !mi.cierreVisto) ? acc + 1 : acc;
+        }, 0)
+        : _cierresSociedadSinVer;
+
     // 🆕 Sociedades activas por categoría (ver _sociedadesActivasPorNicho
     // arriba): solo las que el usuario integra como miembro ACEPTADO y que
-    // todavía no se pagaron (estadoPago !== 'APROBADO').
+    // todavía no se pagaron (estadoPago !== 'APROBADO') Y que sigan
+    // abiertas. 🔧 FIX: antes no se excluía 'cerrada' acá — si el creador
+    // cerraba la sociedad mientras un integrante tenía pedidos pendientes,
+    // ese integrante quedaba bloqueado para pagar por su cuenta PARA
+    // SIEMPRE, porque estadoPago nunca llega a 'APROBADO' en una sociedad
+    // cerrada.
     if (Array.isArray(rMiasSociedad?.sociedades)) {
         const activas = {};
         rMiasSociedad.sociedades.forEach(s => {
             const miCodigo = (s.miembros || []).find(m => m.codigo === currentCode && m.estado === 'aceptado');
-            if (!miCodigo || !s.categoria || s.estadoPago === 'APROBADO') return;
+            if (!miCodigo || !s.categoria || s.estadoPago === 'APROBADO' || s.estado === 'cerrada') return;
             activas[s.categoria] = { creadorCodigo: s.creadorCodigo || null, creadorNombre: s.creadorNombre || '' };
         });
         _sociedadesActivasPorNicho = activas;
@@ -6048,8 +6069,11 @@ function renderSeguimiento() {
     // badge de Seguimiento (número con tope "9+", oculto si es 0).
     const badgeSociedad = document.getElementById('cnt-sociedad');
     if (badgeSociedad) {
-        badgeSociedad.textContent = _invitacionesSociedadPendientes > 9 ? '9+' : String(_invitacionesSociedadPendientes);
-        badgeSociedad.classList.toggle('show', _invitacionesSociedadPendientes > 0);
+        // 🆕 El puntito ahora también cuenta sociedades cerradas que este
+        // usuario todavía no "aceptó" ver, no solo invitaciones pendientes.
+        const totalBadgeSociedad = _invitacionesSociedadPendientes + _cierresSociedadSinVer;
+        badgeSociedad.textContent = totalBadgeSociedad > 9 ? '9+' : String(totalBadgeSociedad);
+        badgeSociedad.classList.toggle('show', totalBadgeSociedad > 0);
     }
     const pendientes = seguimientoPedidos.filter(p => p._estado !== 'recibido').length;
     const badge = document.getElementById('cnt-seguimiento');
