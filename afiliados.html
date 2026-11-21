@@ -50,7 +50,12 @@ button{font-family:inherit;cursor:pointer}
   #v-panel .card{break-inside:avoid;margin-bottom:16px}
   #v-panel #p-err{column-span:all}
 }
-@media(min-width:1400px){ .wrap{max-width:1240px} }
+@media(min-width:1400px){ .wrap{max-width:min(90vw, 1500px)} }
+/* 🆕 Antes el tope en pantallas grandes quedaba fijo en 1240px: en
+   monitores muy anchos (1920px+) volvía a verse centrado con espacio
+   vacío a los costados. Ahora sigue creciendo de forma fluida hasta
+   1500px. Las reglas de 640px (celular) y 1080px (tablet/pantalla media)
+   de más arriba quedan exactamente igual. */
 /* Pantalla "Sumate al programa" */
 .jn-hero{padding:18px}
 .jn-hero h2{font-size:16px}
