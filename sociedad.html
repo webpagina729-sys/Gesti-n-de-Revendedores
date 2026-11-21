@@ -36,7 +36,12 @@ body{
 }
 .topbar h1{font-size:16px; font-weight:800}
 .topbar .sub{font-size:11px; color:var(--text2)}
-.wrap{max-width:640px; margin:0 auto; padding:16px}
+.wrap{max-width:min(92vw, 820px); margin:0 auto; padding:16px}
+/* 🆕 Antes .wrap tenía un ancho fijo de 640px (pensado solo para celular)
+   y no había ninguna media query en todo el archivo: en monitores grandes
+   quedaba una columna angosta centrada con mucho espacio vacío alrededor.
+   Ahora crece de forma fluida (92% del ancho, con un tope de 820px para
+   no estirar de más un formulario de una sola columna). */
 .card{
     background:var(--surface); border:1px solid var(--border); border-radius:14px;
     padding:16px; margin-bottom:14px;
