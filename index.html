@@ -428,6 +428,11 @@
         .modal-box h3 { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
         .modal-box p { color: var(--text2); font-size: 13px; margin-bottom: 18px; }
         .modal-actions { display: flex; gap: 10px; }
+        /* 🆕 FIX: acotado solo al modal de aviso (publicado desde
+           pedidos.html) — no toca .modal-box en general. Con texto largo,
+           la caja crecía más allá de la pantalla y los botones (Ver
+           más/Cerrar) quedaban fuera de la vista, sin scroll posible. */
+        #aviso-modal .modal-box { max-height: calc(100vh - 32px); overflow-y: auto; }
         .modal-cancel { flex: 1; padding: 11px; border-radius: 8px; border: 1px solid var(--border2); background: transparent; color: var(--text2); font-size: 13px; font-weight: 600; cursor: pointer; font-family: var(--font); }
         .modal-confirm-btn { flex: 1; padding: 11px; border-radius: 8px; border: none; background: var(--red); color: white; font-size: 13px; font-weight: 700; cursor: pointer; font-family: var(--font); }
 
@@ -2467,7 +2472,16 @@ function _cargarAvisoPlataforma() {
         })
         .catch(() => {});
 }
-_cargarAvisoPlataforma();
+// 🆕 FIX: antes se llamaba apenas cargaba el script, sin esperar a que
+// Firebase confirme si hay sesión — el aviso aparecía "ni bien entra" en
+// vez de 5s después de iniciar sesión. Ahora queda en espera y es
+// showMain() (el momento real en que arranca la sesión, ya sea autologin,
+// login nuevo o tras elegir tema) quien la dispara.
+window._dispararAvisoConDelay = function () {
+    if (window._avisoYaProgramadoEnEstaCarga) return;
+    window._avisoYaProgramadoEnEstaCarga = true;
+    setTimeout(_cargarAvisoPlataforma, 5000);
+};
 setInterval(_cargarAvisoPlataforma, 40 * 60 * 1000);
 
 let CATALOGO_PRECIOS_WORKER = {};
@@ -4377,6 +4391,12 @@ function showLogin() {
     document.getElementById('login-wrap').style.display = 'flex';
     document.getElementById('topbar').style.display = 'none';
     document.getElementById('main').classList.remove('show');
+    // 🆕 FIX: .level-strip (barra de nivel + botones Afiliados/Formar
+    // sociedad) vive como hermano de #main en el HTML, no adentro — por
+    // eso no se ocultaba acá y quedaba visible con la sesión ya cerrada
+    // hasta que terminara el location.reload() de logout().
+    const lvlBlock = document.getElementById('level-block');
+    if (lvlBlock) lvlBlock.style.display = 'none';
 }
 function showMain() {
     document.getElementById('login-wrap').style.display = 'none';
@@ -4384,6 +4404,7 @@ function showMain() {
     document.getElementById('topbar').style.display = 'flex';
     document.getElementById('main').classList.add('show');
     document.getElementById('badge-code').textContent = 'Cód: ' + currentCode;
+    if (typeof window._dispararAvisoConDelay === 'function') window._dispararAvisoConDelay();
 }
 
 // ─── normaliza cualquier pedido crudo a estructura interna ───
