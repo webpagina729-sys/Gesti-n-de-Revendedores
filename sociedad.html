@@ -59,6 +59,7 @@ select:focus,input:focus{outline:none; border-color:var(--blue)}
     display:inline-flex; align-items:center; justify-content:center; gap:7px;
     border:none; border-radius:10px; padding:11px 16px; font-size:13.5px; font-weight:700;
     cursor:pointer; font-family:var(--font); width:100%; margin-top:14px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
 .btn-primary{background:var(--blue); color:#fff}
 .btn-green{background:var(--green); color:#0b0d12}
@@ -84,7 +85,7 @@ select:focus,input:focus{outline:none; border-color:var(--blue)}
 }
 .soc-item:active{opacity:.85}
 .soc-head{display:flex; align-items:center; justify-content:space-between; gap:8px}
-.soc-head strong{font-size:13px}
+.soc-head strong{font-size:13px; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 .soc-meta{font-size:11px; color:var(--text2); margin-top:4px}
 .bar-track{background:rgba(255,255,255,.08); border-radius:20px; height:8px; margin-top:8px; overflow:hidden}
 .bar-fill{background:var(--green); height:100%; border-radius:20px; transition:width .3s}
@@ -94,8 +95,9 @@ select:focus,input:focus{outline:none; border-color:var(--blue)}
     padding:9px 0; border-top:1px solid var(--border);
 }
 .member-row:first-child{border-top:none}
-.member-row .m-name{font-size:12.5px; font-weight:600}
-.member-row .m-sub{font-size:10.5px; color:var(--text2)}
+.member-row>div:first-child{min-width:0; flex:1}
+.member-row .m-name{font-size:12.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.member-row .m-sub{font-size:10.5px; color:var(--text2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 .toast{
     position:fixed; bottom:20px; left:50%; transform:translateX(-50%) translateY(20px);
     background:var(--surface2); border:1px solid var(--border2); color:var(--text);
@@ -188,6 +190,20 @@ select:focus,input:focus{outline:none; border-color:var(--blue)}
     width:100%; margin-top:10px; padding:11px; border-radius:9px; font-size:13px; font-weight:700;
     cursor:pointer; font-family:var(--font); border:1px solid var(--border2);
     background:var(--bg3); color:var(--text2);
+}
+
+/* 🆕 FIX: el archivo no tenía ninguna media query para celular — el .wrap
+   fijo en 92vw, sumado al padding de .wrap y de cada .card, dejaba poco
+   ancho real disponible y los textos de botones/títulos se partían en 2
+   renglones. En celular, el contenido ahora usa el ancho completo de la
+   pantalla (con su propio padding como único margen) y la tipografía de
+   botones queda un poco más compacta. No afecta el diseño de escritorio
+   (min(92vw, 820px) sigue intacto arriba de este breakpoint). */
+@media (max-width:640px){
+    .wrap{max-width:none; width:100%; padding:12px}
+    .card{padding:12px}
+    .btn{font-size:12.5px; padding:10px 12px}
+    .btn-sm{font-size:11.5px; padding:6px 10px}
 }
 </style>
 </head>
