@@ -429,10 +429,13 @@
         .modal-box p { color: var(--text2); font-size: 13px; margin-bottom: 18px; }
         .modal-actions { display: flex; gap: 10px; }
         /* 🆕 FIX: acotado solo al modal de aviso (publicado desde
-           pedidos.html) — no toca .modal-box en general. Con texto largo,
-           la caja crecía más allá de la pantalla y los botones (Ver
-           más/Cerrar) quedaban fuera de la vista, sin scroll posible. */
-        #aviso-modal .modal-box { max-height: calc(100vh - 32px); overflow-y: auto; }
+           pedidos.html) — no toca .modal-box en general. La caja crecía
+           casi a pantalla completa antes de activar scroll, y el scroll
+           quedaba en todo el modal (título y botones incluidos). Ahora la
+           caja queda compacta y estática, y solo el contenido interno
+           (.aviso-modal-scroll) se desliza. */
+        #aviso-modal .modal-box { max-height: min(72vh, 520px); display: flex; flex-direction: column; overflow: hidden; }
+        #aviso-modal .aviso-modal-scroll { overflow-y: auto; min-height: 0; }
         .modal-cancel { flex: 1; padding: 11px; border-radius: 8px; border: 1px solid var(--border2); background: transparent; color: var(--text2); font-size: 13px; font-weight: 600; cursor: pointer; font-family: var(--font); }
         .modal-confirm-btn { flex: 1; padding: 11px; border-radius: 8px; border: none; background: var(--red); color: white; font-size: 13px; font-weight: 700; cursor: pointer; font-family: var(--font); }
 
@@ -1455,9 +1458,11 @@ body.light-theme .lvl-panel-vermas { color:#000; }
 <div class="modal-overlay" id="aviso-modal">
     <div class="modal-box">
         <h3 id="avisoModalTitulo"></h3>
-        <p id="avisoModalSubtitulo" style="font-weight:600;margin-top:-8px"></p>
-        <img id="avisoModalImagen" src="" alt="" style="display:none;width:100%;border-radius:10px;margin:4px 0;max-height:200px;object-fit:cover;" onerror="this.style.display='none'">
-        <p id="avisoModalTexto" style="white-space:pre-wrap"></p>
+        <div class="aviso-modal-scroll">
+            <p id="avisoModalSubtitulo" style="font-weight:600;margin-top:-8px"></p>
+            <img id="avisoModalImagen" src="" alt="" style="display:none;width:100%;border-radius:10px;margin:4px 0;max-height:200px;object-fit:cover;" onerror="this.style.display='none'">
+            <p id="avisoModalTexto" style="white-space:pre-wrap"></p>
+        </div>
         <div class="modal-actions" style="flex-direction:column">
             <a id="avisoModalBoton" href="#" target="_blank" rel="noopener" class="modal-confirm-btn" style="background:var(--green);display:none;text-align:center;text-decoration:none;width:100%;box-sizing:border-box" onclick="cerrarAvisoModal()">Ver más</a>
             <button class="modal-cancel" style="width:100%" onclick="cerrarAvisoModal()">Cerrar</button>
