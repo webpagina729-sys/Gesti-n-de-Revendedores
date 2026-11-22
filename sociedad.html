@@ -87,6 +87,15 @@ select:focus,input:focus{outline:none; border-color:var(--blue)}
 .soc-head{display:flex; align-items:center; justify-content:space-between; gap:8px}
 .soc-head strong{font-size:13px; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 .soc-meta{font-size:11px; color:var(--text2); margin-top:4px}
+/* 🆕 FIX: acotado solo a este aviso puntual (no toca .soc-meta en
+   general) — texto largo que en celulares angostos se partía en 2
+   renglones. La letra se achica sola según el ancho de pantalla
+   (clamp) y, en el caso extremo de no entrar igual, corta con "…" en
+   vez de envolverse. */
+.soc-inv-pendiente-aviso{
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    font-size:clamp(9.5px, 2.8vw, 11px);
+}
 .bar-track{background:rgba(255,255,255,.08); border-radius:20px; height:8px; margin-top:8px; overflow:hidden}
 .bar-fill{background:var(--green); height:100%; border-radius:20px; transition:width .3s}
 .bar-fill.falta{background:var(--amber)}
@@ -511,7 +520,7 @@ function renderSociedadItem(s) {
             ${pillEstado(s)}
         </div>
         <div class="soc-meta">Creada por ${esc(s.creadorNombre || s.creadorCodigo)} · ${(s.miembros||[]).filter(m=>m.estado==='aceptado').length} integrante(s)</div>
-        ${pendientes ? '<div class="soc-meta" style="color:var(--amber);margin-top:4px">📩 Tenés una invitación pendiente — tocá para responder</div>' : ''}
+        ${pendientes ? '<div class="soc-meta soc-inv-pendiente-aviso" style="color:var(--amber);margin-top:4px">📩 Tenés una invitación pendiente — tocá para responder</div>' : ''}
     </div>`;
 }
 
