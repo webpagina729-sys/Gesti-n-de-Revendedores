@@ -797,10 +797,10 @@ function renderDetalle(sociedadId, obj, sociedad) {
             <label>Invitar revendedores de tu ciudad</label>
             <div id="listaRevendedoresInvitar"><div class="empty">Buscando revendedores de tu ciudad...</div></div>
             <div class="sep"></div>
-            <label style="font-size:11px;color:var(--text2)">¿Ya tenés el código de alguien? Escribilo directo:</label>
+            <label style="font-size:11px;color:var(--text2)">¿Ya tenés el WhatsApp o CUIT de alguien? Escribilo directo:</label>
             <div class="row">
-                <input id="inputCodigoInvitar" type="text" placeholder="Código del revendedor (ej: RW-ABC123)">
-                <button class="btn btn-sm btn-primary" style="flex:0 0 auto" onclick="invitarPorCodigo('${sociedadId}')">Invitar</button>
+                <input id="inputWaCuitInvitar" type="text" inputmode="numeric" placeholder="WhatsApp o CUIT del revendedor">
+                <button class="btn btn-sm btn-primary" style="flex:0 0 auto" onclick="invitarPorWaOCuit('${sociedadId}')">Invitar</button>
             </div>
             <div class="sep"></div>
             <button class="btn btn-green" id="btnPagar" ${obj.cumplido ? '' : 'disabled'} onclick="pagarLote('${sociedadId}')">
@@ -860,7 +860,9 @@ async function cargarListaInvitar(sociedadId, sociedad) {
 }
 
 function _invitarDesdeSociedad(codigo) {
-    invitarDirecto(window._sociedadInvitarActual, codigo);
+    // Este camino no cambia: el código viaja interno, nunca lo escribe
+    // ni lo ve el usuario (viene de la lista de "tu ciudad y categoría").
+    invitarDirecto(window._sociedadInvitarActual, { codigoInvitado: codigo });
 }
 
 async function responder(sociedadId, aceptar) {
@@ -914,17 +916,40 @@ async function solicitarUnirme(sociedadId) {
     }
 }
 
-async function invitarPorCodigo(sociedadId) {
-    const codigoInvitado = (document.getElementById('inputCodigoInvitar').value || '').trim();
-    if (!codigoInvitado) { toast('Escribí un código de revendedor', false); return; }
-    await invitarDirecto(sociedadId, codigoInvitado);
+// 🆕 FIX: el código de revendedor es privado y no se pide ni se comparte
+// entre usuarios — reemplaza al viejo campo "Código del revendedor" por
+// WhatsApp o CUIT (ambos datos únicos por revendedor, igual que el código,
+// pero que sí se pueden compartir). Un único campo: se detecta solo cuál
+// de los dos es, con la MISMA normalización de WhatsApp que ya usa el
+// registro (saca 54/549, el 0 inicial y el viejo "15"), para que dé igual
+// el formato en que la persona lo haya escrito.
+async function invitarPorWaOCuit(sociedadId) {
+    const crudo = (document.getElementById('inputWaCuitInvitar').value || '').trim();
+    const digits = crudo.replace(/\D/g, '');
+    if (!digits) { toast('Escribí un CUIT (11 dígitos) o un WhatsApp válido', false); return; }
+
+    if (digits.length === 11) {
+        const cuitFormateado = digits.slice(0, 2) + '-' + digits.slice(2, 10) + '-' + digits.slice(10);
+        await invitarDirecto(sociedadId, { cuitInvitado: cuitFormateado });
+        return;
+    }
+
+    let local = digits;
+    if (local.startsWith('549')) local = local.slice(3);
+    else if (local.startsWith('54')) local = local.slice(2);
+    if (local.startsWith('0')) local = local.replace(/^0+/, '');
+    if (local.length >= 4 && local.charAt(2) === '1' && local.charAt(3) === '5') {
+        local = local.slice(0, 2) + local.slice(4);
+    }
+    if (!local || local.length < 8) { toast('Escribí un CUIT (11 dígitos) o un WhatsApp válido', false); return; }
+    await invitarDirecto(sociedadId, { telefonoInvitado: '549' + local });
 }
 
-async function invitarDirecto(sociedadId, codigoInvitado) {
+async function invitarDirecto(sociedadId, datosInvitado) {
     try {
         const res = await fetch(`${WORKER_SOCIEDADES}/invitar`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sociedadId, codigoInvitado })
+            body: JSON.stringify({ sociedadId, ...datosInvitado })
         });
         const data = await res.json();
         if (!data.ok) throw new Error(data.error || 'Error');
