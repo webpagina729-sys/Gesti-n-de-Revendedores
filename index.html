@@ -858,7 +858,13 @@
         .cliente-mes-gift-val { font-size:18px;font-weight:800;color:#f59e0b; }
 
         /* ── NIVEL REVENDEDOR (topbar) ── */
-        .level-block { display:flex; align-items:center; gap:10px; padding:8px 14px; background:rgba(10,71,222,.08); border:1px solid rgba(57,104,246,.25); border-radius:12px; min-width:0; max-width:480px; width:100%; }
+        /* 🔧 FIX: antes "align-items:center" centraba el ícono circular contra
+           TODO el alto del cuadro (que incluye la barra de nivel y las
+           estrellas debajo), así que el ícono quedaba más abajo que el
+           nombre y no coincidían en la misma línea. Con "flex-start" el
+           ícono queda fijo arriba, a la altura del nombre, sin importar
+           cuánto contenido haya debajo. */
+        .level-block { display:flex; align-items:flex-start; gap:10px; padding:8px 14px; background:rgba(10,71,222,.08); border:1px solid rgba(57,104,246,.25); border-radius:12px; min-width:0; max-width:480px; width:100%; }
         .level-avatar { width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,#0a47de,#3968f6); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:14px; flex:none; box-shadow:0 2px 8px rgba(10,71,222,.4); }
         .level-info { display:flex; flex-direction:column; gap:5px; min-width:0; flex:1; }
         .level-name { font-size:12px; font-weight:700; color:var(--text); white-space:normal; overflow:visible; text-overflow:clip; max-width:none; line-height:1.25; }
