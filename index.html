@@ -8146,10 +8146,24 @@ function descontarRegaloPendienteSiAplica(pedido) {
         const nombre = fullName(env) || pedido._clienteName || '';
         const tel = env.telefono || '';
         const clienteKey = _clienteKeyOf(nombre, tel);
-        if (!clienteKey || clienteKey === '|') return 0;
 
         const log = getGiftsLog();
-        const giftPendiente = log.find(g => g.clienteKey === clienteKey && g.estado === 'pendiente');
+        // 🆕 Si tienda.html aplicó el descuento "cliente del mes" en este
+        // pedido puntual, viaja como regaloMesId (ver pedido._raw) — se
+        // busca ESE regalo exacto (reservado para este pedido), en vez de
+        // "cualquier pendiente de este cliente", para que el descuento de
+        // ganancia quede atado al pedido que realmente lo usó aunque el
+        // cliente tenga más de un pedido en danza.
+        const regaloMesId = pedido._raw && pedido._raw.regaloMesId;
+        let giftPendiente = regaloMesId
+            ? log.find(g => g.id === regaloMesId && (g.estado === 'pendiente' || g.estado === 'reservado'))
+            : null;
+        // Compatibilidad hacia atrás: pedidos sin regaloMesId (de antes de
+        // este cambio) siguen usando el criterio anterior.
+        if (!giftPendiente && !regaloMesId) {
+            if (!clienteKey || clienteKey === '|') return 0;
+            giftPendiente = log.find(g => g.clienteKey === clienteKey && g.estado === 'pendiente');
+        }
         if (!giftPendiente) return 0;
 
         giftPendiente.estado = 'entregado';
