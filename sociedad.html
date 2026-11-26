@@ -31,7 +31,8 @@ body{
 }
 .topbar .back{
     background:var(--surface); border:1px solid var(--border2); color:var(--text);
-    border-radius:10px; width:36px; height:36px; display:flex; align-items:center; justify-content:center;
+    border-radius:10px; display:inline-flex; align-items:center; gap:5px; padding:8px 12px;
+    font-size:12px; font-weight:700; font-family:var(--font);
     cursor:pointer; flex-shrink:0;
 }
 .topbar h1{font-size:16px; font-weight:800}
@@ -224,13 +225,14 @@ select:focus,input:focus{outline:none; border-color:var(--blue)}
 </div>
 
 <div class="topbar">
-    <button class="back" onclick="window.location.href='index (1).html'" aria-label="Volver">
-        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-    </button>
-    <div>
+    <div style="flex:1">
         <h1>Sociedades</h1>
         <div class="sub" id="topbarSub">Juntate con otro revendedor de tu ciudad</div>
     </div>
+    <button class="back" onclick="window.location.href='index (1).html'" aria-label="Mi panel">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        Mi panel
+    </button>
 </div>
 
 <div class="wrap" id="appWrap" style="display:none">
