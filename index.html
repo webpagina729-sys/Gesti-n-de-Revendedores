@@ -5545,9 +5545,16 @@ function aprobarPedido(id, btn) {
     }
     toast('✅ Agregado al Pedido', true);
 
-    // Quitar de la vista de pedidos aprobados (solo en UI local)
+    // 🔧 FIX: antes acá se borraba el pedido del array "pedidos" en memoria
+    // para que dejara de verse en "Pedidos Aprobados". Pero el filtro que
+    // ya oculta los confirmados de esa vista (confirmadosIds, más abajo en
+    // renderAll()/contarPedidosPorEstado()) no necesita ese borrado — y
+    // borrarlo rompía "Factura cliente"/"Factura revendedor" (y por lo
+    // tanto el envío por WhatsApp) desde "Pedidos Confirmados", porque esas
+    // funciones buscan el pedido completo con pedidos.find(...) y ya no lo
+    // encontraban. Ahora el pedido se mantiene en memoria; renderAll() lo
+    // sigue ocultando de "Pedidos Aprobados" exactamente igual que antes.
     setTimeout(() => {
-        pedidos = pedidos.filter(x => x.id !== id);
         renderAll();
     }, 900);
 }
